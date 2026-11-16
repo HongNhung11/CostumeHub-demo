@@ -46,6 +46,9 @@
           <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'nhanvien')) { %>
             <li class="nav-item"><a class="nav-link <%= path.startsWith('/products/manage') ? 'active' : '' %>" href="/products/manage"><i class="bi bi-gear"></i> Quản lý</a></li>
           <% } %>
+          <% if (currentUser && currentUser.role === 'admin') { %>
+            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people"></i> Tài khoản</a></li>
+          <% } %>
         </ul>
         <div class="d-flex gap-2 align-items-center">
           <a href="/cart" class="btn btn-light btn-sm position-relative <%= path.startsWith('/cart') ? 'active' : '' %>" title="Giỏ thuê">

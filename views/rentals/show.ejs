@@ -14,6 +14,9 @@
         </div>
         <span class="badge bg-<%= stCls %> fs-6"><%= st %></span>
       </div>
+      <% if (rental.alert) { %>
+        <div class="alert alert-<%= rental.alert.level %> py-2 small"><i class="bi <%= rental.alert.overdue ? 'bi-exclamation-triangle-fill' : 'bi-bell' %>"></i> <strong><%= rental.alert.text %></strong></div>
+      <% } %>
 
       <div class="row g-3 mb-3">
         <div class="col-md-7">

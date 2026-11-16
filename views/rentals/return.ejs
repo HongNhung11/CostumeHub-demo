@@ -1,15 +1,19 @@
 <%
   const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
+  const vi = s => s.split('-').reverse().join('/');
 %>
 <div class="row justify-content-center">
   <div class="col-lg-7">
     <h3 class="font-serif mb-3"><i class="bi bi-box-arrow-in-down" style="color:var(--gold)"></i> Nhận đồ trả — Đơn #<%= rental.RentalID %></h3>
 
+    <% if (alert) { %>
+      <div class="alert alert-<%= alert.level %> py-2 small"><i class="bi bi-exclamation-triangle-fill"></i> <strong><%= alert.text %></strong></div>
+    <% } %>
     <div class="card p-3 mb-3">
       <% const latePerDay = rental.items.reduce((s, it) => s + Number(it.LateFeePerDay) * it.Quantity, 0); %>
       <div class="row small">
         <div class="col-6"><span class="text-muted">Khách:</span> <strong><%= rental.CustomerName %></strong></div>
-        <div class="col-6"><span class="text-muted">Hạn trả:</span> <strong><%= rental.EndDate %></strong></div>
+        <div class="col-6"><span class="text-muted">Nhận → hạn trả:</span> <strong><%= vi(rental.StartDate) %> → <%= vi(rental.EndDate) %></strong></div>
         <div class="col-6 mt-1"><span class="text-muted">Tiền cọc:</span> <strong><%= vnd(rental.Deposit) %></strong></div>
         <div class="col-6 mt-1"><span class="text-muted">Phí trễ/ngày (cả đơn):</span> <strong><%= vnd(latePerDay) %></strong></div>
       </div>
@@ -29,12 +33,13 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Ngày trả thực tế</label>
-            <input type="date" name="ReturnDate" class="form-control" value="<%= today %>" required>
-            <small class="text-muted">Trễ hơn hạn trả sẽ tự tính phí phạt.</small>
+            <input type="date" name="ReturnDate" class="form-control" value="<%= today < rental.StartDate ? rental.StartDate : today %>"
+                   min="<%= rental.StartDate %>" max="<%= today %>" required>
+            <small class="text-muted">Từ ngày nhận (<%= vi(rental.StartDate) %>) đến hôm nay. Trễ hơn hạn trả sẽ tự tính phí phạt.</small>
           </div>
           <div class="col-md-6">
             <label class="form-label">Phí hư hỏng / giặt (nếu có)</label>
-            <input type="number" name="DamageFee" class="form-control" value="0" min="0" step="1000">
+            <input type="number" name="DamageFee" class="form-control" value="0" min="0" step="1000" required>
             <small class="text-muted">Nhập 0 nếu đồ nguyên vẹn.</small>
           </div>
         </div>

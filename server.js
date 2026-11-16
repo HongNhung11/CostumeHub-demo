@@ -33,6 +33,22 @@ app.use(session({
 }));
 app.use(flash());
 
+// Đồng bộ tài khoản đang đăng nhập với CSDL: bị khóa / bị xóa -> đăng xuất ngay; đổi vai trò -> có hiệu lực ngay
+app.use(async (req, res, next) => {
+  const su = req.session.user;
+  if (!su) return next();
+  const { User } = require('./models');
+  const u = await User.findByPk(su.id, { attributes: ['id', 'username', 'fullName', 'role', 'isActive'] });
+  if (!u || u.isActive === false) {
+    delete req.session.user;
+    req.session.cart = [];
+    req.flash('error', 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cửa hàng.');
+    return res.redirect('/login');
+  }
+  req.session.user = { id: u.id, username: u.username, fullName: u.fullName, role: u.role };
+  next();
+});
+
 // Biến dùng chung cho mọi view
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null;
@@ -104,12 +120,30 @@ async function migrateRentalsToItems() {
   console.log(`🔁 Đã chuyển ${rentals.length} đơn thuê cũ sang dạng nhiều món / lịch theo ngày.`);
 }
 
+// Bổ sung cột mới cho bảng đã có (sync() không tự thêm cột) + chuyển trạng thái SP cũ
+async function migrateSchema() {
+  const { User, Product } = require('./models');
+  const { LEGACY_STATUS } = require('./utils/constants');
+  const qi = sequelize.getQueryInterface();
+  const users = await qi.describeTable('Users');
+  if (!users.isActive) {
+    await qi.addColumn('Users', 'isActive', { type: User.rawAttributes.isActive.type, defaultValue: true });
+    await User.update({ isActive: true }, { where: {}, hooks: false });
+  }
+  // Trạng thái SP cũ: "Đang cho thuê" -> "Còn trống", "Chờ xử lý" -> "Ngừng cho thuê"
+  for (const [oldS, newS] of Object.entries(LEGACY_STATUS)) {
+    const [n] = await Product.update({ Status: newS }, { where: { Status: oldS }, silent: true });
+    if (n) console.log(`🔁 Đổi ${n} sản phẩm từ "${oldS}" sang "${newS}".`);
+  }
+}
+
 // Khởi động
 (async () => {
   try {
     await sequelize.authenticate();
     console.log(`✅ Kết nối CSDL (${sequelize.getDialect()}) thành công.`);
     await sequelize.sync();            // tạo bảng nếu chưa có
+    await migrateSchema();             // thêm cột mới, chuyển trạng thái SP cũ
     await migrateRentalsToItems();     // chuyển dữ liệu đơn thuê cũ (nếu có)
     await seed();                      // nạp dữ liệu mẫu nếu rỗng
     app.listen(PORT, () => {

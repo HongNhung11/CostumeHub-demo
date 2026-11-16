@@ -110,7 +110,7 @@
             <td data-col="Price"><%= Number(p.Price).toLocaleString('vi-VN') %> đ</td>
             <td data-col="DepositValue"><%= Number(p.DepositValue).toLocaleString('vi-VN') %> đ</td>
             <td data-col="Status">
-              <% const cls = p.Status==='Còn trống'?'success':(p.Status==='Đang cho thuê'?'warning text-dark':(p.Status==='Chờ xử lý'?'secondary':'danger')); %>
+              <% const cls = p.Status==='Còn trống'?'success':'secondary'; %>
               <span class="badge bg-<%= cls %>"><%= p.Status %></span>
             </td>
             <td data-col="Description" class="text-muted small"><%= (p.Description||'').slice(0,40) %></td>

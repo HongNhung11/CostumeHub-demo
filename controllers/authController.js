@@ -1,4 +1,5 @@
 const { User } = require('../models');
+const { cleanName, validateAccount } = require('../utils/account');
 
 // Lấy đích quay lại (ưu tiên query ?next=, rồi session.returnTo)
 function getReturnTo(req) {
@@ -18,14 +19,10 @@ exports.register = async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const password = String(req.body.password || '');
-    const fullName = String(req.body.fullName || '').trim().replace(/\s+/g, ' ');
+    const fullName = cleanName(req.body.fullName);
 
     // Kiểm tra ở máy chủ (không chỉ dựa vào trình duyệt)
-    let err = null;
-    if (fullName.length < 2 || fullName.length > 100) err = 'Họ tên phải từ 2 đến 100 ký tự.';
-    else if (!/^[a-zA-Z0-9_.]{3,30}$/.test(username)) err = 'Tên đăng nhập 3–30 ký tự, chỉ gồm chữ không dấu, số, dấu chấm hoặc gạch dưới.';
-    else if (password.length < 6 || password.length > 100) err = 'Mật khẩu phải có ít nhất 6 ký tự.';
-    else if (password.toLowerCase() === username.toLowerCase()) err = 'Mật khẩu không được trùng tên đăng nhập.';
+    const err = validateAccount({ fullName, username, password });
     if (err) { req.flash('error', err); return res.redirect(back); }
 
     const exists = await User.findOne({ where: { username } });
@@ -48,6 +45,10 @@ exports.login = async (req, res) => {
   const user = await User.findOne({ where: { username } });
   if (!user || !(await user.checkPassword(password))) {
     req.flash('error', 'Sai tên đăng nhập hoặc mật khẩu.');
+    return res.redirect('/login');
+  }
+  if (user.isActive === false) {
+    req.flash('error', 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cửa hàng.');
     return res.redirect('/login');
   }
   req.session.user = { id: user.id, username: user.username, fullName: user.fullName, role: user.role };

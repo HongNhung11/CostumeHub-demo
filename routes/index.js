@@ -20,6 +20,9 @@ router.get('/logout', auth.logout);
 // Module Trang phục
 router.use('/products', productRoutes);
 
+// Khu vực quản trị (chỉ admin): quản lý tài khoản
+router.use('/admin', require('./admin'));
+
 // Giỏ thuê (nhiều món / 1 đơn)
 router.use('/cart', require('./cart'));
 

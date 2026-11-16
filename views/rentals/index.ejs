@@ -1,12 +1,51 @@
 <%
   const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
   const stCls = s => s==='Hoàn tất'?'success':(s==='Đã hủy'?'danger':(s==='Đang thuê'?'warning text-dark':(s==='Đã cọc'?'info text-dark':'secondary')));
+  const vi = s => s ? s.split('-').reverse().join('/') : '';
+  const link = (o) => {
+    const p = new URLSearchParams();
+    const st = o.status !== undefined ? o.status : status;
+    const qq = o.q !== undefined ? o.q : q;
+    if (st) p.set('status', st);
+    if (qq) p.set('q', qq);
+    if (o.page && o.page > 1) p.set('page', o.page);
+    const s = p.toString();
+    return '/rentals' + (s ? '?' + s : '');
+  };
+  const tabs = [['', 'Tất cả', counts.all], ...STATUS_TABS.map(s => [s, s, counts[s]]), ['quahan', 'Quá hạn', counts.overdue]];
 %>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h3 class="font-serif mb-0"><i class="bi bi-receipt" style="color:var(--gold)"></i> <%= isStaff ? 'Quản lý đơn thuê' : 'Đơn thuê của tôi' %>
-    <span class="badge badge-soft"><%= rentals.length %></span>
+    <span class="badge badge-soft"><%= counts.all %></span>
   </h3>
   <a href="/products" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Thuê thêm</a>
+</div>
+
+<% if (counts.overdue) { %>
+  <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+    <span><i class="bi bi-exclamation-triangle-fill"></i>
+      <strong><%= counts.overdue %> đơn quá hạn</strong> — <%= isStaff ? 'khách chưa trả đồ hoặc chưa đến nhận đồ đúng hẹn.' : 'vui lòng trả đồ / đến nhận đồ sớm để tránh phát sinh phí.' %></span>
+    <% if (status !== 'quahan') { %><a href="<%= link({ status: 'quahan', page: 1 }) %>" class="btn btn-sm btn-light">Xem các đơn quá hạn</a><% } %>
+  </div>
+<% } %>
+
+<!-- Tìm kiếm + lọc trạng thái -->
+<div class="card p-3 mb-3">
+  <form method="GET" action="/rentals" class="d-flex gap-2 mb-2 flex-wrap">
+    <% if (status) { %><input type="hidden" name="status" value="<%= status %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" class="form-control" style="max-width:420px"
+           placeholder="<%= isStaff ? 'Tìm theo mã đơn, tên khách, SĐT, tên trang phục...' : 'Tìm theo mã đơn, tên trang phục...' %>">
+    <button class="btn btn-primary"><i class="bi bi-search"></i> Tìm</button>
+    <% if (q || status) { %><a href="/rentals" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i> Bỏ lọc</a><% } %>
+  </form>
+  <div class="d-flex flex-wrap gap-1">
+    <% tabs.forEach(([val, label, n]) => { %>
+      <a href="<%= link({ status: val, page: 1 }) %>"
+         class="btn btn-sm <%= status === val ? (val === 'quahan' ? 'btn-danger' : 'btn-primary') : 'btn-light' %>">
+        <%= label %> <span class="badge <%= status === val ? 'bg-light text-dark' : 'badge-soft' %>"><%= n %></span>
+      </a>
+    <% }) %>
+  </div>
 </div>
 
 <div class="card table-responsive">
@@ -19,10 +58,10 @@
     </thead>
     <tbody>
       <% if (rentals.length===0) { %>
-        <tr><td colspan="8" class="text-center text-muted py-4">Chưa có đơn thuê nào.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4"><%= (q || status) ? 'Không có đơn nào phù hợp.' : 'Chưa có đơn thuê nào.' %></td></tr>
       <% } %>
       <% rentals.forEach(r => { %>
-        <tr>
+        <tr class="<%= r.alert && r.alert.overdue ? (r.alert.level === 'danger' ? 'table-danger' : 'table-warning') : '' %>">
           <td><a href="/rentals/<%= r.RentalID %>">#<%= r.RentalID %></a></td>
           <td>
             <% r.items.forEach(it => { %>
@@ -31,13 +70,20 @@
             <% }) %>
           </td>
           <td><%= r.CustomerName %><div class="small text-muted"><%= r.CustomerPhone %></div></td>
-          <td class="small"><%= r.StartDate %><br><%= r.EndDate %> (<%= r.RentDays %> ngày)</td>
+          <td class="small text-nowrap"><%= vi(r.StartDate) %><br><%= vi(r.EndDate) %> (<%= r.RentDays %> ngày)</td>
           <td class="text-end"><%= vnd(r.RentFee) %></td>
           <td class="text-end"><%= vnd(r.Deposit) %></td>
-          <td><span class="badge bg-<%= stCls(r.Status) %>"><%= r.Status %></span></td>
+          <td>
+            <span class="badge bg-<%= stCls(r.Status) %>"><%= r.Status %></span>
+            <% if (r.alert) { %>
+              <div class="small mt-1 fw-semibold text-<%= r.alert.level === 'info' ? 'primary' : r.alert.level %>">
+                <i class="bi <%= r.alert.overdue ? 'bi-exclamation-triangle-fill' : 'bi-bell' %>"></i> <%= r.alert.text %>
+              </div>
+            <% } %>
+          </td>
           <td>
             <a href="/rentals/<%= r.RentalID %>" class="btn btn-sm btn-outline-info" title="Xem"><i class="bi bi-eye"></i></a>
-            <% if (isStaff && r.Status==='Đã cọc') { %>
+            <% if (isStaff && r.Status==='Đã cọc' && r.StartDate <= today) { %>
               <form method="POST" action="/rentals/<%= r.RentalID %>/handover" class="d-inline">
                 <button class="btn btn-sm btn-outline-primary" title="Giao đồ"><i class="bi bi-box-arrow-up"></i> Giao</button>
               </form>
@@ -50,6 +96,20 @@
       <% }) %>
     </tbody>
   </table>
+</div>
+
+<!-- Phân trang -->
+<div class="d-flex justify-content-between align-items-center flex-wrap mt-3 gap-2">
+  <small class="text-muted"><%= total %> đơn<%= (q || status) ? ' phù hợp' : '' %> · Trang <%= page %>/<%= totalPages %></small>
+  <% if (totalPages > 1) { %>
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="<%= link({ page: page-1 }) %>">«</a></li>
+    <% for (let i=1;i<=totalPages;i++){ %>
+      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="<%= link({ page: i }) %>"><%= i %></a></li>
+    <% } %>
+    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="<%= link({ page: page+1 }) %>">»</a></li>
+  </ul>
+  <% } %>
 </div>
 
 <div class="alert alert-light border mt-3 small">

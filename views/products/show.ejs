@@ -20,7 +20,7 @@
   <div class="col-md-6">
     <span class="chip mb-2"><%= product.ProductType %></span>
     <h1 class="font-serif mb-2" style="font-size:2rem"><%= product.ProductName %></h1>
-    <% const cls = product.Status==='Còn trống'?'success':(product.Status==='Đang cho thuê'?'warning text-dark':(product.Status==='Chờ xử lý'?'secondary':'danger')); %>
+    <% const cls = product.Status==='Còn trống'?'success':'secondary'; %>
     <span class="badge bg-<%= cls %> mb-3"><i class="bi bi-circle-fill" style="font-size:.5rem"></i> <%= product.Status %></span>
 
     <div class="card p-3 mb-3" style="background:var(--cream-2);border:none">

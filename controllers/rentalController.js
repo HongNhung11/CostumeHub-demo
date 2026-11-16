@@ -1,7 +1,8 @@
 const fs = require('fs');
 const { sequelize, Rental, RentalItem, Product } = require('../models');
 const { normalizePhone, isValidPhone, isValidCCCD, splitList } = require('../utils/text');
-const { todayStr, daysBetween, viDate } = require('../utils/dates');
+const { todayStr, daysBetween, viDate, isDateStr } = require('../utils/dates');
+const { normalize } = require('../utils/text');
 const { availableMap, checkDates } = require('../utils/availability');
 const { loadCart, needByProduct } = require('./cartController');
 
@@ -116,6 +117,7 @@ exports.show = async (req, res) => {
   const rental = await Rental.findByPk(req.params.id, withItems);
   if (!rental) return res.status(404).render('404', { title: 'Không tìm thấy đơn' });
   if (!canAccess(req, rental)) return denied(req, res);
+  rental.alert = alertOf(rental);
   res.render('rentals/show', { title: `Đơn thuê #${rental.RentalID}`, rental });
 };
 
@@ -156,13 +158,57 @@ exports.cancel = async (req, res) => {
   res.redirect(`/rentals/${rental.RentalID}`);
 };
 
-// ===== Danh sách đơn thuê =====
+// Cảnh báo theo ngày: quá hạn trả, quá ngày nhận mà chưa lấy đồ, hôm nay giao / hôm nay trả
+function alertOf(r, today = todayStr()) {
+  if (r.Status === 'Đang thuê' && r.EndDate < today) return { level: 'danger', text: `Quá hạn trả ${daysBetween(r.EndDate, today)} ngày`, overdue: true };
+  if (r.Status === 'Đã cọc' && r.StartDate < today) return { level: 'warning', text: `Quá ngày nhận ${daysBetween(r.StartDate, today)} ngày, chưa lấy đồ`, overdue: true };
+  if (r.Status === 'Đang thuê' && r.EndDate === today) return { level: 'info', text: 'Hạn trả hôm nay' };
+  if (r.Status === 'Đã cọc' && r.StartDate === today) return { level: 'info', text: 'Nhận đồ hôm nay' };
+  return null;
+}
+exports.alertOf = alertOf;
+
+const STATUS_TABS = ['Đã cọc', 'Đang thuê', 'Hoàn tất', 'Đã hủy'];
+const PAGE_SIZE = 15;
+
+// ===== Danh sách đơn thuê: tìm kiếm + lọc trạng thái / quá hạn + phân trang =====
 exports.index = async (req, res) => {
   const u = req.session.user;
-  const isStaff = u.role === 'admin' || u.role === 'nhanvien';
-  const where = isStaff ? {} : { UserID: u.id };
-  const rentals = await Rental.findAll({ where, ...withItems, order: [['RentalID', 'DESC']] });
-  res.render('rentals/index', { title: 'Đơn thuê', rentals, isStaff });
+  const staff = isStaff(u);
+  const q = String(req.query.q || '').trim().slice(0, 100);
+  const status = String(req.query.status || '');
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const today = todayStr();
+
+  const where = staff ? {} : { UserID: u.id };
+  let rentals = await Rental.findAll({ where, ...withItems, order: [['RentalID', 'DESC']] });
+  rentals.forEach(r => { r.alert = alertOf(r, today); });
+
+  // Đếm cho các tab lọc (trước khi lọc)
+  const counts = { all: rentals.length, overdue: rentals.filter(r => r.alert && r.alert.overdue).length };
+  for (const s of STATUS_TABS) counts[s] = rentals.filter(r => r.Status === s).length;
+
+  if (status === 'quahan') rentals = rentals.filter(r => r.alert && r.alert.overdue);
+  else if (STATUS_TABS.includes(status)) rentals = rentals.filter(r => r.Status === status);
+
+  // Tìm theo mã đơn, tên khách, SĐT, tên trang phục (không phân biệt dấu)
+  if (q) {
+    const nq = normalize(q.replace(/^#/, ''));
+    const digits = q.replace(/\D/g, '');
+    rentals = rentals.filter(r =>
+      String(r.RentalID) === nq ||
+      normalize(r.CustomerName).includes(nq) ||
+      (digits.length >= 3 && String(r.CustomerPhone || '').includes(digits)) ||
+      r.items.some(it => normalize(it.ProductName).includes(nq)));
+  }
+
+  const total = rentals.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageRows = rentals.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  res.render('rentals/index', {
+    title: 'Đơn thuê', rentals: pageRows, isStaff: staff,
+    q, status, page, totalPages, total, counts, STATUS_TABS, today,
+  });
 };
 
 // ===== Nhân viên: Giao đồ =====
@@ -172,6 +218,11 @@ exports.handover = async (req, res) => {
   // Phải thanh toán cọc xong mới được giao đồ
   if (rental.Status !== 'Đã cọc') {
     req.flash('error', 'Khách chưa thanh toán cọc — không thể giao đồ.');
+    return res.redirect('/rentals');
+  }
+  // Giao sớm hơn ngày nhận sẽ chiếm lịch của những ngày chưa được đặt
+  if (rental.StartDate > todayStr()) {
+    req.flash('error', `Đơn #${rental.RentalID} chưa đến ngày nhận (${viDate(rental.StartDate)}), chưa thể giao đồ.`);
     return res.redirect('/rentals');
   }
   rental.Status = 'Đang thuê';
@@ -184,7 +235,8 @@ exports.handover = async (req, res) => {
 exports.returnForm = async (req, res) => {
   const rental = await Rental.findByPk(req.params.id, withItems);
   if (!rental) return res.status(404).render('404', { title: 'Không tìm thấy đơn' });
-  res.render('rentals/return', { title: `Nhận trả đơn #${rental.RentalID}`, rental, today: todayStr() });
+  if (rental.Status !== 'Đang thuê') { req.flash('error', 'Đơn chưa ở trạng thái đang thuê.'); return res.redirect('/rentals'); }
+  res.render('rentals/return', { title: `Nhận trả đơn #${rental.RentalID}`, rental, today: todayStr(), alert: alertOf(rental) });
 };
 
 // ===== Nhân viên: Xử lý nhận đồ trả (tính phí trễ + hư hỏng, hoàn cọc) =====
@@ -193,8 +245,15 @@ exports.receiveReturn = async (req, res) => {
   if (!rental) { req.flash('error', 'Không tìm thấy đơn.'); return res.redirect('/rentals'); }
   if (rental.Status !== 'Đang thuê') { req.flash('error', 'Đơn chưa ở trạng thái đang thuê.'); return res.redirect('/rentals'); }
 
-  const returnDate = /^\d{4}-\d{2}-\d{2}$/.test(req.body.ReturnDate || '') ? req.body.ReturnDate : todayStr();
-  const damageFee = Math.max(0, num(req.body.DamageFee));
+  // Ngày trả thực tế: phải là ngày hợp lệ, KHÔNG trước ngày nhận và KHÔNG sau hôm nay
+  const returnDate = String(req.body.ReturnDate || '');
+  const backForm = `/rentals/${rental.RentalID}/return`;
+  if (!isDateStr(returnDate)) { req.flash('error', 'Vui lòng chọn ngày trả thực tế.'); return res.redirect(backForm); }
+  if (returnDate < rental.StartDate) { req.flash('error', `Ngày trả thực tế không được trước ngày nhận (${viDate(rental.StartDate)}).`); return res.redirect(backForm); }
+  if (returnDate > todayStr()) { req.flash('error', 'Ngày trả thực tế không được ở tương lai.'); return res.redirect(backForm); }
+  const dmg = String(req.body.DamageFee ?? '0').trim() || '0';
+  if (!/^\d+$/.test(dmg)) { req.flash('error', 'Phí hư hỏng phải là số nguyên ≥ 0.'); return res.redirect(backForm); }
+  const damageFee = Number(dmg);
 
   // Phí trễ = số ngày trễ × tổng (phí trễ/ngày × SL) của các món trong đơn
   const lateDays = Math.max(0, daysBetween(rental.EndDate, returnDate));

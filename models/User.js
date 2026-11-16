@@ -12,14 +12,18 @@ const User = sequelize.define('User', {
   idCardNumber: { type: DataTypes.STRING },
   idCardImage: { type: DataTypes.STRING },
   isVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
+  isActive: { type: DataTypes.BOOLEAN, defaultValue: true },   // false = bị admin khóa
 }, {
   tableName: 'Users',
   timestamps: true,
 });
 
-// Băm mật khẩu trước khi lưu
+// Băm mật khẩu trước khi lưu (tạo mới, hoặc khi admin đặt lại mật khẩu)
 User.beforeCreate(async (user) => {
   user.password = await bcrypt.hash(user.password, 10);
+});
+User.beforeUpdate(async (user) => {
+  if (user.changed('password')) user.password = await bcrypt.hash(user.password, 10);
 });
 
 User.prototype.checkPassword = function (plain) {

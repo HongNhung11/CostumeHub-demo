@@ -1,0 +1,128 @@
+<%
+  const roleCls = { admin: 'danger', nhanvien: 'primary', khach: 'success' };
+  const link = (o) => {
+    const p = new URLSearchParams();
+    const vals = { q, role, state, ...o };
+    for (const k of ['q', 'role', 'state']) if (vals[k]) p.set(k, vals[k]);
+    if (o.page && o.page > 1) p.set('page', o.page);
+    const s = p.toString();
+    return '/admin/users' + (s ? '?' + s : '');
+  };
+%>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h3 class="font-serif mb-0"><i class="bi bi-people-fill" style="color:var(--gold)"></i> Quản lý tài khoản
+    <span class="badge badge-soft"><%= counts.all %></span>
+  </h3>
+  <a href="#tao-tai-khoan" class="btn btn-success btn-sm"><i class="bi bi-person-plus"></i> Tạo tài khoản</a>
+</div>
+
+<!-- Tìm kiếm + lọc -->
+<div class="card p-3 mb-3">
+  <form method="GET" action="/admin/users" class="d-flex gap-2 flex-wrap mb-2">
+    <% if (role) { %><input type="hidden" name="role" value="<%= role %>"><% } %>
+    <% if (state) { %><input type="hidden" name="state" value="<%= state %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" class="form-control" style="max-width:360px" placeholder="Tìm theo tên đăng nhập, họ tên...">
+    <button class="btn btn-primary"><i class="bi bi-search"></i> Tìm</button>
+    <% if (q || role || state) { %><a href="/admin/users" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i> Bỏ lọc</a><% } %>
+  </form>
+  <div class="d-flex flex-wrap gap-1">
+    <a href="<%= link({ role: '', state: '', page: 1 }) %>" class="btn btn-sm <%= !role && !state ? 'btn-primary' : 'btn-light' %>">Tất cả <span class="badge badge-soft"><%= counts.all %></span></a>
+    <% Object.entries(ROLES).forEach(([k, label]) => { %>
+      <a href="<%= link({ role: k, state: '', page: 1 }) %>" class="btn btn-sm <%= role === k ? 'btn-primary' : 'btn-light' %>"><%= label %> <span class="badge badge-soft"><%= counts[k] %></span></a>
+    <% }) %>
+    <a href="<%= link({ role: '', state: 'locked', page: 1 }) %>" class="btn btn-sm <%= state === 'locked' ? 'btn-danger' : 'btn-light' %>"><i class="bi bi-lock"></i> Đang khóa <span class="badge badge-soft"><%= counts.locked %></span></a>
+  </div>
+</div>
+
+<div class="card table-responsive mb-4">
+  <table class="table table-hover align-middle mb-0">
+    <thead>
+      <tr><th>ID</th><th>Tài khoản</th><th style="width:170px">Vai trò</th><th>Trạng thái</th><th class="text-center">Đơn thuê</th><th>Ngày tạo</th><th style="width:300px">Thao tác</th></tr>
+    </thead>
+    <tbody>
+      <% if (!users.length) { %><tr><td colspan="7" class="text-center text-muted py-4">Không có tài khoản phù hợp.</td></tr><% } %>
+      <% users.forEach(u => { const isMe = u.id === me.id; const locked = u.isActive === false; %>
+        <tr class="<%= locked ? 'table-secondary' : '' %>">
+          <td>#<%= u.id %></td>
+          <td>
+            <strong><%= u.username %></strong><% if (isMe) { %> <span class="badge bg-dark">Bạn</span><% } %>
+            <div class="small text-muted"><%= u.fullName || '—' %></div>
+          </td>
+          <td>
+            <% if (isMe) { %>
+              <span class="badge bg-<%= roleCls[u.role] || 'secondary' %>"><%= ROLES[u.role] || u.role %></span>
+            <% } else { %>
+              <form method="POST" action="/admin/users/<%= u.id %>/role" class="d-flex gap-1">
+                <select name="role" class="form-select form-select-sm" onchange="if(confirm('Đổi vai trò của <%= u.username %>?')) this.form.submit(); else this.value='<%= u.role %>';">
+                  <% Object.entries(ROLES).forEach(([k, label]) => { %><option value="<%= k %>" <%= u.role === k ? 'selected' : '' %>><%= label %></option><% }) %>
+                </select>
+              </form>
+            <% } %>
+          </td>
+          <td><% if (locked) { %><span class="badge bg-secondary"><i class="bi bi-lock-fill"></i> Đã khóa</span><% } else { %><span class="badge bg-success-subtle text-success-emphasis">Hoạt động</span><% } %></td>
+          <td class="text-center"><%= rentalCounts[u.id] || 0 %></td>
+          <td class="small text-muted"><%= new Date(u.createdAt).toLocaleDateString('vi-VN') %></td>
+          <td>
+            <% if (!isMe) { %>
+              <div class="d-flex gap-1 flex-wrap">
+                <form method="POST" action="/admin/users/<%= u.id %>/lock"
+                      onsubmit="return confirm('<%= locked ? 'Mở khóa' : 'Khóa' %> tài khoản <%= u.username %>?')">
+                  <button class="btn btn-sm <%= locked ? 'btn-outline-success' : 'btn-outline-danger' %>">
+                    <i class="bi <%= locked ? 'bi-unlock' : 'bi-lock' %>"></i> <%= locked ? 'Mở khóa' : 'Khóa' %>
+                  </button>
+                </form>
+                <form method="POST" action="/admin/users/<%= u.id %>/password" class="d-flex gap-1"
+                      onsubmit="return confirm('Đặt lại mật khẩu cho <%= u.username %>?')">
+                  <input type="text" name="password" class="form-control form-control-sm" placeholder="Mật khẩu mới" minlength="6" maxlength="100" required style="width:130px" autocomplete="off">
+                  <button class="btn btn-sm btn-outline-secondary" title="Đặt lại mật khẩu"><i class="bi bi-key"></i></button>
+                </form>
+              </div>
+            <% } else { %>
+              <span class="small text-muted">Không thể tự khóa / đổi vai trò</span>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<% if (totalPages > 1) { %>
+<nav class="d-flex justify-content-end mb-4">
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="<%= link({ page: page-1 }) %>">«</a></li>
+    <% for (let i=1;i<=totalPages;i++){ %><li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="<%= link({ page: i }) %>"><%= i %></a></li><% } %>
+    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="<%= link({ page: page+1 }) %>">»</a></li>
+  </ul>
+</nav>
+<% } %>
+
+<!-- Tạo tài khoản -->
+<div class="card p-3" id="tao-tai-khoan">
+  <h6 class="font-serif mb-3"><i class="bi bi-person-plus"></i> Tạo tài khoản mới</h6>
+  <form method="POST" action="/admin/users" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small text-muted">Họ tên</label>
+      <input name="fullName" class="form-control" required minlength="2" maxlength="100" value="<%= old.fullName || '' %>">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small text-muted">Tên đăng nhập</label>
+      <input name="username" class="form-control" required pattern="[a-zA-Z0-9_.]{3,30}" maxlength="30" value="<%= old.username || '' %>"
+             title="3–30 ký tự: chữ không dấu, số, dấu chấm hoặc gạch dưới" autocomplete="off">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small text-muted">Mật khẩu</label>
+      <input type="text" name="password" class="form-control" required minlength="6" maxlength="100" autocomplete="off">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small text-muted">Vai trò</label>
+      <select name="role" class="form-select">
+        <% Object.entries(ROLES).forEach(([k, label]) => { %><option value="<%= k %>" <%= (old.role || 'nhanvien') === k ? 'selected' : '' %>><%= label %></option><% }) %>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-success w-100"><i class="bi bi-check2"></i> Tạo</button>
+    </div>
+  </form>
+  <p class="small text-muted mt-2 mb-0">Khách tự đăng ký trên web sẽ là <strong>Khách</strong>. Tài khoản <strong>Nhân viên</strong> / <strong>Admin</strong> chỉ admin tạo được ở đây. Tài khoản bị khóa sẽ bị đăng xuất ngay và không đăng nhập được.</p>
+</div>

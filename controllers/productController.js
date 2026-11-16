@@ -1,16 +1,19 @@
 const { Op, fn, col } = require('sequelize');
 const fs = require('fs');
+const path = require('path');
 const XLSX = require('xlsx');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
 const { Product } = require('../models');
 const { searchProducts } = require('../utils/search');
 const { bookedOutRanges, peakFutureUsage, productsInRentals } = require('../utils/availability');
 const { viDate } = require('../utils/dates');
+const { PRODUCT_TYPES, PRODUCT_STATUSES, normalizeStatus } = require('../utils/constants');
+const { uploadDir } = require('../middlewares/upload');
 
 // Sắp xếp: sản phẩm tạo GẦN NHẤT lên đầu
 const NEWEST_FIRST = [['CreateDate', 'DESC'], ['ProductID', 'DESC']];
-const PRODUCT_TYPES = ['Áo dài', 'Váy tiệc', 'Phụ kiện', 'Khác'];
-const PRODUCT_STATUSES = ['Còn trống', 'Đang cho thuê', 'Chờ xử lý', 'Ngừng cho thuê'];
+// Cửa hàng chỉ hiện sản phẩm đang cho thuê (ẩn "Ngừng cho thuê"); trang Quản lý vẫn thấy hết
+const ON_SALE = { Status: { [Op.ne]: 'Ngừng cho thuê' } };
 
 // Danh sách cột có thể ẩn/hiện (chức năng 10)
 const COLUMNS = [
@@ -47,7 +50,7 @@ exports.index = async (req, res) => {
   const q = (req.query.q || '').trim();
   const type = (req.query.type || '').trim();
 
-  const where = {};
+  const where = { ...ON_SALE };
   if (type) where.ProductType = type;
 
   // Mới tạo gần nhất lên đầu; có từ khóa thì xếp theo độ khớp
@@ -61,11 +64,11 @@ exports.index = async (req, res) => {
   // Đếm số lượng theo từng loại (cho menu danh mục)
   const grouped = await Product.findAll({
     attributes: ['ProductType', [fn('COUNT', col('ProductID')), 'cnt']],
-    group: ['ProductType'], raw: true,
+    where: ON_SALE, group: ['ProductType'], raw: true,
   });
   const counts = {};
   grouped.forEach(g => { counts[g.ProductType] = Number(g.cnt); });
-  const totalAll = await Product.count();
+  const totalAll = await Product.count({ where: ON_SALE });
 
   res.render('products/index', {
     title: 'Trang phục & Phụ kiện',
@@ -173,8 +176,11 @@ exports.update = async (req, res) => {
       }));
     }
     const data = pickBody(req.body);
+    delete data.PathImage;                    // ảnh chỉ đổi khi upload file mới
+    const oldImage = product.PathImage;
     if (req.file) data.PathImage = '/uploads/' + req.file.filename;
     await product.update(data);
+    if (req.file) await removeImageIfUnused(oldImage);   // đổi ảnh -> xóa ảnh cũ nếu không SP nào dùng
     req.flash('success', 'Đã cập nhật trang phục.');
     res.redirect(back);                       // 7: quay về trang danh sách
   } catch (e) {
@@ -202,8 +208,12 @@ exports.destroy = async (req, res) => {
   if (used.active.has(id) || used.history.has(id)) {
     { const m = blockedMessages(used); if (m.length) req.flash('error', m.join(' ')); }
   } else {
-    await Product.destroy({ where: { ProductID: id } });
-    req.flash('success', 'Đã xóa 1 trang phục.');
+    const p = await Product.findByPk(id);
+    if (p) {
+      await p.destroy();
+      await removeImageIfUnused(p.PathImage);
+      req.flash('success', 'Đã xóa 1 trang phục.');
+    }
   }
   res.redirect(backToList(req));              // 7: quay về trang danh sách
 };
@@ -218,7 +228,9 @@ exports.destroyMany = async (req, res) => {
   const used = await productsInRentals(ids);
   const ok = ids.filter(id => !used.active.has(id) && !used.history.has(id));
   if (ok.length) {
+    const images = (await Product.findAll({ attributes: ['PathImage'], where: { ProductID: { [Op.in]: ok } } })).map(p => p.PathImage);
     const n = await Product.destroy({ where: { ProductID: { [Op.in]: ok } } });
+    for (const img of new Set(images)) await removeImageIfUnused(img);
     if (n) req.flash('success', `Đã xóa ${n} trang phục được chọn.`);
   }
   { const m = blockedMessages(used); if (m.length) req.flash('error', m.join(' ')); }
@@ -295,18 +307,33 @@ exports.importData = async (req, res) => {
       records = XLSX.utils.sheet_to_json(ws);
     }
 
-    let n = 0;
-    for (const r of records) {
-      const data = pickBody(r);
-      if (!data.ProductName) continue;
-      await Product.create(data);
-      n++;
+    if (!Array.isArray(records)) throw new Error('File không đúng định dạng danh sách sản phẩm.');
+
+    // Mỗi dòng phải qua ĐÚNG quy định như thêm tay (bắt buộc đủ trường, giá ≥ 1.000 đ tròn nghìn...)
+    // Dòng sai -> bỏ qua và báo lại số dòng + lý do
+    const valid = [], bad = [];
+    records.forEach((r, i) => {
+      const row = { ...r, Status: normalizeStatus(r.Status ?? 'Còn trống') };
+      const img = String(row.PathImage ?? '').trim();
+      const errors = validateProduct(row, { hasImage: !!img });
+      if (img && !SAFE_IMAGE_PATH.test(img)) errors.push('Đường dẫn ảnh không hợp lệ (chỉ /img/..., /uploads/... hoặc http(s)://).');
+      // Dòng 1 của Excel là tiêu đề -> dữ liệu bắt đầu từ dòng 2
+      const rowNo = name.endsWith('.json') || name.endsWith('.xml') ? `#${i + 1}` : `dòng ${i + 2}`;
+      if (errors.length) bad.push(`${rowNo}${row.ProductName ? ` (${String(row.ProductName).slice(0, 30)})` : ''}: ${errors[0]}`);
+      else valid.push(pickBody(row));
+    });
+
+    if (valid.length) await Product.bulkCreate(valid);
+    if (valid.length) req.flash('success', `Đã import ${valid.length} trang phục từ file.`);
+    if (bad.length) {
+      const shown = bad.slice(0, 5).map(s => s.replace(/\.$/, '')).join(' · ');
+      req.flash('error', `Bỏ qua ${bad.length} dòng không hợp lệ — ${shown}${bad.length > 5 ? ` · và ${bad.length - 5} dòng khác` : ''}.`);
     }
-    req.flash('success', `Đã import ${n} trang phục từ file.`);
+    if (!valid.length && !bad.length) req.flash('error', 'File không có dòng dữ liệu nào.');
   } catch (e) {
     req.flash('error', 'Lỗi import: ' + e.message);
   }
-  res.redirect('/products');
+  res.redirect('/products/manage');
 };
 
 // ---------- helpers ----------
@@ -359,4 +386,13 @@ function safeBack(v) {
 }
 function removeUpload(file) {
   if (file && file.path) fs.unlink(file.path, () => {});
+}
+
+const SAFE_IMAGE_PATH = /^(\/(img|uploads)\/[\w\-./]+|https?:\/\/[^\s"'<>]+)$/i;
+
+// Xóa file ảnh đã upload nếu không còn sản phẩm nào dùng (bản sao dùng chung ảnh với bản gốc)
+async function removeImageIfUnused(img) {
+  if (!img || !img.startsWith('/uploads/')) return;          // ảnh mẫu /img/... thì giữ
+  if (await Product.count({ where: { PathImage: img } })) return;
+  fs.unlink(path.join(uploadDir, path.basename(img)), () => {});
 }
