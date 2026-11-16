@@ -6,13 +6,22 @@
     <h3 class="font-serif mb-3"><i class="bi bi-box-arrow-in-down" style="color:var(--gold)"></i> Nhận đồ trả — Đơn #<%= rental.RentalID %></h3>
 
     <div class="card p-3 mb-3">
+      <% const latePerDay = rental.items.reduce((s, it) => s + Number(it.LateFeePerDay) * it.Quantity, 0); %>
       <div class="row small">
-        <div class="col-6"><span class="text-muted">Trang phục:</span> <strong><%= rental.Product ? rental.Product.ProductName : '—' %></strong></div>
         <div class="col-6"><span class="text-muted">Khách:</span> <strong><%= rental.CustomerName %></strong></div>
-        <div class="col-6 mt-1"><span class="text-muted">Hạn trả:</span> <strong><%= rental.EndDate %></strong></div>
+        <div class="col-6"><span class="text-muted">Hạn trả:</span> <strong><%= rental.EndDate %></strong></div>
         <div class="col-6 mt-1"><span class="text-muted">Tiền cọc:</span> <strong><%= vnd(rental.Deposit) %></strong></div>
-        <div class="col-6 mt-1"><span class="text-muted">Phí trễ/ngày:</span> <strong><%= rental.Product ? vnd(rental.Product.LateFeePerDay) : '—' %></strong> × SL <%= rental.Quantity %></div>
+        <div class="col-6 mt-1"><span class="text-muted">Phí trễ/ngày (cả đơn):</span> <strong><%= vnd(latePerDay) %></strong></div>
       </div>
+      <table class="table table-sm small mt-2 mb-0">
+        <thead><tr><th>Món cần nhận lại</th><th class="text-center">SL</th><th class="text-end">Phí trễ/ngày/bộ</th></tr></thead>
+        <tbody>
+          <% rental.items.forEach(it => { %>
+            <tr><td><%= it.ProductName %><% if (it.Size || it.Color) { %> <span class="text-muted">(<%= [it.Size, it.Color].filter(Boolean).join(' · ') %>)</span><% } %></td>
+              <td class="text-center"><%= it.Quantity %></td><td class="text-end"><%= vnd(it.LateFeePerDay) %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
     </div>
 
     <div class="card p-3">

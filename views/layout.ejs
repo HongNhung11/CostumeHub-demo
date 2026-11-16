@@ -48,6 +48,10 @@
           <% } %>
         </ul>
         <div class="d-flex gap-2 align-items-center">
+          <a href="/cart" class="btn btn-light btn-sm position-relative <%= path.startsWith('/cart') ? 'active' : '' %>" title="Giỏ thuê">
+            <i class="bi bi-bag"></i> Giỏ thuê
+            <% if (cartCount) { %><span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"><%= cartCount %></span><% } %>
+          </a>
           <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'nhanvien')) { %>
             <a href="/products/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Thêm</a>
           <% } else if (!currentUser) { %>

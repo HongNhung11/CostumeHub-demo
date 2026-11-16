@@ -1,4 +1,9 @@
-<% const canRent = product.Status === 'Còn trống' && product.Quantity > 0; %>
+<%
+  const canRent = product.Status === 'Còn trống' && product.Quantity > 0;
+  const split = s => String(s||'').split(/[,;\/]/).map(x => x.trim()).filter(Boolean);
+  const sizes = split(product.Size), colors = split(product.Color);
+  const maxAdd = Math.max(0, product.Quantity - inCart);
+%>
 <nav class="small text-muted mb-3"><a href="/" class="text-muted">Trang chủ</a> / <a href="/products" class="text-muted">Sản phẩm</a> / <span><%= product.ProductName %></span></nav>
 
 <div class="row g-4">
@@ -32,18 +37,76 @@
       <tr><td class="text-muted">Phân loại</td><td><%= product.ProductType %></td></tr>
       <% if (product.Color) { %><tr><td class="text-muted">Màu sắc</td><td><%= product.Color %></td></tr><% } %>
       <% if (product.Size) { %><tr><td class="text-muted">Size</td><td><%= product.Size %></td></tr><% } %>
-      <tr><td class="text-muted">Số lượng còn</td><td><%= product.Quantity %> <%= product.Unit %></td></tr>
+      <tr><td class="text-muted">Số bộ cửa hàng có</td><td><%= product.Quantity %> <%= product.Unit %></td></tr>
       <tr><td class="text-muted align-top">Mô tả</td><td><%= product.Description %></td></tr>
     </table>
 
     <!-- Nút đặt thuê -->
     <% if (!canRent) { %>
       <div class="alert alert-warning">Sản phẩm hiện <strong><%= product.Status %></strong>, chưa thể đặt thuê. Vui lòng chọn mẫu khác.</div>
-    <% } else if (currentUser) { %>
-      <a href="/products/<%= product.ProductID %>/book" class="btn btn-gold btn-lg w-100"><i class="bi bi-calendar-check"></i> Đặt thuê</a>
     <% } else { %>
-      <a href="/login?next=/products/<%= product.ProductID %>" class="btn btn-gold btn-lg w-100"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập để đặt thuê</a>
-      <p class="small text-muted text-center mt-2 mb-0">Bạn cần đăng nhập / đăng ký trước khi đặt thuê. Đăng nhập xong sẽ quay lại trang này.</p>
+      <!-- Chọn size / màu / số lượng rồi thêm vào giỏ thuê -->
+      <form method="POST" action="/cart/add" id="addCartForm" class="card p-3 mb-2" novalidate>
+        <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
+        <% if (sizes.length) { %>
+          <label class="form-label small text-muted mb-1">Size <span class="text-danger">*</span></label>
+          <div class="d-flex flex-wrap gap-2 mb-1 opt-group">
+            <% sizes.forEach((sz, i) => { %>
+              <input type="radio" class="btn-check" name="Size" id="size<%= i %>" value="<%= sz %>" <%= sizes.length === 1 ? 'checked' : '' %>>
+              <label class="btn btn-outline-primary btn-sm px-3" for="size<%= i %>"><%= sz %></label>
+            <% }) %>
+          </div>
+          <div class="small text-danger mb-2 opt-msg" hidden>Vui lòng chọn size.</div>
+        <% } %>
+        <% if (colors.length) { %>
+          <label class="form-label small text-muted mb-1 mt-1">Màu sắc <span class="text-danger">*</span></label>
+          <div class="d-flex flex-wrap gap-2 mb-1 opt-group">
+            <% colors.forEach((c, i) => { %>
+              <input type="radio" class="btn-check" name="Color" id="color<%= i %>" value="<%= c %>" <%= colors.length === 1 ? 'checked' : '' %>>
+              <label class="btn btn-outline-primary btn-sm px-3" for="color<%= i %>"><%= c %></label>
+            <% }) %>
+          </div>
+          <div class="small text-danger mb-2 opt-msg" hidden>Vui lòng chọn màu.</div>
+        <% } %>
+        <div class="d-flex align-items-end gap-2 mt-2 flex-wrap">
+          <div style="width:110px">
+            <label class="form-label small text-muted mb-1">Số lượng</label>
+            <input type="number" name="Quantity" class="form-control" value="1" min="1" max="<%= maxAdd %>" step="1" required <%= maxAdd ? '' : 'disabled' %>>
+          </div>
+          <button class="btn btn-outline-primary flex-grow-1" <%= maxAdd ? '' : 'disabled' %>><i class="bi bi-bag-plus"></i> Thêm vào giỏ</button>
+          <button class="btn btn-gold flex-grow-1" name="buyNow" value="1" <%= maxAdd ? '' : 'disabled' %>><i class="bi bi-calendar-check"></i> Thuê ngay</button>
+        </div>
+        <% if (inCart) { %><div class="small text-muted mt-2"><i class="bi bi-bag-check"></i> Giỏ của bạn đã có <%= inCart %> <%= product.Unit %> mẫu này · <a href="/cart">Xem giỏ</a></div><% } %>
+        <% if (!currentUser) { %><div class="small text-muted mt-2">Bạn có thể thêm vào giỏ trước, đăng nhập khi đặt thuê.</div><% } %>
+      </form>
+
+      <!-- Lịch thuê: các ngày đã kín trong 60 ngày tới -->
+      <div class="small mb-2">
+        <i class="bi bi-calendar3"></i> <strong>Lịch 60 ngày tới:</strong>
+        <% if (!bookedOut.length) { %>
+          <span class="text-success">còn trống tất cả các ngày.</span>
+        <% } else { %>
+          đã kín vào
+          <% bookedOut.forEach(r => { %>
+            <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle"><%= r.from === r.to ? viDate(r.from) : viDate(r.from) + ' – ' + viDate(r.to) %></span>
+          <% }) %>
+          <div class="text-muted">Ngày khác vẫn đặt được; khi chọn ngày ở giỏ thuê hệ thống sẽ báo số bộ còn trống.</div>
+        <% } %>
+      </div>
+      <script>
+        document.getElementById('addCartForm').addEventListener('submit', function (e) {
+          let ok = true;
+          this.querySelectorAll('.opt-group').forEach(g => {
+            const picked = !!g.querySelector('input:checked');
+            g.nextElementSibling.hidden = picked;
+            if (!picked) ok = false;
+          });
+          if (!ok) e.preventDefault();
+        });
+        document.querySelectorAll('#addCartForm .opt-group input').forEach(r => r.addEventListener('change', () => {
+          r.closest('.opt-group').nextElementSibling.hidden = true;
+        }));
+      </script>
     <% } %>
 
     <div class="d-flex gap-2 mt-3">

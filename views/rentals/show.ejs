@@ -36,16 +36,18 @@
       <table class="table align-middle">
         <thead class="table-light"><tr><th>Trang phục</th><th class="text-center">SL</th><th class="text-end">Giá/ngày</th><th class="text-end">Thành tiền thuê</th></tr></thead>
         <tbody>
+          <% rental.items.forEach(it => { const p = it.Product; %>
           <tr>
             <td class="d-flex align-items-center gap-2">
-              <% if (rental.Product && rental.Product.PathImage) { %><img src="<%= rental.Product.PathImage %>" style="width:44px;height:44px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
-              <div><strong><%= rental.Product ? rental.Product.ProductName : 'Trang phục' %></strong>
-                <div class="small text-muted"><%= rental.Product ? rental.Product.ProductType : '' %><% if (rental.SelectedSize) { %> · Size <%= rental.SelectedSize %><% } %><% if (rental.SelectedColor) { %> · Màu <%= rental.SelectedColor %><% } %></div></div>
+              <% if (p && p.PathImage) { %><img src="<%= p.PathImage %>" style="width:44px;height:44px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
+              <div><strong><%= it.ProductName %></strong>
+                <div class="small text-muted"><%= p ? p.ProductType : '' %><% if (it.Size) { %> · Size <%= it.Size %><% } %><% if (it.Color) { %> · Màu <%= it.Color %><% } %></div></div>
             </td>
-            <td class="text-center"><%= rental.Quantity %></td>
-            <td class="text-end"><%= vnd(rental.PricePerDay) %></td>
-            <td class="text-end"><%= vnd(rental.RentFee) %></td>
+            <td class="text-center"><%= it.Quantity %></td>
+            <td class="text-end"><%= vnd(it.PricePerDay) %></td>
+            <td class="text-end"><%= vnd(Number(it.PricePerDay) * it.Quantity * rental.RentDays) %></td>
           </tr>
+          <% }) %>
         </tbody>
       </table>
 

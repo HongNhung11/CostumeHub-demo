@@ -20,6 +20,9 @@ router.get('/logout', auth.logout);
 // Module Trang phục
 router.use('/products', productRoutes);
 
+// Giỏ thuê (nhiều món / 1 đơn)
+router.use('/cart', require('./cart'));
+
 // Module Đơn thuê
 router.use('/rentals', rentalRoutes);
 

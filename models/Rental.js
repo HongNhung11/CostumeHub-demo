@@ -1,10 +1,10 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-// Đơn thuê (mỗi đơn thuê 1 trang phục, có số lượng)
+// Đơn thuê (1 đơn có thể gồm nhiều món — xem RentalItem)
 const Rental = sequelize.define('Rental', {
   RentalID: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  ProductID: { type: DataTypes.INTEGER, allowNull: false },
+  ProductID: { type: DataTypes.INTEGER, allowNull: false },  // món đầu tiên của đơn (tương thích dữ liệu cũ)
   UserID: { type: DataTypes.INTEGER, allowNull: true },
 
   // Thông tin khách thuê
@@ -19,13 +19,11 @@ const Rental = sequelize.define('Rental', {
   StartDate: { type: DataTypes.DATEONLY, allowNull: false },
   EndDate: { type: DataTypes.DATEONLY, allowNull: false },
   RentDays: { type: DataTypes.INTEGER, defaultValue: 1 },
-  Quantity: { type: DataTypes.INTEGER, defaultValue: 1 },
-  SelectedSize: { type: DataTypes.STRING },               // size khách chọn khi đặt
-  SelectedColor: { type: DataTypes.STRING },              // màu khách chọn khi đặt
+  Quantity: { type: DataTypes.INTEGER, defaultValue: 1 },  // tổng số món trong đơn
   ReturnDate: { type: DataTypes.DATEONLY },               // ngày trả thực tế
 
   // Tiền
-  PricePerDay: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },
+  PricePerDay: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },  // tổng giá thuê/ngày của cả đơn
   RentFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },     // tiền thuê
   Deposit: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },     // tiền cọc
   LateFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },     // phí trễ

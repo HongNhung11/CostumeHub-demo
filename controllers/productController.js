@@ -4,6 +4,8 @@ const XLSX = require('xlsx');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
 const { Product } = require('../models');
 const { searchProducts } = require('../utils/search');
+const { bookedOutRanges } = require('../utils/availability');
+const { viDate } = require('../utils/dates');
 
 // Sắp xếp: sản phẩm tạo GẦN NHẤT lên đầu
 const NEWEST_FIRST = [['CreateDate', 'DESC'], ['ProductID', 'DESC']];
@@ -96,22 +98,14 @@ exports.manage = async (req, res) => {
 exports.show = async (req, res) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
-  res.render('products/show', { title: 'Chi tiết sản phẩm', product });
+  // Lịch các ngày đã kín (hết bộ trống) trong 60 ngày tới
+  const bookedOut = product.Status === 'Còn trống' ? await bookedOutRanges(product, 60) : [];
+  const inCart = (req.session.cart || []).filter(l => l.productId === product.ProductID).reduce((s, l) => s + l.qty, 0);
+  res.render('products/show', { title: 'Chi tiết sản phẩm', product, bookedOut, inCart, viDate });
 };
 
-// ===== Trang ĐẶT THUÊ / THANH TOÁN (cần đăng nhập) =====
-exports.bookForm = async (req, res) => {
-  const product = await Product.findByPk(req.params.id);
-  if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
-  if (product.Status !== 'Còn trống' || product.Quantity <= 0) {
-    req.flash('error', 'Sản phẩm hiện không thể đặt thuê.');
-    return res.redirect(`/products/${product.ProductID}`);
-  }
-  // Giữ lại dữ liệu khách đã nhập nếu lần submit trước bị lỗi
-  const old = req.session.bookOld || {};
-  delete req.session.bookOld;
-  res.render('products/book', { title: 'Đặt thuê & thanh toán', product, old });
-};
+// Link cũ /products/:id/book -> giờ chọn size/màu ở trang chi tiết rồi đặt qua giỏ thuê
+exports.bookForm = (req, res) => res.redirect(`/products/${parseInt(req.params.id) || ''}`);
 
 // Form Thêm mới — nhớ trang danh sách đã bấm "Thêm" để quay về
 exports.createForm = (req, res) => {

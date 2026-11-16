@@ -3,83 +3,87 @@
   const d2s = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   const today = new Date();
   const tmr = new Date(Date.now()+86400000);
+  const maxEnd = new Date(Date.now()+(60+MAX_RENT_DAYS)*86400000);
   const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
-  const split = s => String(s||'').split(/[,;\/]/).map(x => x.trim()).filter(Boolean);
-  const sizes = split(product.Size), colors = split(product.Color);
   const o = (k, d = '') => (old && old[k] !== undefined ? old[k] : d);
   const giao = o('DeliveryMethod') === 'Giao tận nơi';
+  let pricePerDay = 0, depositAll = 0, qtyAll = 0;
+  lines.forEach(l => { pricePerDay += Number(l.product.Price) * l.qty; depositAll += Number(l.product.DepositValue) * l.qty; qtyAll += l.qty; });
 %>
-<nav class="small text-muted mb-3"><a href="/products" class="text-muted">Sản phẩm</a> / <a href="/products/<%= product.ProductID %>" class="text-muted"><%= product.ProductName %></a> / <span>Đặt thuê</span></nav>
+<nav class="small text-muted mb-3"><a href="/products" class="text-muted">Sản phẩm</a> / <span>Giỏ thuê</span></nav>
 
-<h3 class="font-serif mb-3"><i class="bi bi-bag-check" style="color:var(--gold)"></i> Đặt thuê & Thanh toán</h3>
+<h3 class="font-serif mb-3"><i class="bi bi-bag-check" style="color:var(--gold)"></i> Giỏ thuê & Đặt thuê</h3>
+
+<% if (!lines.length) { %>
+  <div class="card p-5 text-center text-muted">
+    <i class="bi bi-bag" style="font-size:2.5rem"></i>
+    <p class="mt-2 mb-3">Giỏ thuê đang trống. Chọn trang phục, size, màu rồi bấm <strong>Thêm vào giỏ</strong>.</p>
+    <div><a href="/products" class="btn btn-primary"><i class="bi bi-arrow-left"></i> Xem trang phục</a></div>
+  </div>
+<% } else { %>
+
+<!-- Danh sách món trong giỏ (form riêng cho sửa số lượng / bỏ món) -->
+<div class="card mb-4">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Trang phục</th><th>Size / Màu</th><th class="text-end">Giá/ngày</th><th style="width:150px">Số lượng</th><th class="text-end">Cọc</th><th></th></tr></thead>
+      <tbody>
+      <% lines.forEach(l => { const p = l.product; %>
+        <tr data-pid="<%= p.ProductID %>">
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <% if (p.PathImage) { %><img src="<%= p.PathImage %>" style="width:44px;height:56px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
+              <div><a href="/products/<%= p.ProductID %>" class="text-dark fw-semibold"><%= p.ProductName %></a>
+                <div class="small text-muted"><%= p.ProductType %></div>
+                <div class="small avail-msg"></div></div>
+            </div>
+          </td>
+          <td class="small"><%= l.size || '—' %> · <%= l.color || '—' %></td>
+          <td class="text-end"><%= vnd(p.Price) %></td>
+          <td>
+            <form method="POST" action="/cart/<%= l.key %>/update" class="d-flex gap-1">
+              <input type="number" name="qty" value="<%= l.qty %>" min="1" max="<%= p.Quantity %>" class="form-control form-control-sm" style="width:70px">
+              <button class="btn btn-sm btn-light" title="Cập nhật"><i class="bi bi-arrow-repeat"></i></button>
+            </form>
+          </td>
+          <td class="text-end"><%= vnd(Number(p.DepositValue) * l.qty) %></td>
+          <td class="text-end">
+            <form method="POST" action="/cart/<%= l.key %>/remove" onsubmit="return confirm('Bỏ món này khỏi giỏ?')">
+              <button class="btn btn-sm btn-outline-danger" title="Bỏ khỏi giỏ"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <div class="p-2 px-3 small d-flex justify-content-between border-top">
+    <a href="/products"><i class="bi bi-plus"></i> Thêm món khác</a>
+    <span class="text-muted"><%= qtyAll %> món</span>
+  </div>
+</div>
 
 <form method="POST" action="/rentals" enctype="multipart/form-data" id="bookForm" novalidate>
-  <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
-  <input type="hidden" id="price" value="<%= Number(product.Price) %>">
-  <input type="hidden" id="deposit" value="<%= Number(product.DepositValue) %>">
+  <input type="hidden" id="pricePerDay" value="<%= pricePerDay %>">
+  <input type="hidden" id="depositAll" value="<%= depositAll %>">
   <div class="row g-4">
 
     <!-- Cột trái: thông tin đặt thuê -->
     <div class="col-lg-7">
       <div class="card p-3 mb-3">
-        <h6 class="font-serif mb-3"><i class="bi bi-bag"></i> Chọn sản phẩm</h6>
-        <div class="d-flex gap-3 mb-3">
-          <% if (product.PathImage) { %><img src="<%= product.PathImage %>" style="width:64px;height:80px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
-          <div>
-            <strong><%= product.ProductName %></strong>
-            <div class="small text-muted"><%= product.ProductType %> · Còn <%= product.Quantity %> <%= product.Unit %></div>
-            <div class="price-tag mt-1"><%= vnd(product.Price) %><small class="text-muted fw-normal">/ngày</small></div>
-          </div>
-        </div>
-        <div class="row g-3">
-          <% if (sizes.length) { %>
-          <div class="col-12">
-            <label class="form-label small text-muted mb-1">Size <span class="text-danger">*</span></label>
-            <div class="d-flex flex-wrap gap-2 opt-group">
-              <% sizes.forEach((sz, i) => { %>
-                <input type="radio" class="btn-check" name="SelectedSize" id="size<%= i %>" value="<%= sz %>"
-                       <%= (o('SelectedSize') === sz || (sizes.length === 1 && !o('SelectedSize'))) ? 'checked' : '' %>>
-                <label class="btn btn-outline-primary btn-sm px-3" for="size<%= i %>"><%= sz %></label>
-              <% }) %>
-            </div>
-            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn size.</div>
-          </div>
-          <% } %>
-          <% if (colors.length) { %>
-          <div class="col-12">
-            <label class="form-label small text-muted mb-1">Màu sắc <span class="text-danger">*</span></label>
-            <div class="d-flex flex-wrap gap-2 opt-group">
-              <% colors.forEach((c, i) => { %>
-                <input type="radio" class="btn-check" name="SelectedColor" id="color<%= i %>" value="<%= c %>"
-                       <%= (o('SelectedColor') === c || (colors.length === 1 && !o('SelectedColor'))) ? 'checked' : '' %>>
-                <label class="btn btn-outline-primary btn-sm px-3" for="color<%= i %>"><%= c %></label>
-              <% }) %>
-            </div>
-            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn màu.</div>
-          </div>
-          <% } %>
-          <div class="col-6 col-md-4">
-            <label class="form-label small text-muted">Số lượng <span class="text-danger">*</span></label>
-            <input type="number" name="Quantity" id="Quantity" class="form-control" value="<%= o('Quantity', 1) %>" min="1" max="<%= product.Quantity %>" step="1" required>
-            <div class="invalid-feedback">Từ 1 đến <%= product.Quantity %>.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card p-3 mb-3">
-        <h6 class="font-serif mb-3"><i class="bi bi-calendar-range"></i> Thời gian thuê</h6>
+        <h6 class="font-serif mb-3"><i class="bi bi-calendar-range"></i> Thời gian thuê (chung cho cả đơn)</h6>
         <div class="row g-2">
           <div class="col-6">
             <label class="form-label small text-muted">Ngày nhận <span class="text-danger">*</span></label>
-            <input type="date" name="StartDate" id="StartDate" class="form-control" value="<%= o('StartDate', d2s(today)) %>" min="<%= d2s(today) %>" required>
-            <div class="invalid-feedback">Chọn ngày nhận (từ hôm nay).</div>
+            <input type="date" name="StartDate" id="StartDate" class="form-control" value="<%= o('StartDate', d2s(today)) %>" min="<%= d2s(today) %>" max="<%= d2s(maxEnd) %>" required>
           </div>
           <div class="col-6">
             <label class="form-label small text-muted">Ngày trả <span class="text-danger">*</span></label>
-            <input type="date" name="EndDate" id="EndDate" class="form-control" value="<%= o('EndDate', d2s(tmr)) %>" min="<%= d2s(tmr) %>" required>
-            <div class="invalid-feedback">Ngày trả phải sau ngày nhận.</div>
+            <input type="date" name="EndDate" id="EndDate" class="form-control" value="<%= o('EndDate', d2s(tmr)) %>" min="<%= d2s(tmr) %>" max="<%= d2s(maxEnd) %>" required>
+            <div class="invalid-feedback">Ngày trả phải sau ngày nhận (tối đa <%= MAX_RENT_DAYS %> ngày).</div>
           </div>
         </div>
+        <div id="availBox" class="small mt-2"></div>
       </div>
 
       <div class="card p-3 mb-3">
@@ -140,21 +144,20 @@
     <div class="col-lg-5">
       <div class="card p-3" style="position:sticky;top:90px">
         <h6 class="font-serif mb-3">Tóm tắt đơn thuê</h6>
-        <div class="d-flex gap-2 mb-3 pb-3 border-bottom">
-          <% if (product.PathImage) { %><img src="<%= product.PathImage %>" style="width:70px;height:90px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
-          <div>
-            <strong><%= product.ProductName %></strong>
-            <div class="small text-muted"><%= product.ProductType %></div>
-            <div class="small">Size: <strong id="sumSize">—</strong> · Màu: <strong id="sumColor">—</strong></div>
-            <div class="price-tag mt-1"><%= vnd(product.Price) %><small class="text-muted fw-normal">/ngày</small></div>
-          </div>
+        <div class="small mb-2 pb-2 border-bottom">
+          <% lines.forEach(l => { %>
+            <div class="d-flex justify-content-between py-1">
+              <span><%= l.product.ProductName %> <span class="text-muted">(<%= [l.size, l.color].filter(Boolean).join(' · ') %>) × <%= l.qty %></span></span>
+              <span class="text-nowrap ms-2"><%= vnd(Number(l.product.Price) * l.qty) %>/ngày</span>
+            </div>
+          <% }) %>
         </div>
         <div class="d-flex justify-content-between small py-1"><span>Số ngày thuê</span><span id="sumDays">1</span></div>
         <div class="d-flex justify-content-between small py-1"><span>Tiền thuê</span><span id="sumRent">0 đ</span></div>
         <div class="d-flex justify-content-between small py-1"><span>Tiền cọc (hoàn lại)</span><span id="sumDeposit">0 đ</span></div>
         <hr class="my-2">
         <div class="d-flex justify-content-between fw-bold mb-3"><span>Tổng tạm tính</span><span class="price-tag" id="sumTotal">0 đ</span></div>
-        <button class="btn btn-gold btn-lg w-100"><i class="bi bi-check2-circle"></i> Xác nhận đặt & cọc</button>
+        <button class="btn btn-gold btn-lg w-100" id="btnBook"><i class="bi bi-check2-circle"></i> Xác nhận đặt & cọc</button>
         <p class="small text-muted text-center mt-2 mb-0">Đặt thuê là xác nhận cọc luôn để giữ chỗ.</p>
       </div>
     </div>
@@ -164,31 +167,41 @@
 <script>
 (function(){
   const s=document.getElementById('StartDate'), e=document.getElementById('EndDate'),
-        q=document.getElementById('Quantity'), price=+document.getElementById('price').value,
-        dep=+document.getElementById('deposit').value;
+        price=+document.getElementById('pricePerDay').value, dep=+document.getElementById('depositAll').value,
+        MAXD=<%= MAX_RENT_DAYS %>;
   const vnd=n=>n.toLocaleString('vi-VN')+' đ';
+  const days=()=>{ const d=Math.round((new Date(e.value)-new Date(s.value))/86400000); return d>=1?d:0; };
   function calc(){
-    const d1=new Date(s.value), d2=new Date(e.value);
-    let days=Math.round((d2-d1)/86400000); if(!(days>=1)) days=0;
-    const qty=Math.max(1,+q.value||1);
-    const rent=price*days*qty, deposit=dep*qty;
-    document.getElementById('sumDays').textContent=days;
-    document.getElementById('sumRent').textContent=vnd(rent);
-    document.getElementById('sumDeposit').textContent=vnd(deposit);
-    document.getElementById('sumTotal').textContent=vnd(rent+deposit);
+    const d=days();
+    document.getElementById('sumDays').textContent=d;
+    document.getElementById('sumRent').textContent=vnd(price*d);
+    document.getElementById('sumDeposit').textContent=vnd(dep);
+    document.getElementById('sumTotal').textContent=vnd(price*d+dep);
   }
-  [s,e,q].forEach(el=>el.addEventListener('change',calc)); calc();
 
-  // Hiện size / màu đã chọn trong phần tóm tắt
-  function showOpts(){
-    const sz=document.querySelector('input[name="SelectedSize"]:checked');
-    const cl=document.querySelector('input[name="SelectedColor"]:checked');
-    document.getElementById('sumSize').textContent=sz?sz.value:'—';
-    document.getElementById('sumColor').textContent=cl?cl.value:'—';
-    document.querySelectorAll('.opt-group').forEach(g=>{ if(g.querySelector('input:checked')) g.nextElementSibling.hidden=true; });
+  // Kiểm tra còn trống theo ngày (chống trùng lịch)
+  const box=document.getElementById('availBox');
+  let availOk=true;
+  async function checkAvail(){
+    document.querySelectorAll('.avail-msg').forEach(m=>m.textContent='');
+    if(!s.value||!e.value) return;
+    try{
+      const r=await (await fetch(`/cart/availability?start=${s.value}&end=${e.value}`)).json();
+      availOk=r.ok;
+      if(r.error){ box.innerHTML=`<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ${r.error}</span>`; availOk=false; return; }
+      for(const [pid,info] of Object.entries(r.products)){
+        document.querySelectorAll(`tr[data-pid="${pid}"] .avail-msg`).forEach(m=>{
+          m.className='small avail-msg '+(info.need<=info.available?'text-success':'text-danger');
+          m.textContent= info.available===0 ? 'Đã kín lịch trong những ngày này'
+            : info.need<=info.available ? `Còn ${info.available} bộ trống` : `Chỉ còn ${info.available} bộ trống (bạn chọn ${info.need})`;
+        });
+      }
+      box.innerHTML = r.ok ? '<span class="text-success"><i class="bi bi-check-circle"></i> Tất cả các món còn trống trong khoảng ngày này.</span>'
+        : '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Có món không đủ bộ trống — vui lòng đổi ngày hoặc giảm số lượng.</span>';
+    }catch(_){ availOk=true; box.textContent=''; }
   }
-  document.querySelectorAll('input[name="SelectedSize"],input[name="SelectedColor"]').forEach(r=>r.addEventListener('change',showOpts));
-  showOpts();
+  [s,e].forEach(el=>el.addEventListener('change',()=>{ calc(); checkDates(); checkAvail(); }));
+  calc(); checkAvail();
 
   // Hiện/ẩn ô địa chỉ theo hình thức nhận
   const addrBox=document.getElementById('addrBox'), addr=document.getElementById('DeliveryAddress');
@@ -206,26 +219,21 @@
   const checkPhone=()=>phone.setCustomValidity(/^0(3|5|7|8|9)\d{8}$/.test(normPhone(phone.value))?'':'invalid');
   const checkCCCD=()=>{ const v=cccd.value, p=parseInt(v.slice(0,3),10);
     cccd.setCustomValidity(/^\d{12}$/.test(v)&&p>=1&&p<=96?'':'invalid'); };
-  const checkDates=()=>e.setCustomValidity(s.value&&e.value&&new Date(e.value)>new Date(s.value)?'':'invalid');
+  function checkDates(){ const d=Math.round((new Date(e.value)-new Date(s.value))/86400000);
+    e.setCustomValidity(d>=1&&d<=MAXD?'':'invalid'); }
   cccd.addEventListener('input',()=>{ cccd.value=cccd.value.replace(/\D/g,'').slice(0,12); checkCCCD(); });
   phone.addEventListener('input',checkPhone);
-  [s,e].forEach(el=>el.addEventListener('change',checkDates));
 
   const form=document.getElementById('bookForm');
   form.addEventListener('submit',ev=>{
     checkPhone(); checkCCCD(); checkDates();
-    let ok=form.checkValidity();
-    document.querySelectorAll('.opt-group').forEach(g=>{
-      const picked=!!g.querySelector('input:checked');
-      g.nextElementSibling.hidden=picked;
-      if(!picked) ok=false;
-    });
-    if(!ok){
+    if(!form.checkValidity() || !availOk){
       ev.preventDefault();
       form.classList.add('was-validated');
-      const first=form.querySelector('.opt-msg:not([hidden])') || form.querySelector(':invalid');
-      if(first) (first.scrollIntoView({block:'center'}), first.focus && first.focus());
+      const first=form.querySelector(':invalid');
+      if(first) first.focus(); else box.scrollIntoView({block:'center'});
     }
   });
 })();
 </script>
+<% } %>

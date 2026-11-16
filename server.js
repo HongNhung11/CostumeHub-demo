@@ -38,6 +38,7 @@ app.use((req, res, next) => {
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
   res.locals.path = req.path;
+  res.locals.cartCount = (req.session.cart || []).reduce((s, l) => s + l.qty, 0);
   next();
 });
 
@@ -46,14 +47,35 @@ app.use('/', routes);
 // 404
 app.use((req, res) => res.status(404).render('404', { title: 'Không tìm thấy trang' }));
 
-// sync() không thêm cột vào bảng đã tồn tại -> tự thêm các cột mới (không mất dữ liệu)
-async function addMissingColumns() {
-  const qi = sequelize.getQueryInterface();
-  const { Rental } = require('./models');
-  const table = await qi.describeTable('Rentals');
-  for (const name of ['SelectedSize', 'SelectedColor']) {
-    if (!table[name]) await qi.addColumn('Rentals', name, Rental.rawAttributes[name].type);
-  }
+// Chuyển CSDL cũ (mỗi đơn 1 sản phẩm, trừ tồn kho khi đặt) sang cách mới
+// (đơn nhiều món + tính chỗ trống theo ngày). Chỉ chạy 1 lần: khi bảng RentalItems còn trống.
+async function migrateRentalsToItems() {
+  const { Rental, RentalItem, Product } = require('./models');
+  const { ACTIVE } = require('./utils/availability');
+  if (await RentalItem.count() > 0) return;
+  const rentals = await Rental.findAll({ include: Product });
+  if (!rentals.length) return;
+  await sequelize.transaction(async (t) => {
+    for (const r of rentals) {
+      const p = r.Product;
+      const qty = r.Quantity || 1;
+      await RentalItem.create({
+        RentalID: r.RentalID, ProductID: r.ProductID,
+        ProductName: p ? p.ProductName : `Sản phẩm #${r.ProductID}`,
+        Quantity: qty,
+        PricePerDay: r.PricePerDay,
+        DepositPerUnit: Math.round(Number(r.Deposit) / qty),
+        LateFeePerDay: p ? p.LateFeePerDay : 0,
+      }, { transaction: t });
+      // Cách cũ đã trừ tồn kho cho đơn đang hoạt động -> cộng lại (Quantity giờ là TỔNG số bộ)
+      if (p && ACTIVE.includes(r.Status)) {
+        p.Quantity += qty;
+        if (p.Status === 'Đang cho thuê') p.Status = 'Còn trống';
+        await p.save({ transaction: t });
+      }
+    }
+  });
+  console.log(`🔁 Đã chuyển ${rentals.length} đơn thuê cũ sang dạng nhiều món / lịch theo ngày.`);
 }
 
 // Khởi động
@@ -62,7 +84,7 @@ async function addMissingColumns() {
     await sequelize.authenticate();
     console.log(`✅ Kết nối CSDL (${sequelize.getDialect()}) thành công.`);
     await sequelize.sync();            // tạo bảng nếu chưa có
-    await addMissingColumns();         // bổ sung cột mới cho CSDL đã tạo từ trước
+    await migrateRentalsToItems();     // chuyển dữ liệu đơn thuê cũ (nếu có)
     await seed();                      // nạp dữ liệu mẫu nếu rỗng
     app.listen(PORT, () => {
       console.log(`🚀 CostumeHub chạy tại: http://localhost:${PORT}`);
