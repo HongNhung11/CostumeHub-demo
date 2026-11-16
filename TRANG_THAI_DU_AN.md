@@ -1,89 +1,58 @@
-# 📌 CostumeHub — Tài liệu trạng thái & mô tả dự án
+# 📌 CostumeHub — Tài liệu trạng thái dự án
 
 > File này giúp **mở lại dự án là biết ngay đang làm tới đâu, chỉnh tiếp chỗ nào**.
-> Cập nhật lần cuối: 2026-11-09. Trạng thái: **đang phát triển — đã chạy được, tạm dừng để lưu**.
+> Cập nhật lần cuối: 2026-11-16. Trạng thái: **đã chạy được đầy đủ luồng thuê; còn AI, QR thanh toán, form liên hệ**.
+> Cách chạy, tài khoản demo, danh sách chức năng: xem **README.md**.
 
 ---
 
-## 1. Dự án là gì
-**CostumeHub** — Website quản lý & cho thuê trang phục (áo dài, vest, đầm dạ hội, cosplay, đồ hóa trang + phụ kiện) có tích hợp AI (phần AI **chưa làm**). Đồ án môn **Ngôn ngữ kịch bản** (nhóm 3).
+## 1. Lịch sử thay đổi (theo commit trên GitHub)
 
-## 2. Công nghệ
-Node.js · Express.js (MVC) · Sequelize ORM · **SQLite** (chạy nhanh) / **PostgreSQL** (Docker) · EJS · Bootstrap 5 · Multer · XLSX · fast-xml-parser · Method-Override · express-session · bcryptjs · Dotenv · Docker Compose.
+| Commit | Nội dung |
+|---|---|
+| `d7b9cc5` | Upload bài tập ban đầu |
+| `87b4f4a` | Sửa theo góp ý mục 1–3: thêm trang phục (bắt buộc trường, giá ≥ 1.000 đ, SP mới lên đầu), đặt thuê (chọn size/màu, quy định SĐT, CCCD), tìm kiếm (không dấu, nút quay lại) |
+| `5a144c4` | Giỏ thuê nhiều món + chống trùng lịch theo ngày |
+| `d295456` | Bảo mật & dữ liệu: chỉ chủ đơn/nhân viên xem–hủy đơn, upload chỉ nhận ảnh, ảnh CCCD riêng tư, kiểm tra đăng ký, xử lý lỗi chung, chặn giảm số bộ / xóa SP có đơn |
+| `a03a877` | Quản lý tài khoản (admin), cảnh báo đơn quá hạn, tìm/lọc/phân trang đơn, import có kiểm tra, gộp trạng thái SP, dọn ảnh cũ |
+| *(commit này)* | Thống kê cho admin, trang Tài khoản của tôi, volume Docker cho ảnh upload, cập nhật tài liệu |
 
-## 3. Cách chạy lại
-```bash
-cd CostumeHub
-npm install
-npm start
-```
-Mở `http://localhost:3000`. (Hoặc chạy PostgreSQL: `docker compose up --build` — xem README.md.)
+---
 
-- **Reset dữ liệu mẫu:** xóa file `data/costumehub.sqlite` rồi `npm start` → tự nạp lại 100 sản phẩm + tài khoản.
-- **Tài khoản test** (hiện sẵn trên trang đăng nhập, có nút điền nhanh):
-  | Vai trò | Tài khoản | Mật khẩu |
-  |---|---|---|
-  | Admin | `admin` | `admin123` |
-  | Nhân viên | `nhanvien` | `123456` |
-  | Khách | `khachhang` | `123456` |
+## 2. Những điểm nghiệp vụ quan trọng (đọc trước khi sửa code)
 
-## 4. Cấu trúc thư mục
-```
-CostumeHub/
-├── server.js               # Khởi động app
-├── config/database.js      # Sequelize (postgres/sqlite tự chuyển theo .env)
-├── models/                 # Product, User, Rental (+ index.js quan hệ)
-├── controllers/            # product, rental, auth, home
-├── routes/                 # index, products, rentals
-├── middlewares/            # auth (requireLogin/Staff/Admin), upload (Multer)
-├── views/                  # EJS: layout, home, products, rentals, auth, 404
-├── public/                 # css/style.css, js/app.js, uploads/
-├── seed/seed.js            # Sinh 100 sản phẩm + tài khoản mẫu
-├── docker-compose.yml, Dockerfile, README.md
-└── TRANG_THAI_DU_AN.md     # (file này)
-```
+- **`Product.Quantity` = TỔNG số bộ cửa hàng có**, không trừ khi đặt. Số bộ còn trống tính theo ngày ở `utils/availability.js`.
+  - Một đơn giữ đồ từ **ngày nhận đến hết ngày trả**; đơn "Đang thuê" quá hạn vẫn tính đang giữ tới hôm nay.
+  - Đơn đang giữ chỗ: `Đã đặt`, `Đã cọc`, `Đang thuê`.
+- **Tình trạng sản phẩm** chỉ có `Còn trống` / `Ngừng cho thuê`. "Ngừng cho thuê" bị ẩn khỏi cửa hàng.
+- **Một đơn nhiều món**: bảng `Rentals` (thông tin khách, ngày, tiền tổng, trạng thái) + `RentalItems` (từng món: size, màu, SL, giá lúc đặt). `Rentals.ProductID` = món đầu tiên, giữ để tương thích dữ liệu cũ.
+- **Không xóa sản phẩm đã có đơn**: khóa ngoại `Rentals.ProductID` đặt `ON DELETE CASCADE` → xóa SP sẽ xóa luôn hóa đơn cũ.
+- **Nâng cấp CSDL tự động** khi khởi động (`server.js`): thêm cột `Users.isActive`, đổi trạng thái SP cũ, chuyển đơn cũ sang `RentalItems` (chỉ chạy 1 lần).
+- **Doanh thu** (trang Thống kê): đơn Hoàn tất = tiền thuê + phí trễ + phí hư hỏng (tính theo tháng trả đồ); đơn Đã hủy = phí hủy. Tiền cọc không phải doanh thu.
+- Mỗi request đọc lại tài khoản trong CSDL → tài khoản bị khóa bị đăng xuất ngay, đổi vai trò có hiệu lực ngay.
 
-## 5. Chức năng ĐÃ LÀM XONG ✅
-**Sản phẩm & cửa hàng**
-- 100 sản phẩm (76 trang phục + 24 phụ kiện: trang sức/mũ-mấn/khăn/túi/thắt lưng/găng tay — **không có giày**). Có trường **Màu sắc, Size**.
-- Cửa hàng `/products`: lưới thẻ (ảnh + giá), **lọc danh mục** có đếm số lượng, **ưu tiên trang phục trước phụ kiện**, **phân trang** (12/trang → ~9 trang), tìm kiếm.
-- Chi tiết `/products/:id`: thông tin đầy đủ (màu, size, mô tả, giá, cọc, phí trễ) + nút **Đặt thuê**.
+---
 
-**Module Quản lý (trang `/products/manage`) — đủ 11 chức năng bắt buộc**
-- Phân trang · Thêm/Sửa/Xóa · Chi tiết · Xóa nhiều + Sao chép nhiều (checkbox) · Tìm kiếm · Import/Export (Excel/JSON/XML) · Ẩn/hiện cột (localStorage) · Phím tắt `Alt+N/F/S/A/D`.
+## 3. 🔜 Việc còn lại
 
-**Luồng đặt thuê (nghiệp vụ)**
-- Khách vãng lai bấm Đặt thuê → **đăng nhập/đăng ký → quay lại đúng trang chi tiết** (returnTo).
-- Khách đã đăng nhập → **trang thanh toán `/products/:id/book`**: chọn ngày (tính tiền live), số lượng, thông tin khách, **giao tận nơi / tự đến lấy + địa chỉ**, **số CCCD + ảnh CCCD**, hình thức thanh toán.
-- **Đặt = cọc 1 bước** (đơn tạo ra là "Đã cọc" luôn).
-- Hóa đơn `/rentals/:id`: chi tiết tiền, giao hàng, ảnh CCCD, in được, nút Hủy.
-- Luồng trạng thái: **Đã cọc → Đang thuê → Hoàn tất** (hoặc **Đã hủy**).
-- Nhân viên: **Giao đồ** (chỉ khi đã cọc), **Nhận trả** (tự tính phí trễ + hư hỏng → hoàn cọc, có thể âm = khách đền thêm).
-- Hủy đơn: ≥3 ngày hoàn 100% · 1–2 ngày giữ 50% · trong ngày mất cọc.
+**Theo góp ý của thầy/cô:**
+1. **Form liên hệ** (mục 4): lưu nội dung khách gửi + trang cho nhân viên xem.
+2. **Ảnh danh sách sản phẩm nhỏ lại** (mục 5).
+3. **Thanh toán bằng mã QR** (VietQR) + trạng thái "Chờ thanh toán" và nhân viên xác nhận đã nhận tiền.
+4. **AI** chỉ dựa trên dữ liệu của cửa hàng: gợi ý trang phục theo dịp / tìm kiếm thông minh; OCR CCCD.
 
-**Tài khoản & phân quyền**
-- Đăng ký/đăng nhập (đăng nhập xong **về Trang chủ**).
-- **Khách**: chỉ đặt thuê & xem đơn của mình. **Nhân viên**: quản lý SP + giao/nhận đơn (không xóa/import). **Admin**: toàn quyền (xóa, import).
+**Nghiệp vụ còn thiếu:**
+- **Tiền thuê chưa được ghi nhận là đã thu**: lúc đặt chỉ ghi "Đã cọc"; lúc trả đồ hoàn cọc = cọc − phí trễ − phí hư hỏng. Cần thêm bước thu tiền thuê (khi đặt hoặc khi giao đồ) và hiển thị trên hóa đơn.
+- Trang chủ và chân trang đang ghi "Tích hợp AI", "xác minh CCCD bằng AI" → làm AI hoặc sửa câu chữ trước khi nộp.
+- Form đăng nhập đang điền sẵn `admin / admin123` (tiện demo, nhưng nên bỏ khi nộp).
 
-**Giao diện**
-- Thiết kế cao cấp (kem + burgundy + gold, font Playfair + Be Vietnam Pro), navbar/top-bar/footer, **hiệu ứng động** (fade-up, hover).
-- Trang chủ có: hero, danh mục, SP nổi bật, **mục "Lưu ý & Quy định khi thuê đồ"**, "Vì sao chọn".
+**Kỹ thuật:**
+- **Chưa chạy thử trên PostgreSQL / Docker** sau các thay đổi CSDL → bật Docker Desktop và chạy `docker compose up --build` để kiểm tra.
+- Session lưu trong RAM (khởi động lại là đăng xuất hết); chưa có chống CSRF, giới hạn đăng nhập sai.
 
-## 6. ⚠️ Chưa test hoàn tất / cần kiểm lại
-- **Submit trang thanh toán `/book`** tạo đơn kèm *giao tận nơi + ảnh CCCD*: đã dựng code + test tới bước mở trang, **chưa chạy thử submit hoàn chỉnh** → mở lại nên test: đặt 1 đơn "Giao tận nơi" + upload ảnh CCCD, kiểm tra hóa đơn hiển thị đúng.
+---
 
-## 7. 🔜 VIỆC LÀM TIẾP (khi quay lại)
-**Phần AI (chưa làm — để đạt điểm Giỏi):**
-- OCR CCCD tự điền số khi upload ảnh (Tesseract.js) · Tìm kiếm thông minh (Meilisearch) / Chatbot tư vấn.
-
-**Lỗi/điểm chưa khớp thực tế (ưu tiên):**
-1. **Khóa lịch theo ngày (chống trùng lịch)** — hiện chặn theo tồn kho, nên nâng lên khóa theo ngày thuê.
-2. Bắt buộc CCCD cho đồ giá trị cao · 3. Thu tiền thuê khi giao đồ (hiện chỉ cọc) · 4. Giới hạn số ngày thuê · 5. Dùng blacklist khách · 6. Đồng bộ trạng thái SP với tồn kho.
-
-**Ý tưởng từ nghiên cứu thị trường (xem báo cáo riêng):**
-- Gợi ý size theo số đo + size dự phòng · Review có ảnh khách thật · **Gói thuê theo dịp/combo** (Tết, cưới, kỷ yếu) · Giảm rào cản cọc · Gói bảo vệ hư hỏng · Trọn gói giao–giặt–makeup.
-
-## 8. Ghi chú
-- Ảnh sản phẩm dùng chung theo loại (2–3 ảnh/loại từ Unsplash) — cần mạng để hiển thị; link lỗi tự ẩn.
-- Dữ liệu trong `data/costumehub.sqlite` là dữ liệu test, xóa đi sẽ tạo lại.
+## 4. Ghi chú
+- Dữ liệu trong `data/costumehub.sqlite` là dữ liệu test, xóa đi sẽ tạo lại 26 sản phẩm mẫu + 3 tài khoản.
+- Ảnh sản phẩm mẫu nằm trong `public/img/` (đã có sẵn, không cần mạng).
 - Tài liệu đề tài tổng quát: `../MoTa_DeTai_CostumeHub.docx`.

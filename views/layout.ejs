@@ -18,7 +18,7 @@
       <span><i class="bi bi-telephone-fill text-warning"></i> Hotline: 0123 456 789 &nbsp;·&nbsp; <i class="bi bi-geo-alt-fill text-warning"></i> Cho thuê trang phục cao cấp</span>
       <span class="d-none d-md-inline">
         <% if (currentUser) { %>
-          <i class="bi bi-person-check"></i> <%= currentUser.fullName || currentUser.username %> ·
+          <a href="/account" title="Tài khoản của tôi"><i class="bi bi-person-check"></i> <%= currentUser.fullName || currentUser.username %></a> ·
           <a href="/logout">Đăng xuất</a>
         <% } else { %>
           <a href="/login">Đăng nhập</a> &nbsp;|&nbsp; <a href="/register">Đăng ký</a>
@@ -47,7 +47,8 @@
             <li class="nav-item"><a class="nav-link <%= path.startsWith('/products/manage') ? 'active' : '' %>" href="/products/manage"><i class="bi bi-gear"></i> Quản lý</a></li>
           <% } %>
           <% if (currentUser && currentUser.role === 'admin') { %>
-            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people"></i> Tài khoản</a></li>
+            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/stats') ? 'active' : '' %>" href="/admin/stats"><i class="bi bi-bar-chart-line"></i> Thống kê</a></li>
+            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/users') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people"></i> Tài khoản</a></li>
           <% } %>
         </ul>
         <div class="d-flex gap-2 align-items-center">
@@ -59,6 +60,10 @@
             <a href="/products/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Thêm</a>
           <% } else if (!currentUser) { %>
             <a href="/login" class="btn btn-outline-primary btn-sm"><i class="bi bi-person"></i> Đăng nhập</a>
+          <% } %>
+          <% if (currentUser) { %>
+            <a href="/account" class="btn btn-light btn-sm <%= path.startsWith('/account') ? 'active' : '' %>" title="Tài khoản của tôi"><i class="bi bi-person-circle"></i><span class="d-lg-none"> Tài khoản</span></a>
+            <a href="/logout" class="btn btn-light btn-sm d-md-none" title="Đăng xuất"><i class="bi bi-box-arrow-right"></i> Đăng xuất</a>
           <% } %>
         </div>
       </div>

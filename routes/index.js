@@ -20,7 +20,16 @@ router.get('/logout', auth.logout);
 // Module Trang phục
 router.use('/products', productRoutes);
 
-// Khu vực quản trị (chỉ admin): quản lý tài khoản
+// Tài khoản của tôi (mọi vai trò, cần đăng nhập)
+{
+  const account = require('../controllers/accountController');
+  const { requireLogin } = require('../middlewares/auth');
+  router.get('/account', requireLogin, account.show);
+  router.post('/account/profile', requireLogin, account.updateProfile);
+  router.post('/account/password', requireLogin, account.changePassword);
+}
+
+// Khu vực quản trị (chỉ admin): thống kê, quản lý tài khoản
 router.use('/admin', require('./admin'));
 
 // Giỏ thuê (nhiều món / 1 đơn)

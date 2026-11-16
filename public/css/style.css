@@ -289,3 +289,25 @@ tr.row-selected td{ font-weight:500; }
 /* Sản phẩm vừa thêm: nổi bật ở đầu bảng quản lý */
 tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #198754; animation:rowNew 2.4s ease 1; }
 @keyframes rowNew{ 0%{ background:rgba(25,135,84,.35) } 100%{ background:rgba(25,135,84,.10) } }
+
+/* ===== Thống kê (admin) ===== */
+.stat-tile .stat-num{ font-family:'Playfair Display',serif; font-size:1.45rem; font-weight:700; color:var(--ink); line-height:1.25; margin:.15rem 0; }
+.status-tile{ background:#fff; transition:box-shadow .2s; }
+.status-tile:hover{ box-shadow:var(--shadow-sm); }
+
+/* Biểu đồ cột doanh thu theo tháng: 1 chuỗi, 1 màu, cột mảnh bo 4px phía trên, lưới mờ */
+.rev-chart{ position:relative; height:260px; margin:28px 0 0 44px; }
+.rev-grid{ position:absolute; inset:0 0 24px 0; }
+.rev-gridline{ position:absolute; left:0; right:0; border-top:1px solid var(--line); }
+.rev-gridline span{ position:absolute; right:100%; margin-right:8px; transform:translateY(-50%); font-size:.72rem; color:var(--muted); white-space:nowrap; }
+.rev-bars{ position:absolute; inset:0 0 0 0; display:flex; gap:2px; }
+.rev-col{ position:relative; flex:1; display:flex; flex-direction:column; justify-content:flex-end; padding:0 18%; padding-bottom:24px; cursor:default; outline:none; }
+.rev-bar{ background:var(--primary); border-radius:4px 4px 0 0; min-height:0; transition:opacity .15s; }
+.rev-col:hover .rev-bar, .rev-col:focus-visible .rev-bar{ opacity:.8; }
+.rev-col:focus-visible{ box-shadow:inset 0 0 0 2px var(--gold); border-radius:4px; }
+.rev-label{ position:absolute; bottom:0; left:0; right:0; text-align:center; font-size:.72rem; color:var(--muted); }
+.rev-peak{ text-align:center; font-size:.72rem; font-weight:600; color:var(--ink); margin:0 -40% 4px; white-space:nowrap; }
+.rev-tip{ position:absolute; top:-8px; z-index:5; background:#fff; border:1px solid var(--line); box-shadow:var(--shadow); border-radius:10px; padding:.5rem .7rem; font-size:.78rem; color:var(--ink); pointer-events:none; white-space:nowrap; transform:translateY(-100%); }
+.top-track{ height:8px; background:var(--cream-2); border-radius:4px; overflow:hidden; }
+.top-bar{ height:100%; background:var(--primary); border-radius:0 4px 4px 0; }
+@media (max-width:576px){ .rev-chart{ height:200px; margin-left:38px; } .rev-col{ padding:0 8%; padding-bottom:24px; } }

@@ -6,6 +6,9 @@ const { requireAdmin } = require('../middlewares/auth');
 // Toàn bộ khu vực /admin chỉ dành cho ADMIN
 router.use(requireAdmin);
 
+// Thống kê: doanh thu theo tháng, đơn theo trạng thái, mẫu thuê nhiều nhất
+router.get('/stats', require('../controllers/statsController').index);
+
 // Quản lý tài khoản
 router.get('/users', users.index);
 router.post('/users', users.create);

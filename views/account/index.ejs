@@ -1,0 +1,58 @@
+<% const roleCls = { admin: 'danger', nhanvien: 'primary', khach: 'success' }; %>
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <h3 class="font-serif mb-3"><i class="bi bi-person-circle" style="color:var(--gold)"></i> Tài khoản của tôi</h3>
+
+    <div class="card p-3 p-md-4 mb-3">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <div class="fs-5 fw-semibold"><%= user.fullName || user.username %></div>
+          <div class="small text-muted">Tên đăng nhập: <code><%= user.username %></code> · Tham gia <%= new Date(user.createdAt).toLocaleDateString('vi-VN') %></div>
+        </div>
+        <span class="badge bg-<%= roleCls[user.role] || 'secondary' %>"><%= ROLES[user.role] || user.role %></span>
+      </div>
+      <div class="row g-2 mt-2 text-center">
+        <div class="col-4"><div class="p-2 rounded-3" style="background:var(--cream-2)"><div class="fs-5 fw-bold"><%= stats.total %></div><div class="small text-muted">Đơn đã đặt</div></div></div>
+        <div class="col-4"><div class="p-2 rounded-3" style="background:var(--cream-2)"><div class="fs-5 fw-bold"><%= stats.active %></div><div class="small text-muted">Đang hoạt động</div></div></div>
+        <div class="col-4"><div class="p-2 rounded-3" style="background:var(--cream-2)"><div class="fs-5 fw-bold"><%= stats.done %></div><div class="small text-muted">Đã hoàn tất</div></div></div>
+      </div>
+      <a href="/rentals" class="small mt-2 d-inline-block"><i class="bi bi-receipt"></i> Xem đơn thuê của tôi</a>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card p-3 h-100">
+          <h6 class="font-serif mb-3"><i class="bi bi-pencil"></i> Thông tin cá nhân</h6>
+          <form method="POST" action="/account/profile">
+            <label class="form-label small text-muted">Họ và tên</label>
+            <input name="fullName" class="form-control mb-3" required minlength="2" maxlength="100" value="<%= user.fullName || '' %>">
+            <button class="btn btn-primary"><i class="bi bi-save"></i> Lưu</button>
+          </form>
+          <p class="small text-muted mt-3 mb-0">Tên đăng nhập không đổi được. Họ tên sẽ được điền sẵn khi bạn đặt thuê.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-3 h-100" id="doi-mat-khau">
+          <h6 class="font-serif mb-3"><i class="bi bi-key"></i> Đổi mật khẩu</h6>
+          <form method="POST" action="/account/password" id="pwForm">
+            <label class="form-label small text-muted">Mật khẩu hiện tại</label>
+            <input type="password" name="currentPassword" class="form-control mb-2" required autocomplete="current-password">
+            <label class="form-label small text-muted">Mật khẩu mới</label>
+            <input type="password" name="newPassword" id="newPw" class="form-control mb-2" required minlength="6" maxlength="100" autocomplete="new-password">
+            <label class="form-label small text-muted">Nhập lại mật khẩu mới</label>
+            <input type="password" name="confirmPassword" id="confirmPw" class="form-control mb-3" required autocomplete="new-password">
+            <button class="btn btn-outline-primary"><i class="bi bi-shield-lock"></i> Đổi mật khẩu</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // Báo ngay nếu nhập lại mật khẩu không khớp (máy chủ vẫn kiểm tra lại)
+  (function () {
+    const a = document.getElementById('newPw'), b = document.getElementById('confirmPw');
+    const check = () => b.setCustomValidity(b.value && a.value !== b.value ? 'Nhập lại mật khẩu mới không khớp.' : '');
+    a.addEventListener('input', check); b.addEventListener('input', check);
+  })();
+</script>
