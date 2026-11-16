@@ -4,7 +4,7 @@ const XLSX = require('xlsx');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
 const { Product } = require('../models');
 const { searchProducts } = require('../utils/search');
-const { bookedOutRanges } = require('../utils/availability');
+const { bookedOutRanges, peakFutureUsage, productsInRentals } = require('../utils/availability');
 const { viDate } = require('../utils/dates');
 
 // Sắp xếp: sản phẩm tạo GẦN NHẤT lên đầu
@@ -158,6 +158,12 @@ exports.update = async (req, res) => {
     const product = await Product.findByPk(req.params.id);
     if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
     const errors = validateProduct(req.body, { hasImage: !!req.file || !!product.PathImage });
+    // Không cho giảm số bộ xuống dưới số bộ khách đang giữ cùng lúc (tránh trùng lịch)
+    const newQty = Number(req.body.Quantity);
+    if (!errors.length && newQty < product.Quantity) {
+      const peak = await peakFutureUsage(product.ProductID);
+      if (newQty < peak) errors.push(`Không thể giảm số lượng xuống ${newQty}: đang có ${peak} ${product.Unit} được khách đặt cùng lúc. Tối thiểu là ${peak}.`);
+    }
     if (errors.length) {
       removeUpload(req.file);
       return res.status(400).render('products/form', formView({
@@ -178,21 +184,44 @@ exports.update = async (req, res) => {
 };
 
 // ===== 5a: XÓA 1 BẢN GHI =====
+// Không xóa sản phẩm đã có đơn thuê:
+// - đơn chưa xong (đã cọc / đang thuê) -> khách đang giữ đồ
+// - đơn đã xong / đã hủy -> xóa SP sẽ làm mất luôn hóa đơn cũ (lịch sử doanh thu)
+// Thay vào đó đổi Tình trạng sang "Ngừng cho thuê" để không ai đặt được nữa.
+function blockedMessages({ active, history }) {
+  const list = (s) => '#' + [...s].join(', #');
+  const msgs = [];
+  if (active.size) msgs.push(`Không xóa ${list(active)}: đang có đơn thuê chưa hoàn tất. Hãy đổi Tình trạng sang "Ngừng cho thuê".`);
+  if (history.size) msgs.push(`Không xóa ${list(history)}: đã có lịch sử đơn thuê (xóa sẽ mất hóa đơn cũ). Hãy đổi Tình trạng sang "Ngừng cho thuê" để ngừng cho thuê.`);
+  return msgs;
+}
+
 exports.destroy = async (req, res) => {
-  await Product.destroy({ where: { ProductID: req.params.id } });
-  req.flash('success', 'Đã xóa 1 trang phục.');
+  const id = parseInt(req.params.id);
+  const used = await productsInRentals([id]);
+  if (used.active.has(id) || used.history.has(id)) {
+    { const m = blockedMessages(used); if (m.length) req.flash('error', m.join(' ')); }
+  } else {
+    await Product.destroy({ where: { ProductID: id } });
+    req.flash('success', 'Đã xóa 1 trang phục.');
+  }
   res.redirect(backToList(req));              // 7: quay về trang danh sách
 };
 
 // ===== 5b: XÓA NHIỀU BẢN GHI (checkbox) =====
 exports.destroyMany = async (req, res) => {
   const ids = toArray(req.body.ids);
-  if (ids.length) {
-    await Product.destroy({ where: { ProductID: { [Op.in]: ids } } });
-    req.flash('success', `Đã xóa ${ids.length} trang phục được chọn.`);
-  } else {
+  if (!ids.length) {
     req.flash('error', 'Chưa chọn bản ghi nào.');
+    return res.redirect(backToList(req));
   }
+  const used = await productsInRentals(ids);
+  const ok = ids.filter(id => !used.active.has(id) && !used.history.has(id));
+  if (ok.length) {
+    const n = await Product.destroy({ where: { ProductID: { [Op.in]: ok } } });
+    if (n) req.flash('success', `Đã xóa ${n} trang phục được chọn.`);
+  }
+  { const m = blockedMessages(used); if (m.length) req.flash('error', m.join(' ')); }
   res.redirect(backToList(req));              // 7: quay về trang danh sách
 };
 

@@ -5,8 +5,19 @@ const { todayStr, daysBetween, viDate } = require('../utils/dates');
 const { availableMap, checkDates } = require('../utils/availability');
 const { loadCart, needByProduct } = require('./cartController');
 
+const path = require('path');
+const { privateDir, uploadDir } = require('../middlewares/upload');
+
 const num = (v) => Number(v) || 0;
 const withItems = { include: [{ model: RentalItem, as: 'items', include: [Product] }, Product] };
+
+// Chỉ chủ đơn hoặc nhân viên/admin mới được xem / hủy đơn
+const isStaff = (u) => u && (u.role === 'admin' || u.role === 'nhanvien');
+const canAccess = (req, rental) => isStaff(req.session.user) || (rental.UserID && rental.UserID === req.session.user.id);
+function denied(req, res) {
+  req.flash('error', 'Bạn không có quyền xem đơn thuê này.');
+  return res.redirect('/rentals');
+}
 
 // ===== Đặt thuê toàn bộ giỏ hàng (1 đơn nhiều món) =====
 exports.create = async (req, res) => {
@@ -70,7 +81,7 @@ exports.create = async (req, res) => {
         ProductID: lines[0].productId,
         UserID: req.session.user ? req.session.user.id : null,
         CustomerName, CustomerPhone, CustomerIDCard,
-        IDCardImage: req.file ? '/uploads/' + req.file.filename : null,
+        IDCardImage: req.file ? req.file.filename : null,   // file trong private_uploads/
         DeliveryMethod: DeliveryMethod === 'Giao tận nơi' ? 'Giao tận nơi' : 'Tự đến lấy',
         DeliveryAddress: DeliveryMethod === 'Giao tận nơi' ? DeliveryAddress.trim() : null,
         StartDate, EndDate, RentDays: rentDays, Quantity: totalQty,
@@ -104,13 +115,28 @@ exports.create = async (req, res) => {
 exports.show = async (req, res) => {
   const rental = await Rental.findByPk(req.params.id, withItems);
   if (!rental) return res.status(404).render('404', { title: 'Không tìm thấy đơn' });
+  if (!canAccess(req, rental)) return denied(req, res);
   res.render('rentals/show', { title: `Đơn thuê #${rental.RentalID}`, rental });
+};
+
+// ===== Ảnh CCCD (riêng tư): chỉ chủ đơn / nhân viên =====
+exports.idCardImage = async (req, res) => {
+  const rental = await Rental.findByPk(req.params.id);
+  if (!rental || !rental.IDCardImage) return res.status(404).render('404', { title: 'Không tìm thấy ảnh' });
+  if (!canAccess(req, rental)) return denied(req, res);
+  // Đơn mới: chỉ lưu tên file trong thư mục riêng tư; đơn cũ: đường dẫn /uploads/...
+  const file = rental.IDCardImage.startsWith('/uploads/')
+    ? path.join(uploadDir, path.basename(rental.IDCardImage))
+    : path.join(privateDir, path.basename(rental.IDCardImage));
+  res.set('Cache-Control', 'private, no-store');
+  res.sendFile(file, (err) => { if (err && !res.headersSent) res.status(404).render('404', { title: 'Không tìm thấy ảnh' }); });
 };
 
 // ===== Hủy đơn (tính phí hủy theo mốc ngày) =====
 exports.cancel = async (req, res) => {
   const rental = await Rental.findByPk(req.params.id);
   if (!rental) { req.flash('error', 'Không tìm thấy đơn.'); return res.redirect('/rentals'); }
+  if (!canAccess(req, rental)) return denied(req, res);
   if (['Đang thuê', 'Hoàn tất', 'Đã hủy'].includes(rental.Status)) {
     req.flash('error', 'Đơn này không thể hủy.'); return res.redirect(`/rentals/${rental.RentalID}`);
   }

@@ -74,6 +74,29 @@ async function bookedOutRanges(product, days = 60) {
   return ranges;
 }
 
+// Số bộ bị giữ cùng lúc nhiều nhất từ hôm nay trở đi (dùng khi sửa "Số lượng" của SP)
+async function peakFutureUsage(productId) {
+  const start = todayStr();
+  const holds = await activeHolds([productId], start, '9999-12-31');
+  if (!holds.length) return 0;
+  const end = holds.reduce((m, h) => (h.to > m ? h.to : m), start);
+  return Math.max(0, ...Object.values(usageByDay(holds, start, end)[productId] || {}));
+}
+
+// Các ProductID đã từng nằm trong đơn thuê: { active: đơn chưa xong, history: chỉ còn đơn đã xong/hủy }
+// (CSDL đặt Rentals.ProductID ... ON DELETE CASCADE => xóa SP sẽ xóa luôn hóa đơn cũ, nên phải chặn)
+async function productsInRentals(productIds) {
+  const items = await RentalItem.findAll({
+    attributes: ['ProductID'],
+    where: { ProductID: { [Op.in]: productIds } },
+    include: [{ model: Rental, attributes: ['Status'] }],
+  });
+  const active = new Set(), history = new Set();
+  for (const i of items) (ACTIVE.includes(i.Rental.Status) ? active : history).add(i.ProductID);
+  for (const id of active) history.delete(id);
+  return { active, history };
+}
+
 // Kiểm tra khoảng ngày thuê hợp lệ; trả về chuỗi lỗi hoặc null
 function checkDates(start, end) {
   const { isDateStr } = require('./dates');
@@ -85,4 +108,4 @@ function checkDates(start, end) {
   return null;
 }
 
-module.exports = { ACTIVE, MAX_RENT_DAYS, availableMap, bookedOutRanges, checkDates };
+module.exports = { ACTIVE, MAX_RENT_DAYS, availableMap, bookedOutRanges, checkDates, peakFutureUsage, productsInRentals };

@@ -4,3 +4,4 @@ data
 public/uploads/*
 npm-debug.log
 .git
+private_uploads

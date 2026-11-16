@@ -22,7 +22,7 @@
           <p class="mb-1 small"><i class="bi bi-telephone"></i> <%= rental.CustomerPhone %></p>
           <% if (rental.CustomerIDCard) { %><p class="mb-1 small"><i class="bi bi-person-vcard"></i> CCCD: <%= rental.CustomerIDCard %></p><% } %>
           <p class="mb-1 small"><i class="bi bi-truck"></i> <%= rental.DeliveryMethod %><% if (rental.DeliveryAddress) { %>: <%= rental.DeliveryAddress %><% } %></p>
-          <% if (rental.IDCardImage) { %><p class="mb-0 small"><i class="bi bi-image"></i> Ảnh CCCD: <a href="<%= rental.IDCardImage %>" target="_blank">xem</a></p><% } %>
+          <% if (rental.IDCardImage) { %><p class="mb-0 small"><i class="bi bi-image"></i> Ảnh CCCD: <a href="/rentals/<%= rental.RentalID %>/cccd" target="_blank" rel="noopener">xem</a></p><% } %>
         </div>
         <div class="col-md-5">
           <h6 class="text-muted small text-uppercase">Thời gian thuê</h6>

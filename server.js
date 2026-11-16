@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+require('express-async-errors');   // lỗi trong hàm async được chuyển tới bộ xử lý lỗi bên dưới (không treo trang)
 const path = require('path');
 const session = require('express-session');
 const flash = require('connect-flash');
@@ -46,6 +47,31 @@ app.use('/', routes);
 
 // 404
 app.use((req, res) => res.status(404).render('404', { title: 'Không tìm thấy trang' }));
+
+// Bộ xử lý lỗi chung: báo lỗi dễ hiểu, không lộ chi tiết kỹ thuật cho người dùng
+const multer = require('multer');
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const userError =
+    err instanceof multer.MulterError ? (err.code === 'LIMIT_FILE_SIZE' ? 'File quá lớn (tối đa 5MB với ảnh, 10MB với file import).' : 'File tải lên không hợp lệ.')
+    : err.code === 'INVALID_FILE_TYPE' ? err.message
+    : null;
+
+  if (userError) {
+    // Quay lại trang trước (cùng trang web) và hiện thông báo
+    const ref = req.get('Referer') || '';
+    let back = '/';
+    try { const u = new URL(ref); if (u.host === req.get('host')) back = u.pathname + u.search; } catch (_) {}
+    req.flash('error', userError);
+    return res.redirect(back);
+  }
+
+  console.error(`❌ Lỗi ${req.method} ${req.originalUrl}:`, err);
+  if (res.headersSent) return next(err);
+  res.status(500);
+  if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: false, error: 'Lỗi máy chủ' });
+  res.render('500', { title: 'Có lỗi xảy ra' });
+});
 
 // Chuyển CSDL cũ (mỗi đơn 1 sản phẩm, trừ tồn kho khi đặt) sang cách mới
 // (đơn nhiều món + tính chỗ trống theo ngày). Chỉ chạy 1 lần: khi bảng RentalItems còn trống.
