@@ -8,6 +8,7 @@ const rentalRoutes = require('./rentals');
 // Trang chủ + liên hệ
 router.get('/', home.home);
 router.get('/contact', home.contact);
+router.get('/noi-quy', (req, res) => res.render('home/rules', { title: 'Nội quy thuê đồ' }));
 router.post('/contact', home.contactSubmit);
 
 // Auth

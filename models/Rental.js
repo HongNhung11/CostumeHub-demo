@@ -27,7 +27,9 @@ const Rental = sequelize.define('Rental', {
   RentFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },     // tiền thuê
   Deposit: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },     // tiền cọc
   LateFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },     // phí trễ
-  DamageFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },   // phí hư hỏng
+  DamageFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },   // phí hư hỏng (tổng)
+  DamageDetails: { type: DataTypes.TEXT },                           // JSON: từng khoản trừ theo bảng nội quy
+  TermsAcceptedAt: { type: DataTypes.DATE },                         // lúc khách tick "đồng ý nội quy"
   CancelFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },   // phí hủy
   RefundAmount: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },// tiền hoàn lại
 

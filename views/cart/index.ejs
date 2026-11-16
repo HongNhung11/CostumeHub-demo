@@ -157,6 +157,14 @@
         <div class="d-flex justify-content-between small py-1"><span>Tiền cọc (hoàn lại)</span><span id="sumDeposit">0 đ</span></div>
         <hr class="my-2">
         <div class="d-flex justify-content-between fw-bold mb-3"><span>Tổng tạm tính</span><span class="price-tag" id="sumTotal">0 đ</span></div>
+        <div class="form-check mb-3 small">
+          <input class="form-check-input" type="checkbox" name="agree" value="1" id="agree" required <%= o('agree') === '1' ? 'checked' : '' %>>
+          <label class="form-check-label" for="agree">
+            Tôi đã đọc và đồng ý <a href="/noi-quy" target="_blank" rel="noopener">nội quy thuê đồ &amp; bảng trừ phí</a>
+            (trả trễ, vệ sinh, hư hỏng, mất đồ, hủy đơn).
+          </label>
+          <div class="invalid-feedback">Vui lòng đọc và đồng ý nội quy trước khi đặt.</div>
+        </div>
         <button class="btn btn-gold btn-lg w-100" id="btnBook"><i class="bi bi-check2-circle"></i> Xác nhận đặt & cọc</button>
         <p class="small text-muted text-center mt-2 mb-0">Đặt thuê là xác nhận cọc luôn để giữ chỗ.</p>
       </div>

@@ -87,6 +87,7 @@ function buildProducts() {
       Size: o.size,
       DepositValue: round5(price * 2),
       LateFeePerDay: round5(price / 2),
+      ProductValue: Math.round(price * 12 / 50000) * 50000,   // giá trị đền bù khi mất / hư nặng
       Status: o.status,
       Description: o.desc,
     });

@@ -1,0 +1,40 @@
+<%
+  // Bảng nội quy trừ phí — dữ liệu lấy từ utils/fees.js (app.locals.FEES)
+  const fvnd = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
+%>
+<div class="table-responsive">
+  <table class="table table-sm align-middle fee-table mb-2">
+    <thead><tr><th>Trường hợp</th><th class="text-end" style="width:42%">Mức trừ vào tiền cọc</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Trả trễ hạn</strong><div class="small text-muted">Tính từ ngày sau ngày trả đã đặt</div></td>
+        <td class="text-end">Phí trễ/ngày của sản phẩm × số ngày trễ × số bộ<div class="small text-muted">ghi trên trang mỗi sản phẩm</div></td>
+      </tr>
+      <% FEES.DAMAGE_RULES.forEach(r => { %>
+        <tr>
+          <td><strong><%= r.label %></strong><div class="small text-muted"><%= r.group %></div></td>
+          <td class="text-end">
+            <% if (r.amount) { %><strong><%= fvnd(r.amount) %></strong> / bộ<% } else { %>
+              Đền theo <strong>giá trị sản phẩm</strong> / bộ<div class="small text-muted">sản phẩm chưa ghi giá trị: mất tiền cọc của bộ đó; thiếu thì bù thêm</div>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+      <tr>
+        <td><strong>Mất phụ kiện đi kèm</strong> (nón, khăn, thắt lưng…)<div class="small text-muted">Trường hợp khác</div></td>
+        <td class="text-end">Theo giá phụ kiện — nhân viên ghi rõ lý do trên hóa đơn</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h6 class="font-serif mt-3 mb-2">Hủy đơn</h6>
+<div class="table-responsive">
+  <table class="table table-sm fee-table mb-2">
+    <thead><tr><th>Thời điểm hủy</th><th class="text-end" style="width:42%">Tiền cọc</th></tr></thead>
+    <tbody>
+      <% FEES.CANCEL_POLICY.forEach(c => { %><tr><td><%= c.when %></td><td class="text-end"><strong><%= c.fee %></strong></td></tr><% }) %>
+    </tbody>
+  </table>
+</div>
+<p class="small text-muted mb-0"><i class="bi bi-info-circle"></i> Hoàn cọc = Tiền cọc − phí trễ − phí vệ sinh / hư hỏng. Nếu tổng phí lớn hơn tiền cọc, khách thanh toán thêm phần chênh lệch. Mọi khoản trừ đều được ghi rõ trên hóa đơn.</p>

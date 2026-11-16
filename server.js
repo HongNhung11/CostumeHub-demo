@@ -19,6 +19,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layout');
+app.locals.FEES = require('./utils/fees');   // bảng nội quy trừ phí, dùng trong mọi view
 
 // Middlewares
 app.use(express.urlencoded({ extended: true }));
@@ -122,13 +123,19 @@ async function migrateRentalsToItems() {
 
 // Bổ sung cột mới cho bảng đã có (sync() không tự thêm cột) + chuyển trạng thái SP cũ
 async function migrateSchema() {
-  const { User, Product } = require('./models');
+  const { User, Product, Rental } = require('./models');
   const { LEGACY_STATUS } = require('./utils/constants');
   const qi = sequelize.getQueryInterface();
   const users = await qi.describeTable('Users');
   if (!users.isActive) {
     await qi.addColumn('Users', 'isActive', { type: User.rawAttributes.isActive.type, defaultValue: true });
     await User.update({ isActive: true }, { where: {}, hooks: false });
+  }
+  // Các cột mới khác (đều cho phép trống)
+  const NEW_COLUMNS = { Products: [Product, ['ProductValue']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt']] };
+  for (const [table, [model, cols]] of Object.entries(NEW_COLUMNS)) {
+    const desc = await qi.describeTable(table);
+    for (const c of cols) if (!desc[c]) await qi.addColumn(table, c, { type: model.rawAttributes[c].type, allowNull: true });
   }
   // Trạng thái SP cũ: "Đang cho thuê" -> "Còn trống", "Chờ xử lý" -> "Ngừng cho thuê"
   for (const [oldS, newS] of Object.entries(LEGACY_STATUS)) {

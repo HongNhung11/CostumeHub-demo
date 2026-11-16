@@ -311,3 +311,7 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
 .top-track{ height:8px; background:var(--cream-2); border-radius:4px; overflow:hidden; }
 .top-bar{ height:100%; background:var(--primary); border-radius:0 4px 4px 0; }
 @media (max-width:576px){ .rev-chart{ height:200px; margin-left:38px; } .rev-col{ padding:0 8%; padding-bottom:24px; } }
+
+/* Bảng nội quy trừ phí */
+.fee-table thead th{ background:var(--cream-2)!important; }
+.fee-table td{ border-color:var(--line); }

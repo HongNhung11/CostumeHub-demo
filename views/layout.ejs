@@ -38,7 +38,7 @@
         <ul class="navbar-nav mx-auto">
           <li class="nav-item"><a class="nav-link <%= path==='/' ? 'active' : '' %>" href="/">Trang chủ</a></li>
           <li class="nav-item"><a class="nav-link <%= path==='/products' ? 'active' : '' %>" href="/products">Sản phẩm</a></li>
-          <li class="nav-item"><a class="nav-link" href="/#quy-dinh">Quy định</a></li>
+          <li class="nav-item"><a class="nav-link <%= path==='/noi-quy' ? 'active' : '' %>" href="/noi-quy">Nội quy</a></li>
           <li class="nav-item"><a class="nav-link <%= path==='/contact' ? 'active' : '' %>" href="/contact">Liên hệ</a></li>
           <% if (currentUser) { %>
             <li class="nav-item"><a class="nav-link <%= path.startsWith('/rentals') ? 'active' : '' %>" href="/rentals"><i class="bi bi-receipt"></i> Đơn thuê</a></li>

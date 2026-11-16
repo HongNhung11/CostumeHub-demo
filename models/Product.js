@@ -19,6 +19,7 @@ const Product = sequelize.define('Product', {
   Description: { type: DataTypes.TEXT, allowNull: true },         // Mô tả
   DepositValue: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },   // Tiền cọc
   LateFeePerDay: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },  // Phí phạt trễ/ngày
+  ProductValue: { type: DataTypes.DECIMAL(12, 0), allowNull: true },   // Giá trị SP (đền bù khi mất / hư nặng); trống = mất cọc
   Status: { type: DataTypes.STRING, defaultValue: 'Còn trống' },      // Tình trạng
 }, {
   tableName: 'Products',

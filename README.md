@@ -75,10 +75,12 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 - **Chống trùng lịch**: số lượng sản phẩm là tổng số bộ; số bộ còn trống tính theo ngày thuê. Đơn giữ đồ từ ngày nhận đến hết ngày trả. Tối đa 30 ngày / đơn.
 - Quy định: **SĐT** 10 số đầu 03/05/07/08/09, **CCCD** 12 số (mã tỉnh 001–096), ảnh CCCD (chỉ chủ đơn và nhân viên xem được).
 - Hủy đơn: ≥ 3 ngày trước ngày nhận hoàn 100% cọc · 1–2 ngày giữ 50% · trong ngày mất cọc.
+- **Nội quy & bảng trừ phí** `/noi-quy` (mức phí sửa ở `utils/fees.js`): khách phải tick **"đồng ý nội quy"** mới đặt được; hóa đơn ghi lại thời điểm đồng ý.
 
 ### Xử lý đơn (nhân viên) — `/rentals`
 - Trạng thái: **Đã cọc → Đang thuê → Hoàn tất** (hoặc **Đã hủy**).
-- **Giao đồ** (từ ngày nhận trở đi), **Nhận trả**: ngày trả thực tế từ ngày nhận đến hôm nay, tự tính phí trễ + phí hư hỏng → hoàn cọc (âm = khách đền thêm).
+- **Giao đồ** (từ ngày nhận trở đi), **Nhận trả**: ngày trả thực tế từ ngày nhận đến hôm nay; nhân viên chọn số bộ bị bẩn / hư / mất **theo bảng nội quy** cho từng món, hệ thống tự tính phí trễ + phí vệ sinh/hư hỏng → hoàn cọc (âm = khách đền thêm). Hóa đơn liệt kê từng khoản trừ.
+- Mất đồ / hư nặng: đền theo **Giá trị sản phẩm** (ô không bắt buộc khi thêm SP); sản phẩm chưa ghi giá trị thì mất tiền cọc của bộ đó.
 - **Cảnh báo**: quá hạn trả, quá ngày nhận chưa lấy đồ, hôm nay giao / hôm nay trả.
 - **Tìm kiếm** theo mã đơn, tên khách, SĐT, tên trang phục; **lọc** theo trạng thái / quá hạn; phân trang 15 đơn/trang.
 

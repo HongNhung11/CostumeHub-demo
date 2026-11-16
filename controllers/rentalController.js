@@ -3,6 +3,7 @@ const { sequelize, Rental, RentalItem, Product } = require('../models');
 const { normalizePhone, isValidPhone, isValidCCCD, splitList } = require('../utils/text');
 const { todayStr, daysBetween, viDate, isDateStr } = require('../utils/dates');
 const { normalize } = require('../utils/text');
+const { DAMAGE_RULES, lossAmount } = require('../utils/fees');
 const { availableMap, checkDates } = require('../utils/availability');
 const { loadCart, needByProduct } = require('./cartController');
 
@@ -58,6 +59,7 @@ exports.create = async (req, res) => {
     if (DeliveryMethod === 'Giao tận nơi' && (DeliveryAddress || '').trim().length < 10) {
       return fail('Vui lòng nhập địa chỉ nhận hàng đầy đủ (số nhà, đường, phường/xã, quận/huyện, tỉnh/TP).');
     }
+    if (req.body.agree !== '1') return fail('Vui lòng đọc và đồng ý nội quy thuê đồ trước khi đặt.');
 
     // Kiểm tra trùng lịch + tạo đơn trong 1 transaction (tránh 2 khách cùng giữ 1 bộ)
     const need = needByProduct(lines);
@@ -92,6 +94,7 @@ exports.create = async (req, res) => {
         PaymentMethod: ['Tiền mặt', 'Chuyển khoản', 'Ví điện tử'].includes(req.body.method) ? req.body.method : 'Tiền mặt',
         PaymentStatus: 'Đã cọc',
         Status: 'Đã cọc',
+        TermsAcceptedAt: new Date(),
         Note,
       }, { transaction: t });
 
@@ -118,7 +121,9 @@ exports.show = async (req, res) => {
   if (!rental) return res.status(404).render('404', { title: 'Không tìm thấy đơn' });
   if (!canAccess(req, rental)) return denied(req, res);
   rental.alert = alertOf(rental);
-  res.render('rentals/show', { title: `Đơn thuê #${rental.RentalID}`, rental });
+  let damageDetails = [];
+  try { damageDetails = JSON.parse(rental.DamageDetails || '[]'); } catch (_) { damageDetails = []; }
+  res.render('rentals/show', { title: `Đơn thuê #${rental.RentalID}`, rental, damageDetails });
 };
 
 // ===== Ảnh CCCD (riêng tư): chỉ chủ đơn / nhân viên =====
@@ -239,6 +244,32 @@ exports.returnForm = async (req, res) => {
   res.render('rentals/return', { title: `Nhận trả đơn #${rental.RentalID}`, rental, today: todayStr(), alert: alertOf(rental) });
 };
 
+// Tính các khoản trừ theo bảng nội quy từ form nhận trả.
+// Form gửi: fee_<ItemID>_<mã phí> = số bộ bị ảnh hưởng; OtherFee + OtherNote cho trường hợp khác.
+// (Dùng tên phẳng: kiểu fee[13][...] bị thư viện đọc form biến thành mảng và mất mã món.)
+function computeDamage(rental, body) {
+  const details = [];
+  for (const it of rental.items) {
+    for (const rule of DAMAGE_RULES) {
+      const raw = String(body[`fee_${it.ItemID}_${rule.code}`] ?? '0').trim() || '0';
+      if (!/^\d+$/.test(raw)) return { error: 'Số bộ bị trừ phí phải là số nguyên ≥ 0.' };
+      const n = Number(raw);
+      if (!n) continue;
+      if (n > it.Quantity) return { error: `"${it.ProductName}" chỉ có ${it.Quantity} bộ, không thể trừ phí "${rule.label}" cho ${n} bộ.` };
+      const unit = rule.amount ?? lossAmount(it, it.Product);
+      details.push({ item: it.ProductName, code: rule.code, label: rule.label, qty: n, unit, amount: unit * n });
+    }
+  }
+  const other = String(body.OtherFee ?? '0').trim() || '0';
+  if (!/^\d+$/.test(other)) return { error: 'Phí khác phải là số nguyên ≥ 0.' };
+  const note = String(body.OtherNote || '').trim().slice(0, 200);
+  if (Number(other) > 0) {
+    if (note.length < 3) return { error: 'Vui lòng ghi lý do cho "Phí khác" (VD: mất nón lá đi kèm).' };
+    details.push({ item: 'Khác', code: 'khac', label: note, qty: 1, unit: Number(other), amount: Number(other) });
+  }
+  return { details };
+}
+
 // ===== Nhân viên: Xử lý nhận đồ trả (tính phí trễ + hư hỏng, hoàn cọc) =====
 exports.receiveReturn = async (req, res) => {
   const rental = await Rental.findByPk(req.params.id, withItems);
@@ -251,9 +282,10 @@ exports.receiveReturn = async (req, res) => {
   if (!isDateStr(returnDate)) { req.flash('error', 'Vui lòng chọn ngày trả thực tế.'); return res.redirect(backForm); }
   if (returnDate < rental.StartDate) { req.flash('error', `Ngày trả thực tế không được trước ngày nhận (${viDate(rental.StartDate)}).`); return res.redirect(backForm); }
   if (returnDate > todayStr()) { req.flash('error', 'Ngày trả thực tế không được ở tương lai.'); return res.redirect(backForm); }
-  const dmg = String(req.body.DamageFee ?? '0').trim() || '0';
-  if (!/^\d+$/.test(dmg)) { req.flash('error', 'Phí hư hỏng phải là số nguyên ≥ 0.'); return res.redirect(backForm); }
-  const damageFee = Number(dmg);
+  // Phí vệ sinh / hư hỏng: tính theo BẢNG NỘI QUY (utils/fees.js) — nhân viên chỉ chọn số bộ bị ảnh hưởng
+  const { details, error } = computeDamage(rental, req.body);
+  if (error) { req.flash('error', error); return res.redirect(backForm); }
+  const damageFee = details.reduce((s, d) => s + d.amount, 0);
 
   // Phí trễ = số ngày trễ × tổng (phí trễ/ngày × SL) của các món trong đơn
   const lateDays = Math.max(0, daysBetween(rental.EndDate, returnDate));
@@ -263,6 +295,7 @@ exports.receiveReturn = async (req, res) => {
   rental.ReturnDate = returnDate;
   rental.LateFee = lateFee;
   rental.DamageFee = damageFee;
+  rental.DamageDetails = details.length ? JSON.stringify(details) : null;
   rental.RefundAmount = num(rental.Deposit) - lateFee - damageFee; // có thể âm (khách đền thêm)
   rental.Status = 'Hoàn tất';                                      // hoàn tất => các bộ trống lại
   await rental.save();

@@ -61,7 +61,13 @@
           <div class="d-flex justify-content-between py-1"><span>Tiền cọc</span><span><%= vnd(rental.Deposit) %></span></div>
           <% if (st==='Hoàn tất') { %>
             <div class="d-flex justify-content-between py-1 text-danger"><span>Phí trễ hạn</span><span>- <%= vnd(rental.LateFee) %></span></div>
-            <div class="d-flex justify-content-between py-1 text-danger"><span>Phí hư hỏng</span><span>- <%= vnd(rental.DamageFee) %></span></div>
+            <div class="d-flex justify-content-between py-1 text-danger"><span>Phí vệ sinh / hư hỏng</span><span>- <%= vnd(rental.DamageFee) %></span></div>
+            <% damageDetails.forEach(d => { %>
+              <div class="d-flex justify-content-between small text-muted ps-3">
+                <span>· <%= d.item !== 'Khác' ? d.item + ': ' : 'Khác: ' %><%= d.label %><%= d.qty > 1 ? ' × ' + d.qty + ' bộ' : '' %></span>
+                <span><%= vnd(d.amount) %></span>
+              </div>
+            <% }) %>
             <hr class="my-1">
             <div class="d-flex justify-content-between py-1 fw-bold"><span>Hoàn lại cọc</span><span class="<%= Number(rental.RefundAmount)<0?'text-danger':'text-success' %>"><%= vnd(rental.RefundAmount) %></span></div>
             <% if (Number(rental.RefundAmount)<0) { %><div class="small text-danger">* Số âm: khách cần đền thêm.</div><% } %>
@@ -76,6 +82,10 @@
           <% } %>
         </div>
       </div>
+      <p class="small text-muted mt-3 mb-0">
+        <i class="bi bi-journal-check"></i>
+        <% if (rental.TermsAcceptedAt) { %>Khách đã đồng ý <a href="/noi-quy">nội quy thuê đồ &amp; bảng trừ phí</a> lúc <%= new Date(rental.TermsAcceptedAt).toLocaleString('vi-VN') %>.<% } else { %>Áp dụng <a href="/noi-quy">nội quy thuê đồ &amp; bảng trừ phí</a>.<% } %>
+      </p>
     </div>
 
     <!-- Hành động theo trạng thái -->

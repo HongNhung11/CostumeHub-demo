@@ -28,6 +28,8 @@
       <div class="row small mt-1">
         <div class="col-6">Tiền cọc: <strong><%= Number(product.DepositValue).toLocaleString('vi-VN') %> đ</strong></div>
         <div class="col-6">Phí trễ: <strong><%= Number(product.LateFeePerDay).toLocaleString('vi-VN') %> đ/ngày</strong></div>
+        <% if (Number(product.ProductValue) > 0) { %><div class="col-12 mt-1">Giá trị sản phẩm (đền khi mất / hư nặng): <strong><%= Number(product.ProductValue).toLocaleString('vi-VN') %> đ</strong></div><% } %>
+        <div class="col-12 mt-1"><a href="/noi-quy" class="small"><i class="bi bi-journal-text"></i> Xem nội quy trừ phí</a></div>
       </div>
     </div>
 
@@ -115,6 +117,6 @@
       <% } %>
       <a href="/products" class="btn btn-light btn-sm" onclick="if(document.referrer){history.back();return false;}"><i class="bi bi-arrow-left"></i> Quay lại danh sách</a>
     </div>
-    <p class="small text-muted mt-2"><i class="bi bi-shield-check text-success"></i> Cọc hoàn lại khi trả đồ đúng hạn, nguyên vẹn. Xem <a href="/#quy-dinh">lưu ý & quy định thuê</a>.</p>
+    <p class="small text-muted mt-2"><i class="bi bi-shield-check text-success"></i> Cọc hoàn lại khi trả đồ đúng hạn, nguyên vẹn. Xem <a href="/noi-quy">nội quy &amp; bảng trừ phí</a>.</p>
   </div>
 </div>

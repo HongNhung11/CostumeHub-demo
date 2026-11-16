@@ -343,6 +343,8 @@ function pickBody(body) {
   const nums = ['Quantity', 'Price', 'DepositValue', 'LateFeePerDay'];
   for (const f of fields) if (body[f] !== undefined && body[f] !== '') d[f] = String(body[f]).trim();
   for (const f of nums) if (body[f] !== undefined && body[f] !== '') d[f] = Number(body[f]) || 0;
+  // Giá trị SP: không bắt buộc; để trống = xóa giá trị (khi mất đồ sẽ mất cọc)
+  if (body.ProductValue !== undefined) d.ProductValue = String(body.ProductValue).trim() === '' ? null : Number(body.ProductValue) || null;
   return d;
 }
 function toArray(v) {
@@ -378,6 +380,10 @@ function validateProduct(body, { hasImage }) {
     const v = int(k);
     if (!(v >= 0)) errors.push(`${label} phải là số nguyên ≥ 0.`);
     else if (v % 1000 !== 0) errors.push(`${label} phải tròn nghìn đồng.`);
+  }
+  if (str('ProductValue')) {
+    const v = int('ProductValue');
+    if (!(v >= 1000) || v % 1000 !== 0) errors.push('Giá trị sản phẩm phải từ 1.000 đ trở lên và tròn nghìn (hoặc để trống).');
   }
   return errors;
 }
