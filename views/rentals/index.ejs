@@ -24,7 +24,7 @@
       <% rentals.forEach(r => { %>
         <tr>
           <td><a href="/rentals/<%= r.RentalID %>">#<%= r.RentalID %></a></td>
-          <td><strong><%= r.Product ? r.Product.ProductName : '—' %></strong><div class="small text-muted">SL: <%= r.Quantity %></div></td>
+          <td><strong><%= r.Product ? r.Product.ProductName : '—' %></strong><div class="small text-muted">SL: <%= r.Quantity %><% if (r.SelectedSize) { %> · Size <%= r.SelectedSize %><% } %><% if (r.SelectedColor) { %> · <%= r.SelectedColor %><% } %></div></td>
           <td><%= r.CustomerName %><div class="small text-muted"><%= r.CustomerPhone %></div></td>
           <td class="small"><%= r.StartDate %><br><%= r.EndDate %> (<%= r.RentDays %> ngày)</td>
           <td class="text-end"><%= vnd(r.RentFee) %></td>

@@ -285,3 +285,7 @@ tr.row-selected td{ font-weight:500; }
 .cat-card .label i{ transition:transform .3s ease; }
 .cat-card:hover .label i{ transform:translateX(5px); }
 @media(prefers-reduced-motion:reduce){ .hero-split h1 .accent,.cta-band .btn-gold,.marquee .mtrack{ animation:none!important } }
+
+/* Sản phẩm vừa thêm: nổi bật ở đầu bảng quản lý */
+tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #198754; animation:rowNew 2.4s ease 1; }
+@keyframes rowNew{ 0%{ background:rgba(25,135,84,.35) } 100%{ background:rgba(25,135,84,.10) } }

@@ -1,4 +1,6 @@
+const fs = require('fs');
 const { Rental, Product } = require('../models');
+const { splitList, normalizePhone, isValidPhone, isValidCCCD } = require('../utils/text');
 
 const MS = 86400000;
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -8,20 +10,44 @@ const num = (v) => Number(v) || 0;
 // ===== Tạo đơn thuê (khách đặt từ trang chi tiết) =====
 exports.create = async (req, res) => {
   try {
-    const { ProductID, CustomerName, CustomerPhone, CustomerIDCard, StartDate, EndDate, Quantity, Note, DeliveryMethod, DeliveryAddress } = req.body;
+    const { ProductID, StartDate, EndDate, Quantity, Note, DeliveryMethod, DeliveryAddress, SelectedSize, SelectedColor } = req.body;
+    const CustomerName = (req.body.CustomerName || '').trim();
+    const CustomerPhone = normalizePhone(req.body.CustomerPhone);
+    const CustomerIDCard = String(req.body.CustomerIDCard || '').replace(/\s/g, '');
     const backUrl = `/products/${ProductID}/book`;
     const product = await Product.findByPk(ProductID);
     if (!product) { req.flash('error', 'Không tìm thấy sản phẩm.'); return res.redirect('/products'); }
 
-    const qty = Math.max(1, parseInt(Quantity) || 1);
-    if (!StartDate || !EndDate) { req.flash('error', 'Vui lòng chọn ngày nhận và ngày trả.'); return res.redirect(backUrl); }
+    // Báo lỗi + giữ lại dữ liệu khách đã nhập (trừ file ảnh)
+    const fail = (msg) => {
+      if (req.file) fs.unlink(req.file.path, () => {});
+      const { IDCardImage, ...old } = req.body;
+      req.session.bookOld = old;
+      req.flash('error', msg);
+      return res.redirect(backUrl);
+    };
 
+    const qty = parseInt(Quantity);
+    if (!(qty >= 1)) return fail('Số lượng phải từ 1 trở lên.');
+
+    // Chọn size / màu theo đúng danh sách của sản phẩm
+    const sizes = splitList(product.Size), colors = splitList(product.Color);
+    if (sizes.length && !sizes.includes(SelectedSize)) return fail('Vui lòng chọn size.');
+    if (colors.length && !colors.includes(SelectedColor)) return fail('Vui lòng chọn màu.');
+
+    if (!StartDate || !EndDate) return fail('Vui lòng chọn ngày nhận và ngày trả.');
     const rentDays = daysBetween(StartDate, EndDate);
-    if (rentDays < 1) { req.flash('error', 'Ngày trả phải sau ngày nhận ít nhất 1 ngày.'); return res.redirect(backUrl); }
-    if (daysBetween(todayStr(), StartDate) < 0) { req.flash('error', 'Ngày nhận không được ở quá khứ.'); return res.redirect(backUrl); }
-    if (product.Quantity < qty) { req.flash('error', `Chỉ còn ${product.Quantity} ${product.Unit} cho thuê.`); return res.redirect(backUrl); }
-    if (DeliveryMethod === 'Giao tận nơi' && !(DeliveryAddress || '').trim()) {
-      req.flash('error', 'Vui lòng nhập địa chỉ nhận hàng.'); return res.redirect(backUrl);
+    if (!(rentDays >= 1)) return fail('Ngày trả phải sau ngày nhận ít nhất 1 ngày.');
+    if (daysBetween(todayStr(), StartDate) < 0) return fail('Ngày nhận không được ở quá khứ.');
+    if (product.Quantity < qty) return fail(`Chỉ còn ${product.Quantity} ${product.Unit} cho thuê.`);
+
+    // Thông tin khách: họ tên, SĐT di động VN, CCCD 12 số
+    if (CustomerName.length < 2) return fail('Vui lòng nhập họ tên.');
+    if (!isValidPhone(CustomerPhone)) return fail('Số điện thoại không hợp lệ: phải gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.');
+    if (!isValidCCCD(CustomerIDCard)) return fail('Số CCCD không hợp lệ: phải gồm đúng 12 chữ số (3 số đầu là mã tỉnh 001–096).');
+
+    if (DeliveryMethod === 'Giao tận nơi' && (DeliveryAddress || '').trim().length < 10) {
+      return fail('Vui lòng nhập địa chỉ nhận hàng đầy đủ (số nhà, đường, phường/xã, quận/huyện, tỉnh/TP).');
     }
 
     const price = num(product.Price);
@@ -35,6 +61,7 @@ exports.create = async (req, res) => {
       DeliveryMethod: DeliveryMethod || 'Tự đến lấy',
       DeliveryAddress: DeliveryMethod === 'Giao tận nơi' ? DeliveryAddress : null,
       StartDate, EndDate, RentDays: rentDays, Quantity: qty,
+      SelectedSize: SelectedSize || null, SelectedColor: SelectedColor || null,
       PricePerDay: price,
       RentFee: price * rentDays * qty,
       Deposit: deposit,

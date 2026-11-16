@@ -5,7 +5,8 @@
   <h1 class="font-serif mb-2">Trang phục nữ &amp; Phụ kiện</h1>
   <p class="mb-3" style="max-width:520px;color:#efe6d9">Áo dài · Váy tiệc – đầm dạ hội · Phụ kiện. Chọn theo danh mục bên dưới, hoặc tìm nhanh mẫu bạn cần.</p>
   <form method="GET" action="/products" class="d-flex" style="max-width:460px">
-    <input type="search" name="q" value="<%= q %>" class="form-control form-control-lg" placeholder="Tìm áo dài, váy tiệc, phụ kiện...">
+    <% if (type) { %><input type="hidden" name="type" value="<%= type %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" class="form-control form-control-lg" placeholder="Tìm áo dài, váy tiệc, phụ kiện... (gõ không dấu cũng được)">
     <button class="btn btn-gold btn-lg ms-2"><i class="bi bi-search"></i></button>
   </form>
 </div>
@@ -36,6 +37,11 @@
   <h5 class="mb-0 font-serif"><%= type ? type : 'Tất cả sản phẩm' %>
     <small class="text-muted">(<%= count %> mẫu<%= q ? ' cho "'+q+'"' : '' %>)</small>
   </h5>
+  <% if (q) { %>
+    <a href="/products<%= type ? '?type=' + encodeURIComponent(type) : '' %>" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-arrow-left"></i> Quay lại danh sách
+    </a>
+  <% } %>
 </div>
 
 <!-- Lưới thẻ sản phẩm -->
@@ -79,11 +85,11 @@
 <% if (totalPages > 1) { %>
 <nav class="d-flex justify-content-center mt-4">
   <ul class="pagination mb-0">
-    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&type=<%= encodeURIComponent(type) %>&q=<%= q %>">«</a></li>
+    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %>">«</a></li>
     <% for (let i=1;i<=totalPages;i++){ %>
-      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&type=<%= encodeURIComponent(type) %>&q=<%= q %>"><%= i %></a></li>
+      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %>"><%= i %></a></li>
     <% } %>
-    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&type=<%= encodeURIComponent(type) %>&q=<%= q %>">»</a></li>
+    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %>">»</a></li>
   </ul>
 </nav>
 <% } %>

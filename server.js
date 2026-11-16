@@ -46,12 +46,23 @@ app.use('/', routes);
 // 404
 app.use((req, res) => res.status(404).render('404', { title: 'Không tìm thấy trang' }));
 
+// sync() không thêm cột vào bảng đã tồn tại -> tự thêm các cột mới (không mất dữ liệu)
+async function addMissingColumns() {
+  const qi = sequelize.getQueryInterface();
+  const { Rental } = require('./models');
+  const table = await qi.describeTable('Rentals');
+  for (const name of ['SelectedSize', 'SelectedColor']) {
+    if (!table[name]) await qi.addColumn('Rentals', name, Rental.rawAttributes[name].type);
+  }
+}
+
 // Khởi động
 (async () => {
   try {
     await sequelize.authenticate();
     console.log(`✅ Kết nối CSDL (${sequelize.getDialect()}) thành công.`);
     await sequelize.sync();            // tạo bảng nếu chưa có
+    await addMissingColumns();         // bổ sung cột mới cho CSDL đã tạo từ trước
     await seed();                      // nạp dữ liệu mẫu nếu rỗng
     app.listen(PORT, () => {
       console.log(`🚀 CostumeHub chạy tại: http://localhost:${PORT}`);

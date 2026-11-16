@@ -19,6 +19,11 @@
              placeholder="Tìm theo Tên, Mô tả, Loại, Mã... (Alt+F)">
       <button class="btn btn-primary ms-2"><i class="bi bi-search"></i></button>
     </form>
+    <% if (q) { %>
+      <a href="/products/manage" class="btn btn-outline-secondary" title="Bỏ tìm kiếm, xem toàn bộ danh sách">
+        <i class="bi bi-arrow-left"></i> Quay lại danh sách
+      </a>
+    <% } %>
 
     <!-- 9: Import / Export -->
     <div class="dropdown">
@@ -52,6 +57,12 @@
 
 <!-- Form bao quanh bảng: 5b xóa nhiều, 8 sao chép nhiều -->
 <form method="POST" id="bulkForm">
+  <% if (q) { %>
+    <div class="alert alert-light border py-2 small mb-2">
+      Kết quả tìm kiếm cho "<strong><%= q %></strong>": <%= count %> trang phục.
+      <a href="/products/manage" class="ms-1">Xem toàn bộ danh sách</a>
+    </div>
+  <% } %>
   <div class="mb-2 d-flex gap-2 align-items-center flex-wrap">
     <button type="submit" formaction="/products/copy-many" class="btn btn-outline-primary btn-sm" id="btnCopyMany" disabled>
       <i class="bi bi-copy"></i> Sao chép mục chọn<span class="selCount"></span>
@@ -86,7 +97,7 @@
           <tr><td colspan="12" class="text-center text-muted py-4">Không có trang phục nào.</td></tr>
         <% } %>
         <% products.forEach(p => { %>
-          <tr class="prod-row">
+          <tr class="prod-row<%= highlight === p.ProductID ? ' row-new' : '' %>">
             <td><input type="checkbox" class="rowChk" name="ids" value="<%= p.ProductID %>"></td>
             <td data-col="ProductID">#<%= p.ProductID %></td>
             <td data-col="PathImage">
@@ -123,11 +134,11 @@
 <nav class="d-flex justify-content-between align-items-center flex-wrap mt-3">
   <small class="text-muted">Trang <%= page %>/<%= totalPages %> — <%= limit %> dòng/trang</small>
   <ul class="pagination mb-0">
-    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&q=<%= q %>">«</a></li>
+    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&q=<%= encodeURIComponent(q) %>">«</a></li>
     <% for (let i=1;i<=totalPages;i++){ %>
-      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&q=<%= q %>"><%= i %></a></li>
+      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&q=<%= encodeURIComponent(q) %>"><%= i %></a></li>
     <% } %>
-    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&q=<%= q %>">»</a></li>
+    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&q=<%= encodeURIComponent(q) %>">»</a></li>
   </ul>
 </nav>
 

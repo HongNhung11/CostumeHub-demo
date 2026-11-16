@@ -4,12 +4,16 @@
   const today = new Date();
   const tmr = new Date(Date.now()+86400000);
   const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
+  const split = s => String(s||'').split(/[,;\/]/).map(x => x.trim()).filter(Boolean);
+  const sizes = split(product.Size), colors = split(product.Color);
+  const o = (k, d = '') => (old && old[k] !== undefined ? old[k] : d);
+  const giao = o('DeliveryMethod') === 'Giao tận nơi';
 %>
 <nav class="small text-muted mb-3"><a href="/products" class="text-muted">Sản phẩm</a> / <a href="/products/<%= product.ProductID %>" class="text-muted"><%= product.ProductName %></a> / <span>Đặt thuê</span></nav>
 
 <h3 class="font-serif mb-3"><i class="bi bi-bag-check" style="color:var(--gold)"></i> Đặt thuê & Thanh toán</h3>
 
-<form method="POST" action="/rentals" enctype="multipart/form-data" id="bookForm">
+<form method="POST" action="/rentals" enctype="multipart/form-data" id="bookForm" novalidate>
   <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
   <input type="hidden" id="price" value="<%= Number(product.Price) %>">
   <input type="hidden" id="deposit" value="<%= Number(product.DepositValue) %>">
@@ -18,19 +22,62 @@
     <!-- Cột trái: thông tin đặt thuê -->
     <div class="col-lg-7">
       <div class="card p-3 mb-3">
+        <h6 class="font-serif mb-3"><i class="bi bi-bag"></i> Chọn sản phẩm</h6>
+        <div class="d-flex gap-3 mb-3">
+          <% if (product.PathImage) { %><img src="<%= product.PathImage %>" style="width:64px;height:80px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
+          <div>
+            <strong><%= product.ProductName %></strong>
+            <div class="small text-muted"><%= product.ProductType %> · Còn <%= product.Quantity %> <%= product.Unit %></div>
+            <div class="price-tag mt-1"><%= vnd(product.Price) %><small class="text-muted fw-normal">/ngày</small></div>
+          </div>
+        </div>
+        <div class="row g-3">
+          <% if (sizes.length) { %>
+          <div class="col-12">
+            <label class="form-label small text-muted mb-1">Size <span class="text-danger">*</span></label>
+            <div class="d-flex flex-wrap gap-2 opt-group">
+              <% sizes.forEach((sz, i) => { %>
+                <input type="radio" class="btn-check" name="SelectedSize" id="size<%= i %>" value="<%= sz %>"
+                       <%= (o('SelectedSize') === sz || (sizes.length === 1 && !o('SelectedSize'))) ? 'checked' : '' %>>
+                <label class="btn btn-outline-primary btn-sm px-3" for="size<%= i %>"><%= sz %></label>
+              <% }) %>
+            </div>
+            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn size.</div>
+          </div>
+          <% } %>
+          <% if (colors.length) { %>
+          <div class="col-12">
+            <label class="form-label small text-muted mb-1">Màu sắc <span class="text-danger">*</span></label>
+            <div class="d-flex flex-wrap gap-2 opt-group">
+              <% colors.forEach((c, i) => { %>
+                <input type="radio" class="btn-check" name="SelectedColor" id="color<%= i %>" value="<%= c %>"
+                       <%= (o('SelectedColor') === c || (colors.length === 1 && !o('SelectedColor'))) ? 'checked' : '' %>>
+                <label class="btn btn-outline-primary btn-sm px-3" for="color<%= i %>"><%= c %></label>
+              <% }) %>
+            </div>
+            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn màu.</div>
+          </div>
+          <% } %>
+          <div class="col-6 col-md-4">
+            <label class="form-label small text-muted">Số lượng <span class="text-danger">*</span></label>
+            <input type="number" name="Quantity" id="Quantity" class="form-control" value="<%= o('Quantity', 1) %>" min="1" max="<%= product.Quantity %>" step="1" required>
+            <div class="invalid-feedback">Từ 1 đến <%= product.Quantity %>.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-3 mb-3">
         <h6 class="font-serif mb-3"><i class="bi bi-calendar-range"></i> Thời gian thuê</h6>
         <div class="row g-2">
           <div class="col-6">
-            <label class="form-label small text-muted">Ngày nhận</label>
-            <input type="date" name="StartDate" id="StartDate" class="form-control" value="<%= d2s(today) %>" min="<%= d2s(today) %>" required>
+            <label class="form-label small text-muted">Ngày nhận <span class="text-danger">*</span></label>
+            <input type="date" name="StartDate" id="StartDate" class="form-control" value="<%= o('StartDate', d2s(today)) %>" min="<%= d2s(today) %>" required>
+            <div class="invalid-feedback">Chọn ngày nhận (từ hôm nay).</div>
           </div>
           <div class="col-6">
-            <label class="form-label small text-muted">Ngày trả</label>
-            <input type="date" name="EndDate" id="EndDate" class="form-control" value="<%= d2s(tmr) %>" min="<%= d2s(tmr) %>" required>
-          </div>
-          <div class="col-6">
-            <label class="form-label small text-muted">Số lượng</label>
-            <input type="number" name="Quantity" id="Quantity" class="form-control" value="1" min="1" max="<%= product.Quantity %>">
+            <label class="form-label small text-muted">Ngày trả <span class="text-danger">*</span></label>
+            <input type="date" name="EndDate" id="EndDate" class="form-control" value="<%= o('EndDate', d2s(tmr)) %>" min="<%= d2s(tmr) %>" required>
+            <div class="invalid-feedback">Ngày trả phải sau ngày nhận.</div>
           </div>
         </div>
       </div>
@@ -39,16 +86,21 @@
         <h6 class="font-serif mb-3"><i class="bi bi-person"></i> Thông tin khách hàng</h6>
         <div class="row g-2">
           <div class="col-md-6">
-            <label class="form-label small text-muted">Họ tên</label>
-            <input name="CustomerName" class="form-control" required value="<%= currentUser.fullName || '' %>">
+            <label class="form-label small text-muted">Họ tên <span class="text-danger">*</span></label>
+            <input name="CustomerName" class="form-control" required minlength="2" maxlength="100" value="<%= o('CustomerName', currentUser.fullName || '') %>">
+            <div class="invalid-feedback">Vui lòng nhập họ tên.</div>
           </div>
           <div class="col-md-6">
-            <label class="form-label small text-muted">Số điện thoại</label>
-            <input name="CustomerPhone" class="form-control" required>
+            <label class="form-label small text-muted">Số điện thoại <span class="text-danger">*</span></label>
+            <input type="tel" name="CustomerPhone" id="CustomerPhone" class="form-control" required inputmode="tel"
+                   placeholder="VD: 0912345678" maxlength="15" value="<%= o('CustomerPhone') %>">
+            <div class="invalid-feedback">Gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.</div>
           </div>
           <div class="col-md-6">
-            <label class="form-label small text-muted">Số CCCD</label>
-            <input name="CustomerIDCard" class="form-control" placeholder="Nhập số CCCD">
+            <label class="form-label small text-muted">Số CCCD <span class="text-danger">*</span></label>
+            <input name="CustomerIDCard" id="CustomerIDCard" class="form-control" required inputmode="numeric"
+                   placeholder="12 chữ số trên thẻ CCCD" maxlength="12" value="<%= o('CustomerIDCard') %>">
+            <div class="invalid-feedback">CCCD gồm đúng 12 chữ số (3 số đầu là mã tỉnh 001–096).</div>
           </div>
           <div class="col-md-6">
             <label class="form-label small text-muted">Ảnh chụp CCCD</label>
@@ -61,23 +113,25 @@
       <div class="card p-3 mb-3">
         <h6 class="font-serif mb-3"><i class="bi bi-truck"></i> Hình thức nhận đồ</h6>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Tự đến lấy" id="pickup" checked>
+          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Tự đến lấy" id="pickup" <%= giao ? '' : 'checked' %>>
           <label class="form-check-label" for="pickup">Tự đến lấy tại cửa hàng <span class="text-muted small">(miễn phí)</span></label>
         </div>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Giao tận nơi" id="delivery">
+          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Giao tận nơi" id="delivery" <%= giao ? 'checked' : '' %>>
           <label class="form-check-label" for="delivery">Giao tận nơi</label>
         </div>
-        <div class="mt-2" id="addrBox" style="display:none">
-          <label class="form-label small text-muted">Địa chỉ nhận hàng</label>
-          <input name="DeliveryAddress" id="DeliveryAddress" class="form-control" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP">
+        <div class="mt-2" id="addrBox" style="display:<%= giao ? 'block' : 'none' %>">
+          <label class="form-label small text-muted">Địa chỉ nhận hàng <span class="text-danger">*</span></label>
+          <input name="DeliveryAddress" id="DeliveryAddress" class="form-control" minlength="10" maxlength="255" <%= giao ? 'required' : '' %>
+                 value="<%= o('DeliveryAddress') %>" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP">
+          <div class="invalid-feedback">Nhập địa chỉ đầy đủ (ít nhất 10 ký tự).</div>
         </div>
       </div>
 
       <div class="card p-3">
         <h6 class="font-serif mb-3"><i class="bi bi-credit-card"></i> Hình thức thanh toán cọc</h6>
         <select name="method" class="form-select">
-          <option>Tiền mặt</option><option>Chuyển khoản</option><option>Ví điện tử</option>
+          <% ['Tiền mặt', 'Chuyển khoản', 'Ví điện tử'].forEach(m => { %><option <%= o('method') === m ? 'selected' : '' %>><%= m %></option><% }) %>
         </select>
       </div>
     </div>
@@ -90,7 +144,8 @@
           <% if (product.PathImage) { %><img src="<%= product.PathImage %>" style="width:70px;height:90px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
           <div>
             <strong><%= product.ProductName %></strong>
-            <div class="small text-muted"><%= product.ProductType %><% if (product.Color) { %> · <%= product.Color %><% } %><% if (product.Size) { %> · Size <%= product.Size %><% } %></div>
+            <div class="small text-muted"><%= product.ProductType %></div>
+            <div class="small">Size: <strong id="sumSize">—</strong> · Màu: <strong id="sumColor">—</strong></div>
             <div class="price-tag mt-1"><%= vnd(product.Price) %><small class="text-muted fw-normal">/ngày</small></div>
           </div>
         </div>
@@ -124,6 +179,17 @@
   }
   [s,e,q].forEach(el=>el.addEventListener('change',calc)); calc();
 
+  // Hiện size / màu đã chọn trong phần tóm tắt
+  function showOpts(){
+    const sz=document.querySelector('input[name="SelectedSize"]:checked');
+    const cl=document.querySelector('input[name="SelectedColor"]:checked');
+    document.getElementById('sumSize').textContent=sz?sz.value:'—';
+    document.getElementById('sumColor').textContent=cl?cl.value:'—';
+    document.querySelectorAll('.opt-group').forEach(g=>{ if(g.querySelector('input:checked')) g.nextElementSibling.hidden=true; });
+  }
+  document.querySelectorAll('input[name="SelectedSize"],input[name="SelectedColor"]').forEach(r=>r.addEventListener('change',showOpts));
+  showOpts();
+
   // Hiện/ẩn ô địa chỉ theo hình thức nhận
   const addrBox=document.getElementById('addrBox'), addr=document.getElementById('DeliveryAddress');
   document.querySelectorAll('input[name="DeliveryMethod"]').forEach(r=>{
@@ -132,6 +198,34 @@
       addrBox.style.display=giao?'block':'none';
       addr.required=giao;
     });
+  });
+
+  // Quy định SĐT và CCCD (máy chủ cũng kiểm tra lại)
+  const phone=document.getElementById('CustomerPhone'), cccd=document.getElementById('CustomerIDCard');
+  const normPhone=v=>{ v=v.replace(/[\s.\-()]/g,''); if(v.startsWith('+84')) v='0'+v.slice(3); else if(/^84\d{9}$/.test(v)) v='0'+v.slice(2); return v; };
+  const checkPhone=()=>phone.setCustomValidity(/^0(3|5|7|8|9)\d{8}$/.test(normPhone(phone.value))?'':'invalid');
+  const checkCCCD=()=>{ const v=cccd.value, p=parseInt(v.slice(0,3),10);
+    cccd.setCustomValidity(/^\d{12}$/.test(v)&&p>=1&&p<=96?'':'invalid'); };
+  const checkDates=()=>e.setCustomValidity(s.value&&e.value&&new Date(e.value)>new Date(s.value)?'':'invalid');
+  cccd.addEventListener('input',()=>{ cccd.value=cccd.value.replace(/\D/g,'').slice(0,12); checkCCCD(); });
+  phone.addEventListener('input',checkPhone);
+  [s,e].forEach(el=>el.addEventListener('change',checkDates));
+
+  const form=document.getElementById('bookForm');
+  form.addEventListener('submit',ev=>{
+    checkPhone(); checkCCCD(); checkDates();
+    let ok=form.checkValidity();
+    document.querySelectorAll('.opt-group').forEach(g=>{
+      const picked=!!g.querySelector('input:checked');
+      g.nextElementSibling.hidden=picked;
+      if(!picked) ok=false;
+    });
+    if(!ok){
+      ev.preventDefault();
+      form.classList.add('was-validated');
+      const first=form.querySelector('.opt-msg:not([hidden])') || form.querySelector(':invalid');
+      if(first) (first.scrollIntoView({block:'center'}), first.focus && first.focus());
+    }
   });
 })();
 </script>

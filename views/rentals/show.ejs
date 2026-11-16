@@ -40,7 +40,7 @@
             <td class="d-flex align-items-center gap-2">
               <% if (rental.Product && rental.Product.PathImage) { %><img src="<%= rental.Product.PathImage %>" style="width:44px;height:44px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
               <div><strong><%= rental.Product ? rental.Product.ProductName : 'Trang phục' %></strong>
-                <div class="small text-muted"><%= rental.Product ? rental.Product.ProductType : '' %></div></div>
+                <div class="small text-muted"><%= rental.Product ? rental.Product.ProductType : '' %><% if (rental.SelectedSize) { %> · Size <%= rental.SelectedSize %><% } %><% if (rental.SelectedColor) { %> · Màu <%= rental.SelectedColor %><% } %></div></div>
             </td>
             <td class="text-center"><%= rental.Quantity %></td>
             <td class="text-end"><%= vnd(rental.PricePerDay) %></td>

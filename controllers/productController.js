@@ -1,11 +1,14 @@
 const { Op, fn, col } = require('sequelize');
+const fs = require('fs');
 const XLSX = require('xlsx');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
-const sequelize = require('../config/database');
 const { Product } = require('../models');
+const { searchProducts } = require('../utils/search');
 
-// Toán tử LIKE theo dialect (postgres hỗ trợ iLike, sqlite dùng like)
-const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+// Sắp xếp: sản phẩm tạo GẦN NHẤT lên đầu
+const NEWEST_FIRST = [['CreateDate', 'DESC'], ['ProductID', 'DESC']];
+const PRODUCT_TYPES = ['Áo dài', 'Váy tiệc', 'Phụ kiện', 'Khác'];
+const PRODUCT_STATUSES = ['Còn trống', 'Đang cho thuê', 'Chờ xử lý', 'Ngừng cho thuê'];
 
 // Danh sách cột có thể ẩn/hiện (chức năng 10)
 const COLUMNS = [
@@ -33,15 +36,7 @@ function backToList(req, fallback = '/products/manage') {
   return fallback;
 }
 
-function buildSearchOr(q) {
-  const or = [
-    { ProductName: { [likeOp]: `%${q}%` } },
-    { Description: { [likeOp]: `%${q}%` } },
-    { ProductType: { [likeOp]: `%${q}%` } },
-  ];
-  if (/^\d+$/.test(q)) or.push({ ProductID: parseInt(q) });
-  return or;
-}
+const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES, errors: [], ...extra });
 
 // ===== CỬA HÀNG: lưới thẻ sản phẩm + lọc danh mục + tìm kiếm + phân trang =====
 exports.index = async (req, res) => {
@@ -52,17 +47,14 @@ exports.index = async (req, res) => {
 
   const where = {};
   if (type) where.ProductType = type;
-  if (q) where[Op.or] = buildSearchOr(q);
 
-  // Ưu tiên hiển thị TRANG PHỤC trước, PHỤ KIỆN sau (khi xem Tất cả)
-  const { count, rows } = await Product.findAndCountAll({
-    where, limit, offset: (page - 1) * limit,
-    order: [
-      [sequelize.literal(`CASE WHEN "ProductType" = 'Phụ kiện' THEN 1 ELSE 0 END`), 'ASC'],
-      ['ProductID', 'ASC'],
-    ],
-  });
+  // Mới tạo gần nhất lên đầu; có từ khóa thì xếp theo độ khớp
+  // (tìm không phân biệt dấu/hoa thường, ưu tiên khớp Tên/Loại/Màu)
+  let list = await Product.findAll({ where, order: NEWEST_FIRST });
+  if (q) list = searchProducts(list, q);
+  const count = list.length;
   const totalPages = Math.max(1, Math.ceil(count / limit));
+  const rows = list.slice((page - 1) * limit, page * limit);
 
   // Đếm số lượng theo từng loại (cho menu danh mục)
   const grouped = await Product.findAll({
@@ -86,18 +78,17 @@ exports.manage = async (req, res) => {
   const limit = Math.min(50, parseInt(req.query.limit) || 10); // 10-15 item/trang
   const q = (req.query.q || '').trim();
 
-  const where = {};
-  if (q) where[Op.or] = buildSearchOr(q);
-
-  const { count, rows } = await Product.findAndCountAll({
-    where, limit, offset: (page - 1) * limit, order: [['ProductID', 'ASC']],
-  });
+  let list = await Product.findAll({ order: NEWEST_FIRST });   // SP mới lưu nằm đầu
+  if (q) list = searchProducts(list, q);
+  const count = list.length;
   const totalPages = Math.max(1, Math.ceil(count / limit));
+  const rows = list.slice((page - 1) * limit, page * limit);
+  const highlight = parseInt(req.query.new) || null;           // làm nổi bật SP vừa thêm
 
   res.render('products/manage', {
     title: 'Quản lý Trang phục',
     products: rows, columns: COLUMNS,
-    page, totalPages, limit, q, count,
+    page, totalPages, limit, q, count, highlight,
   });
 };
 
@@ -116,27 +107,40 @@ exports.bookForm = async (req, res) => {
     req.flash('error', 'Sản phẩm hiện không thể đặt thuê.');
     return res.redirect(`/products/${product.ProductID}`);
   }
-  res.render('products/book', { title: 'Đặt thuê & thanh toán', product });
+  // Giữ lại dữ liệu khách đã nhập nếu lần submit trước bị lỗi
+  const old = req.session.bookOld || {};
+  delete req.session.bookOld;
+  res.render('products/book', { title: 'Đặt thuê & thanh toán', product, old });
 };
 
 // Form Thêm mới — nhớ trang danh sách đã bấm "Thêm" để quay về
 exports.createForm = (req, res) => {
-  res.render('products/form', {
+  res.render('products/form', formView({
     title: 'Thêm trang phục', product: {}, action: '/products', method: 'POST',
     back: backToList(req),
-  });
+  }));
 };
 
 // ===== 2: THÊM MỚI =====
 exports.create = async (req, res) => {
-  const back = req.body.back || '/products/manage';
+  const back = safeBack(req.body.back);
+  const errors = validateProduct(req.body, { hasImage: !!req.file });
+  if (errors.length) {
+    removeUpload(req.file);
+    return res.status(400).render('products/form', formView({
+      title: 'Thêm trang phục', product: req.body, action: '/products', method: 'POST', back, errors,
+    }));
+  }
   try {
     const data = pickBody(req.body);
-    if (req.file) data.PathImage = '/uploads/' + req.file.filename;
-    await Product.create(data);
-    req.flash('success', 'Đã thêm trang phục mới.');
-    res.redirect(back);                       // 7: quay về trang danh sách
+    data.PathImage = '/uploads/' + req.file.filename;
+    const created = await Product.create(data);
+    req.flash('success', `Đã thêm "${created.ProductName}" — sản phẩm mới hiển thị ở đầu danh sách.`);
+    // 7: quay về TRANG 1 của danh sách (SP mới nằm đầu)
+    const listPath = back.split('?')[0];
+    res.redirect(listPath === '/products/manage' ? `/products/manage?new=${created.ProductID}` : listPath);
   } catch (e) {
+    removeUpload(req.file);
     req.flash('error', 'Lỗi khi thêm: ' + e.message);
     res.redirect('/products/new');
   }
@@ -146,19 +150,28 @@ exports.create = async (req, res) => {
 exports.editForm = async (req, res) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
-  res.render('products/form', {
+  res.render('products/form', formView({
     title: 'Cập nhật trang phục', product,
     action: `/products/${product.ProductID}?_method=PUT`, method: 'POST',
     back: backToList(req),
-  });
+  }));
 };
 
 // ===== 3: CẬP NHẬT =====
 exports.update = async (req, res) => {
-  const back = req.body.back || '/products/manage';
+  const back = safeBack(req.body.back);
   try {
     const product = await Product.findByPk(req.params.id);
     if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
+    const errors = validateProduct(req.body, { hasImage: !!req.file || !!product.PathImage });
+    if (errors.length) {
+      removeUpload(req.file);
+      return res.status(400).render('products/form', formView({
+        title: 'Cập nhật trang phục',
+        product: { ...req.body, ProductID: product.ProductID, PathImage: product.PathImage },
+        action: `/products/${product.ProductID}?_method=PUT`, method: 'POST', back, errors,
+      }));
+    }
     const data = pickBody(req.body);
     if (req.file) data.PathImage = '/uploads/' + req.file.filename;
     await product.update(data);
@@ -276,13 +289,51 @@ exports.importData = async (req, res) => {
 // ---------- helpers ----------
 function pickBody(body) {
   const d = {};
-  const fields = ['ProductName', 'ProductType', 'Unit', 'Description', 'PathImage', 'Status'];
+  const fields = ['ProductName', 'ProductType', 'Unit', 'Color', 'Size', 'Description', 'PathImage', 'Status'];
   const nums = ['Quantity', 'Price', 'DepositValue', 'LateFeePerDay'];
-  for (const f of fields) if (body[f] !== undefined && body[f] !== '') d[f] = body[f];
+  for (const f of fields) if (body[f] !== undefined && body[f] !== '') d[f] = String(body[f]).trim();
   for (const f of nums) if (body[f] !== undefined && body[f] !== '') d[f] = Number(body[f]) || 0;
   return d;
 }
 function toArray(v) {
   if (!v) return [];
   return (Array.isArray(v) ? v : [v]).map(Number).filter(Boolean);
+}
+
+// Kiểm tra dữ liệu Thêm/Sửa: bắt buộc mọi trường, giá từ 1.000 đ trở lên
+function validateProduct(body, { hasImage }) {
+  const errors = [];
+  const str = (k) => String(body[k] ?? '').trim();
+  const required = {
+    ProductName: 'Tên trang phục', ProductType: 'Loại', Quantity: 'Số lượng', Unit: 'Đơn vị',
+    Price: 'Giá thuê / ngày', DepositValue: 'Tiền cọc', LateFeePerDay: 'Phí phạt trễ / ngày',
+    Color: 'Màu sắc', Size: 'Size', Status: 'Tình trạng', Description: 'Mô tả',
+  };
+  for (const [k, label] of Object.entries(required)) if (!str(k)) errors.push(`Vui lòng nhập "${label}".`);
+  if (!hasImage) errors.push('Vui lòng chọn ảnh trang phục.');
+
+  if (str('ProductName') && str('ProductName').length < 3) errors.push('Tên trang phục phải có ít nhất 3 ký tự.');
+  if (str('ProductType') && !PRODUCT_TYPES.includes(str('ProductType'))) errors.push('Loại không hợp lệ.');
+  if (str('Status') && !PRODUCT_STATUSES.includes(str('Status'))) errors.push('Tình trạng không hợp lệ.');
+
+  const int = (k) => (/^\d+$/.test(str(k)) ? Number(str(k)) : NaN);
+  if (str('Quantity') && !(int('Quantity') >= 0)) errors.push('Số lượng phải là số nguyên ≥ 0.');
+  if (str('Price')) {
+    const price = int('Price');
+    if (!(price >= 1000)) errors.push('Giá thuê phải từ 1.000 đ trở lên.');
+    else if (price % 1000 !== 0) errors.push('Giá thuê phải tròn nghìn đồng (VD: 150000).');
+  }
+  for (const [k, label] of [['DepositValue', 'Tiền cọc'], ['LateFeePerDay', 'Phí phạt trễ']]) {
+    if (!str(k)) continue;
+    const v = int(k);
+    if (!(v >= 0)) errors.push(`${label} phải là số nguyên ≥ 0.`);
+    else if (v % 1000 !== 0) errors.push(`${label} phải tròn nghìn đồng.`);
+  }
+  return errors;
+}
+function safeBack(v) {
+  return typeof v === 'string' && /^\/products(\/manage)?(\?|$)/.test(v) ? v : '/products/manage';
+}
+function removeUpload(file) {
+  if (file && file.path) fs.unlink(file.path, () => {});
 }

@@ -20,6 +20,8 @@ const Rental = sequelize.define('Rental', {
   EndDate: { type: DataTypes.DATEONLY, allowNull: false },
   RentDays: { type: DataTypes.INTEGER, defaultValue: 1 },
   Quantity: { type: DataTypes.INTEGER, defaultValue: 1 },
+  SelectedSize: { type: DataTypes.STRING },               // size khách chọn khi đặt
+  SelectedColor: { type: DataTypes.STRING },              // màu khách chọn khi đặt
   ReturnDate: { type: DataTypes.DATEONLY },               // ngày trả thực tế
 
   // Tiền
