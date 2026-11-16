@@ -1,0 +1,67 @@
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <h3 class="mb-3"><i class="bi bi-pencil-square text-primary"></i> <%= title %></h3>
+    <div class="card">
+      <div class="card-body">
+        <form method="<%= method %>" action="<%= action %>" enctype="multipart/form-data">
+          <input type="hidden" name="back" value="<%= typeof back !== 'undefined' ? back : '/products/manage' %>">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Tên trang phục <span class="text-danger">*</span></label>
+              <input name="ProductName" class="form-control" required value="<%= product.ProductName || '' %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Loại</label>
+              <select name="ProductType" class="form-select">
+                <% ['Áo dài','Váy tiệc','Phụ kiện','Khác'].forEach(t => { %>
+                  <option <%= product.ProductType===t?'selected':'' %>><%= t %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Số lượng</label>
+              <input type="number" name="Quantity" class="form-control" value="<%= product.Quantity ?? 1 %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Đơn vị</label>
+              <input name="Unit" class="form-control" value="<%= product.Unit || 'bộ' %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Giá thuê / ngày</label>
+              <input type="number" name="Price" class="form-control" value="<%= product.Price || 0 %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Tiền cọc</label>
+              <input type="number" name="DepositValue" class="form-control" value="<%= product.DepositValue || 0 %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Phí phạt trễ / ngày</label>
+              <input type="number" name="LateFeePerDay" class="form-control" value="<%= product.LateFeePerDay || 0 %>">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">Tình trạng</label>
+              <select name="Status" class="form-select">
+                <% ['Còn trống','Đang cho thuê','Chờ xử lý','Ngừng cho thuê'].forEach(s => { %>
+                  <option <%= product.Status===s?'selected':'' %>><%= s %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ảnh trang phục</label>
+              <input type="file" name="image" accept="image/*" class="form-control">
+              <% if (product.PathImage) { %><img src="<%= product.PathImage %>" class="mt-2 rounded" style="height:60px"><% } %>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Mô tả</label>
+              <textarea name="Description" rows="3" class="form-control"><%= product.Description || '' %></textarea>
+            </div>
+          </div>
+          <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-primary" id="btnSave"><i class="bi bi-save"></i> Lưu <small class="opacity-75">(Alt+S)</small></button>
+            <a href="<%= typeof back !== 'undefined' ? back : '/products/manage' %>" class="btn btn-secondary"><i class="bi bi-x-lg"></i> Hủy</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

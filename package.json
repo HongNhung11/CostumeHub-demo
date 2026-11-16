@@ -1,0 +1,31 @@
+{
+  "name": "costumehub",
+  "version": "1.0.0",
+  "description": "Website Quản lý và Cho thuê Trang phục tích hợp AI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "seed": "node seed/seed.js"
+  },
+  "keywords": ["costume", "rental", "express", "sequelize", "ejs"],
+  "author": "Nhóm 3",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-flash": "^0.1.1",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-ejs-layouts": "^2.5.1",
+    "express-session": "^1.18.1",
+    "fast-xml-parser": "^4.5.1",
+    "method-override": "^3.0.0",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.1",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.5",
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
+  }
+}

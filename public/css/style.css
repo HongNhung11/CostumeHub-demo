@@ -1,0 +1,287 @@
+/* ============================================================
+   CostumeHub — Giao diện cao cấp (Việt phục / cho thuê)
+   Palette: kem + burgundy + gold
+   ============================================================ */
+:root{
+  --ink:#2c2420;
+  --muted:#8a7d72;
+  --cream:#faf5ee;
+  --cream-2:#f3ebe0;
+  --line:#e7ddcf;
+  --primary:#8a2e3b;      /* burgundy */
+  --primary-d:#6f2531;
+  --gold:#c49a52;
+  --gold-d:#a67f3d;
+  --radius:16px;
+  --shadow:0 10px 30px rgba(44,36,32,.08);
+  --shadow-sm:0 4px 14px rgba(44,36,32,.07);
+}
+
+*{ box-sizing:border-box; }
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:'Be Vietnam Pro',system-ui,Arial,sans-serif;
+  font-size:15px;
+}
+h1,h2,h3,h4,h5,.font-serif{ font-family:'Playfair Display',Georgia,serif; }
+a{ text-decoration:none; }
+
+/* ---------- Top bar ---------- */
+.topbar{
+  background:var(--ink); color:#eadfd2; font-size:13px;
+}
+.topbar a{ color:#eadfd2; }
+.topbar a:hover{ color:var(--gold); }
+
+/* ---------- Navbar ---------- */
+.navbar.ch-nav{
+  background:rgba(250,245,238,.92)!important;
+  backdrop-filter:saturate(1.1) blur(6px);
+  border-bottom:1px solid var(--line);
+}
+.ch-nav .navbar-brand{
+  font-family:'Playfair Display',serif; font-weight:800;
+  font-size:1.55rem; color:var(--primary)!important; letter-spacing:.5px;
+}
+.ch-nav .navbar-brand .dot{ color:var(--gold); }
+.ch-nav .nav-link{
+  color:var(--ink)!important; font-weight:500; position:relative; margin:0 .4rem;
+}
+.ch-nav .nav-link::after{
+  content:""; position:absolute; left:.5rem; right:.5rem; bottom:2px; height:2px;
+  background:var(--gold); transform:scaleX(0); transition:.25s; transform-origin:left;
+}
+.ch-nav .nav-link:hover::after,.ch-nav .nav-link.active::after{ transform:scaleX(1); }
+.ch-nav .nav-link.active{ color:var(--primary)!important; }
+
+/* ---------- Buttons ---------- */
+.btn{ border-radius:999px; font-weight:600; padding:.5rem 1.15rem; }
+.btn-primary{ background:var(--primary); border-color:var(--primary); }
+.btn-primary:hover{ background:var(--primary-d); border-color:var(--primary-d); }
+.btn-gold{ background:var(--gold); border-color:var(--gold); color:#fff; }
+.btn-gold:hover{ background:var(--gold-d); border-color:var(--gold-d); color:#fff; }
+.btn-outline-primary{ color:var(--primary); border-color:var(--primary); }
+.btn-outline-primary:hover{ background:var(--primary); border-color:var(--primary); }
+.btn-light{ background:#fff; border-color:var(--line); }
+
+/* ---------- Cards ---------- */
+.card{ border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow-sm); background:#fff; }
+
+/* ---------- Hero ---------- */
+.hero{
+  position:relative; border-radius:24px; overflow:hidden; color:#fff;
+  min-height:420px; display:flex; align-items:center;
+  background:
+    linear-gradient(90deg, rgba(44,36,32,.82), rgba(138,46,59,.40)),
+    url('/img/vaytiec/v1.jpg') center 20%/cover;
+}
+.hero::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse at 80% 20%, rgba(196,154,82,.28), transparent 55%);
+  animation:heroGlow 7s ease-in-out infinite alternate;
+}
+@keyframes heroGlow{ from{ opacity:.5; } to{ opacity:1; } }
+.hero > *{ position:relative; z-index:1; }
+.hero .eyebrow{ letter-spacing:4px; text-transform:uppercase; font-size:.8rem; color:var(--gold); font-weight:600; }
+.hero h1{ font-size:3rem; font-weight:800; line-height:1.1; }
+.hero p{ font-size:1.1rem; color:#f0e7da; max-width:560px; }
+
+/* ---------- Section ---------- */
+.section-title{ font-weight:800; }
+.section-eyebrow{ letter-spacing:3px; text-transform:uppercase; font-size:.78rem; color:var(--gold); font-weight:700; }
+.divider-gold{ width:60px; height:3px; background:var(--gold); border:0; border-radius:3px; opacity:1; }
+
+/* ---------- Stat ---------- */
+.stat{ background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:1.4rem; text-align:center; box-shadow:var(--shadow-sm); }
+.stat .num{ font-family:'Playfair Display',serif; font-size:2.2rem; font-weight:800; color:var(--primary); }
+
+/* ---------- Category pill ---------- */
+.cat-card{ position:relative; border-radius:var(--radius); overflow:hidden; aspect-ratio:3/4; box-shadow:var(--shadow-sm); }
+.cat-card img{ width:100%; height:100%; object-fit:cover; transition:.4s; }
+.cat-card:hover img{ transform:scale(1.07); }
+.cat-card .label{
+  position:absolute; inset:auto 0 0 0; padding:.8rem;
+  background:linear-gradient(transparent,rgba(44,36,32,.85)); color:#fff; font-weight:600;
+}
+
+/* ---------- Product card ---------- */
+.prod-card{ overflow:hidden; transition:.3s; }
+.prod-card:hover{ transform:translateY(-6px); box-shadow:var(--shadow); }
+.prod-thumb{ position:relative; aspect-ratio:3/4; overflow:hidden; background:var(--cream-2); }
+.prod-thumb img{ width:100%; height:100%; object-fit:cover; transition:.5s; }
+.prod-card:hover .prod-thumb img{ transform:scale(1.06); }
+.prod-badge{ position:absolute; top:10px; left:10px; }
+.price-tag{ color:var(--primary); font-weight:800; font-family:'Playfair Display',serif; }
+.chip{ display:inline-block; padding:.15rem .6rem; border-radius:999px; font-size:.72rem; font-weight:600; background:var(--cream-2); color:var(--muted); }
+
+/* ---------- Admin table ---------- */
+.toolbar{ background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow-sm); }
+.table thead th{ white-space:nowrap; font-size:.82rem; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); background:var(--cream-2)!important; border-color:var(--line); }
+.table td{ vertical-align:middle; border-color:var(--line); }
+.table-hover tbody tr:hover{ background:var(--cream); }
+.badge-soft{ background:var(--cream-2); color:var(--primary); font-weight:600; }
+
+/* ---------- Pagination ---------- */
+.pagination .page-link{ color:var(--primary); border-radius:10px!important; margin:0 2px; border-color:var(--line); }
+.pagination .active .page-link{ background:var(--primary); border-color:var(--primary); color:#fff; }
+
+/* ---------- Footer ---------- */
+.ch-footer{ background:var(--ink); color:#d9ccbe; }
+.ch-footer a{ color:#d9ccbe; }
+.ch-footer a:hover{ color:var(--gold); }
+.ch-footer h6{ color:#fff; letter-spacing:.5px; }
+
+kbd{ background:var(--ink); border-radius:6px; padding:1px 7px; font-size:.78rem; }
+
+/* ===== Hiệu ứng ===== */
+@keyframes fadeUp{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:translateY(0); } }
+@keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+.hero,.card,.stat,.cat-card,.toolbar{ animation:fadeUp .5s ease both; }
+.prod-card{ animation:fadeUp .5s ease both; }
+main > .row .col-6:nth-child(2) .prod-card,.col-md-4:nth-child(2n) .prod-card{ animation-delay:.05s; }
+.section-title,.hero h1,.hero p{ animation:fadeIn .7s ease both; }
+.btn{ transition:transform .15s ease, box-shadow .2s ease, background .2s ease; }
+.btn:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(138,46,59,.18); }
+.btn:active{ transform:translateY(0); }
+.btn-gold:hover{ box-shadow:0 6px 18px rgba(196,154,82,.35); }
+.nav-link{ transition:color .2s ease; }
+a{ transition:color .18s ease; }
+.alert{ animation:fadeUp .4s ease both; }
+.badge{ transition:transform .15s ease; }
+.chip{ transition:all .2s ease; }
+img{ transition:transform .5s ease; }
+.pagination .page-link:hover{ background:var(--cream-2); }
+@media (prefers-reduced-motion: reduce){ *{ animation:none!important; transition:none!important; } }
+
+/* ===== Scroll reveal (1) ===== */
+.reveal{ opacity:0; transform:translateY(22px); transition:opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); }
+.reveal.in{ opacity:1; transform:none; }
+/* Lệch nhịp nhẹ cho các thẻ trong cùng một hàng */
+.row > [class*="col"]:nth-child(2) .reveal{ transition-delay:.06s; }
+.row > [class*="col"]:nth-child(3) .reveal{ transition-delay:.12s; }
+.row > [class*="col"]:nth-child(4) .reveal{ transition-delay:.18s; }
+.row > [class*="col"]:nth-child(5) .reveal{ transition-delay:.24s; }
+.row > [class*="col"]:nth-child(6) .reveal{ transition-delay:.30s; }
+
+/* ===== Trust strip (why-us đẩy lên đầu) ===== */
+.trust-item{
+  display:flex; gap:.7rem; align-items:flex-start;
+  background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+  padding:1rem; height:100%; box-shadow:var(--shadow-sm);
+  transition:transform .25s ease, box-shadow .25s ease;
+}
+.trust-item:hover{ transform:translateY(-4px); box-shadow:var(--shadow); }
+.trust-item > i{
+  font-size:1.5rem; color:var(--gold); line-height:1;
+  width:44px; height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:center;
+  background:var(--cream-2); border-radius:12px;
+}
+.trust-item h6{ font-size:.98rem; }
+
+/* ===== Card quy định nổi bật (2) ===== */
+.rules-card{
+  background:linear-gradient(135deg,#fff 0%,var(--cream-2) 100%);
+  border:1px solid var(--line);
+  border-left:5px solid var(--gold);
+  position:relative;
+}
+.rules-card ul{ padding-left:1.1rem; margin-bottom:.4rem; }
+.rules-card li{ margin-bottom:.25rem; }
+
+/* ===== Banner trang sản phẩm: zoom nhẹ khi hover ===== */
+.shop-banner{ transition:box-shadow .3s ease; }
+.shop-banner:hover{ box-shadow:var(--shadow); }
+
+/* ===== Hiệu ứng nâng cao card sản phẩm (1) ===== */
+.prod-card{ position:relative; }
+.prod-thumb::after{
+  content:""; position:absolute; inset:0; opacity:0; transition:opacity .35s ease;
+  background:linear-gradient(to top, rgba(44,36,32,.35), transparent 55%);
+}
+.prod-card:hover .prod-thumb::after{ opacity:1; }
+.prod-badge.chip{ box-shadow:0 2px 8px rgba(44,36,32,.15); background:#fff; color:var(--primary); }
+
+/* ===== Bảng quản lý: click chọn dòng (5) ===== */
+.prod-row{ cursor:pointer; }
+.prod-row .rowChk{ cursor:pointer; width:16px; height:16px; }
+tr.row-selected{ background:rgba(196,154,82,.16)!important; box-shadow:inset 3px 0 0 var(--gold); }
+tr.row-selected td{ font-weight:500; }
+#btnCopyMany:disabled, #btnDeleteMany:disabled{ opacity:.5; }
+.selCount{ font-weight:700; }
+
+/* ===== Stat: số đếm tăng dần (1) ===== */
+.stat{ transition:transform .25s ease, box-shadow .25s ease; }
+.stat:hover{ transform:translateY(-4px); box-shadow:var(--shadow); }
+.stat .num{ font-variant-numeric:tabular-nums; }
+
+/* ===== Navbar brand nhấn nhẹ khi hover ===== */
+.ch-nav .navbar-brand:hover .dot{ filter:drop-shadow(0 0 6px rgba(196,154,82,.5)); }
+
+@media(max-width:768px){
+  .hero h1{ font-size:2.1rem; }
+  .hero{ min-height:340px; }
+  .rules-card{ border-left-width:4px; }
+}
+
+/* ============================================================
+   THIẾT KẾ TRANG CHỦ "BẢN 1" — áp vào web thật
+   ============================================================ */
+/* Hero chia đôi + ảnh collage */
+.hero-split{ position:relative; overflow:hidden; border-radius:28px; padding:clamp(28px,5vw,60px);
+  background:linear-gradient(120deg,#fff 0%,var(--cream-2) 100%); border:1px solid var(--line); box-shadow:var(--shadow-sm); }
+.hero-split::before,.hero-split::after{ content:""; position:absolute; border-radius:50%; filter:blur(70px); z-index:0; opacity:.55; animation:floatBlob 9s ease-in-out infinite; }
+.hero-split::before{ width:360px; height:360px; background:radial-gradient(circle,#e9c98a,transparent 70%); top:-90px; right:-50px; }
+.hero-split::after{ width:300px; height:300px; background:radial-gradient(circle,#e7aeb0,transparent 70%); bottom:-100px; left:-70px; animation-delay:-3s; }
+@keyframes floatBlob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-24px) } }
+.hero-split .hs-grid{ position:relative; z-index:1; display:grid; grid-template-columns:1.05fr .95fr; gap:40px; align-items:center; }
+.hero-split h1{ font-size:clamp(2.3rem,5vw,3.6rem); font-weight:800; line-height:1.06; margin:12px 0 16px; color:var(--ink); }
+.hero-split h1 .accent{ font-style:italic; background:linear-gradient(100deg,var(--primary),#d98a86,var(--gold),var(--primary)); background-size:280% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:shimmerTxt 6s ease-in-out infinite; }
+@keyframes shimmerTxt{ 0%,100%{ background-position:0% 50% } 50%{ background-position:100% 50% } }
+.hero-split .lead{ font-size:1.08rem; color:#6b5d52; max-width:480px; margin-bottom:24px; }
+.hs-mini{ display:flex; gap:26px; margin-top:26px; }
+.hs-mini .n{ font-family:'Playfair Display',serif; font-size:1.7rem; font-weight:800; color:var(--primary); line-height:1; }
+.hs-mini small{ color:var(--muted); font-size:.82rem; }
+/* collage */
+.collage{ position:relative; height:440px; }
+.collage .ph{ position:absolute; border-radius:24px; object-fit:cover; box-shadow:var(--shadow); border:5px solid #fff; }
+.collage .p-main{ width:62%; height:100%; right:0; top:0; object-position:top; }
+.collage .p-sec{ width:46%; height:56%; left:0; bottom:14px; z-index:2; }
+.chip-float{ position:absolute; background:#fff; border-radius:16px; box-shadow:var(--shadow-sm); padding:.55rem .85rem; display:flex; align-items:center; gap:.5rem; z-index:3; font-size:.8rem; font-weight:600; }
+.chip-float i{ color:var(--gold); }
+.c-price{ top:14px; left:-6px; animation:bob 5s ease-in-out infinite; }
+.c-rate{ bottom:26px; right:-8px; animation:bob 5s ease-in-out infinite; animation-delay:-2.5s; }
+@keyframes bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-12px) } }
+@media(max-width:860px){ .hero-split .hs-grid{ grid-template-columns:1fr } .collage{ height:340px; order:-1 } }
+
+/* Dải chữ chạy */
+.marquee{ border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--cream-2); overflow:hidden; white-space:nowrap; border-radius:12px; }
+.marquee .mtrack{ display:inline-block; padding:13px 0; animation:runText 24s linear infinite; will-change:transform; }
+.marquee:hover .mtrack{ animation-play-state:paused; }
+.marquee span{ font-family:'Playfair Display',serif; font-style:italic; font-size:1.25rem; color:var(--primary); margin:0 24px; }
+.marquee span i{ color:var(--gold); font-size:.55rem; margin-left:24px; vertical-align:middle; font-style:normal; }
+@keyframes runText{ from{ transform:translateX(0) } to{ transform:translateX(-50%) } }
+
+/* Dải CTA ảnh nền */
+.cta-band{ position:relative; border-radius:28px; overflow:hidden; color:#fff; text-align:center; padding:clamp(40px,6vw,70px) 20px; }
+.cta-band img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 30%; z-index:0; }
+.cta-band .ov{ position:absolute; inset:0; background:linear-gradient(120deg,rgba(44,33,28,.86),rgba(138,46,59,.55)); z-index:1; }
+.cta-band .in{ position:relative; z-index:2; max-width:620px; margin:0 auto; }
+.cta-band h2{ font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; margin-bottom:12px; color:#fff; }
+.cta-band .btn-gold{ animation:ctaGlow 2.6s ease-in-out infinite; }
+@keyframes ctaGlow{ 0%,100%{ box-shadow:0 10px 24px rgba(196,154,82,.4) } 50%{ box-shadow:0 12px 34px rgba(196,154,82,.75) } }
+
+/* ===== Hiệu ứng thêm toàn site ===== */
+.navbar.ch-nav{ transition:box-shadow .3s ease, background .3s ease; }
+.navbar.ch-nav.scrolled{ box-shadow:0 8px 26px rgba(44,36,32,.12); }
+.btn-gold,.btn-primary{ position:relative; overflow:hidden; }
+.btn-gold::after,.btn-primary::after{ content:""; position:absolute; top:0; left:-120%; width:60%; height:100%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent); transform:skewX(-20deg); transition:left .6s ease; }
+.btn-gold:hover::after,.btn-primary:hover::after{ left:140%; }
+.prod-thumb{ position:relative; }
+.prod-card .prod-thumb::before{ content:""; position:absolute; inset:0; z-index:2; pointer-events:none;
+  background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.33) 50%,transparent 65%); transform:translateX(-120%); transition:transform .8s ease; }
+.prod-card:hover .prod-thumb::before{ transform:translateX(120%); }
+.cat-card .label i{ transition:transform .3s ease; }
+.cat-card:hover .label i{ transform:translateX(5px); }
+@media(prefers-reduced-motion:reduce){ .hero-split h1 .accent,.cta-band .btn-gold,.marquee .mtrack{ animation:none!important } }

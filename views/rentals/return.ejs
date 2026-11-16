@@ -1,0 +1,40 @@
+<%
+  const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
+%>
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <h3 class="font-serif mb-3"><i class="bi bi-box-arrow-in-down" style="color:var(--gold)"></i> Nhận đồ trả — Đơn #<%= rental.RentalID %></h3>
+
+    <div class="card p-3 mb-3">
+      <div class="row small">
+        <div class="col-6"><span class="text-muted">Trang phục:</span> <strong><%= rental.Product ? rental.Product.ProductName : '—' %></strong></div>
+        <div class="col-6"><span class="text-muted">Khách:</span> <strong><%= rental.CustomerName %></strong></div>
+        <div class="col-6 mt-1"><span class="text-muted">Hạn trả:</span> <strong><%= rental.EndDate %></strong></div>
+        <div class="col-6 mt-1"><span class="text-muted">Tiền cọc:</span> <strong><%= vnd(rental.Deposit) %></strong></div>
+        <div class="col-6 mt-1"><span class="text-muted">Phí trễ/ngày:</span> <strong><%= rental.Product ? vnd(rental.Product.LateFeePerDay) : '—' %></strong> × SL <%= rental.Quantity %></div>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <form method="POST" action="/rentals/<%= rental.RentalID %>/return">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Ngày trả thực tế</label>
+            <input type="date" name="ReturnDate" class="form-control" value="<%= today %>" required>
+            <small class="text-muted">Trễ hơn hạn trả sẽ tự tính phí phạt.</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Phí hư hỏng / giặt (nếu có)</label>
+            <input type="number" name="DamageFee" class="form-control" value="0" min="0" step="1000">
+            <small class="text-muted">Nhập 0 nếu đồ nguyên vẹn.</small>
+          </div>
+        </div>
+        <div class="alert alert-light border mt-3 small mb-3">
+          <i class="bi bi-calculator"></i> Hoàn cọc = Cọc (<%= vnd(rental.Deposit) %>) − Phí trễ − Phí hư hỏng. Nếu âm, khách đền thêm.
+        </div>
+        <button class="btn btn-success"><i class="bi bi-check2-circle"></i> Xác nhận nhận trả & hoàn cọc</button>
+        <a href="/rentals" class="btn btn-light">Hủy</a>
+      </form>
+    </div>
+  </div>
+</div>

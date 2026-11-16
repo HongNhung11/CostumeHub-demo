@@ -1,0 +1,95 @@
+<%
+  const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
+  const st = rental.Status;
+  const stCls = st==='Hoàn tất'?'success':(st==='Đã hủy'?'danger':(st==='Đang thuê'?'warning text-dark':(st==='Đã cọc'?'info text-dark':'secondary')));
+%>
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <div class="card p-4 mb-3">
+      <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
+        <div>
+          <h3 class="font-serif mb-0" style="color:var(--primary)">Hóa đơn thuê</h3>
+          <small class="text-muted">Mã đơn: #<%= rental.RentalID %> · Ngày tạo: <%= new Date(rental.createdAt).toLocaleDateString('vi-VN') %></small>
+        </div>
+        <span class="badge bg-<%= stCls %> fs-6"><%= st %></span>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-7">
+          <h6 class="text-muted small text-uppercase">Khách thuê</h6>
+          <p class="mb-1 fw-semibold"><%= rental.CustomerName %></p>
+          <p class="mb-1 small"><i class="bi bi-telephone"></i> <%= rental.CustomerPhone %></p>
+          <% if (rental.CustomerIDCard) { %><p class="mb-1 small"><i class="bi bi-person-vcard"></i> CCCD: <%= rental.CustomerIDCard %></p><% } %>
+          <p class="mb-1 small"><i class="bi bi-truck"></i> <%= rental.DeliveryMethod %><% if (rental.DeliveryAddress) { %>: <%= rental.DeliveryAddress %><% } %></p>
+          <% if (rental.IDCardImage) { %><p class="mb-0 small"><i class="bi bi-image"></i> Ảnh CCCD: <a href="<%= rental.IDCardImage %>" target="_blank">xem</a></p><% } %>
+        </div>
+        <div class="col-md-5">
+          <h6 class="text-muted small text-uppercase">Thời gian thuê</h6>
+          <p class="mb-1 small">Nhận: <strong><%= rental.StartDate %></strong></p>
+          <p class="mb-1 small">Trả: <strong><%= rental.EndDate %></strong></p>
+          <p class="mb-0 small">Số ngày: <strong><%= rental.RentDays %></strong></p>
+        </div>
+      </div>
+
+      <!-- Sản phẩm -->
+      <table class="table align-middle">
+        <thead class="table-light"><tr><th>Trang phục</th><th class="text-center">SL</th><th class="text-end">Giá/ngày</th><th class="text-end">Thành tiền thuê</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="d-flex align-items-center gap-2">
+              <% if (rental.Product && rental.Product.PathImage) { %><img src="<%= rental.Product.PathImage %>" style="width:44px;height:44px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
+              <div><strong><%= rental.Product ? rental.Product.ProductName : 'Trang phục' %></strong>
+                <div class="small text-muted"><%= rental.Product ? rental.Product.ProductType : '' %></div></div>
+            </td>
+            <td class="text-center"><%= rental.Quantity %></td>
+            <td class="text-end"><%= vnd(rental.PricePerDay) %></td>
+            <td class="text-end"><%= vnd(rental.RentFee) %></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Tổng tiền -->
+      <div class="row justify-content-end">
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between py-1"><span>Tiền thuê</span><span><%= vnd(rental.RentFee) %></span></div>
+          <div class="d-flex justify-content-between py-1"><span>Tiền cọc</span><span><%= vnd(rental.Deposit) %></span></div>
+          <% if (st==='Hoàn tất') { %>
+            <div class="d-flex justify-content-between py-1 text-danger"><span>Phí trễ hạn</span><span>- <%= vnd(rental.LateFee) %></span></div>
+            <div class="d-flex justify-content-between py-1 text-danger"><span>Phí hư hỏng</span><span>- <%= vnd(rental.DamageFee) %></span></div>
+            <hr class="my-1">
+            <div class="d-flex justify-content-between py-1 fw-bold"><span>Hoàn lại cọc</span><span class="<%= Number(rental.RefundAmount)<0?'text-danger':'text-success' %>"><%= vnd(rental.RefundAmount) %></span></div>
+            <% if (Number(rental.RefundAmount)<0) { %><div class="small text-danger">* Số âm: khách cần đền thêm.</div><% } %>
+          <% } else if (st==='Đã hủy') { %>
+            <div class="d-flex justify-content-between py-1 text-danger"><span>Phí hủy</span><span>- <%= vnd(rental.CancelFee) %></span></div>
+            <hr class="my-1">
+            <div class="d-flex justify-content-between py-1 fw-bold"><span>Hoàn lại</span><span class="text-success"><%= vnd(rental.RefundAmount) %></span></div>
+          <% } else { %>
+            <hr class="my-1">
+            <div class="d-flex justify-content-between py-1 fw-bold"><span>Tổng (thuê + cọc)</span><span class="price-tag"><%= vnd(Number(rental.RentFee)+Number(rental.Deposit)) %></span></div>
+            <div class="d-flex justify-content-between small text-muted"><span>Thanh toán</span><span><%= rental.PaymentStatus %><%= rental.PaymentMethod ? ' · '+rental.PaymentMethod : '' %></span></div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hành động theo trạng thái -->
+    <% if (st==='Đã cọc') { %>
+      <div class="card p-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span class="text-success"><i class="bi bi-check-circle-fill"></i> Đã cọc <%= vnd(rental.Deposit) %> (<%= rental.PaymentMethod %>). Vui lòng đến nhận đồ đúng hẹn.</span>
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Phí hủy tính theo thời điểm hủy.')">
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
+          </form>
+        </div>
+        <small class="text-muted d-block mt-2">Chính sách hủy: ≥3 ngày trước ngày nhận hoàn 100% · 1–2 ngày giữ 50% · trong ngày mất cọc.</small>
+      </div>
+    <% } %>
+
+    <div class="mt-3 d-flex gap-2">
+      <a href="/rentals" class="btn btn-light"><i class="bi bi-list-ul"></i> Danh sách đơn</a>
+      <a href="/products" class="btn btn-outline-primary"><i class="bi bi-bag"></i> Tiếp tục thuê</a>
+      <button onclick="window.print()" class="btn btn-light"><i class="bi bi-printer"></i> In hóa đơn</button>
+    </div>
+  </div>
+</div>

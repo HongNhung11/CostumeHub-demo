@@ -1,0 +1,137 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="mb-0 font-serif"><i class="bi bi-gear-fill" style="color:var(--gold)"></i> Quản lý Trang phục
+      <span class="badge badge-soft"><%= count %></span>
+    </h3>
+    <a href="/products" class="small text-muted"><i class="bi bi-arrow-left"></i> Về cửa hàng</a>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/products/new" class="btn btn-success" id="btnNew"><i class="bi bi-plus-lg"></i> Thêm mới <small class="opacity-75">(Alt+N)</small></a>
+  </div>
+</div>
+
+<!-- Thanh công cụ: tìm kiếm + import/export + cấu hình cột -->
+<div class="toolbar mb-3">
+  <div class="p-3 d-flex flex-wrap gap-2 align-items-center">
+    <!-- 6: Tìm kiếm -->
+    <form class="d-flex flex-grow-1" method="GET" action="/products/manage" style="max-width:420px">
+      <input type="search" name="q" id="searchBox" value="<%= q %>" class="form-control"
+             placeholder="Tìm theo Tên, Mô tả, Loại, Mã... (Alt+F)">
+      <button class="btn btn-primary ms-2"><i class="bi bi-search"></i></button>
+    </form>
+
+    <!-- 9: Import / Export -->
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-download"></i> Export</button>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="/products/export/excel"><i class="bi bi-file-earmark-excel"></i> Excel (.xlsx)</a></li>
+        <li><a class="dropdown-item" href="/products/export/json"><i class="bi bi-filetype-json"></i> JSON</a></li>
+        <li><a class="dropdown-item" href="/products/export/xml"><i class="bi bi-filetype-xml"></i> XML</a></li>
+      </ul>
+    </div>
+    <% if (currentUser && currentUser.role === 'admin') { %>
+    <form method="POST" action="/products/import" enctype="multipart/form-data" class="d-flex gap-1">
+      <input type="file" name="file" accept=".xlsx,.xls,.csv,.json,.xml" class="form-control form-control-sm" style="max-width:190px" required>
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload"></i> Import</button>
+    </form>
+    <% } %>
+
+    <!-- 10: Cấu hình ẩn/hiện cột -->
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-layout-three-columns"></i> Cột</button>
+      <ul class="dropdown-menu p-2" id="colMenu" style="min-width:200px">
+        <% columns.forEach(col => { %>
+          <li><label class="dropdown-item">
+            <input type="checkbox" class="col-toggle me-1" data-col="<%= col.key %>" checked> <%= col.label %>
+          </label></li>
+        <% }) %>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Form bao quanh bảng: 5b xóa nhiều, 8 sao chép nhiều -->
+<form method="POST" id="bulkForm">
+  <div class="mb-2 d-flex gap-2 align-items-center flex-wrap">
+    <button type="submit" formaction="/products/copy-many" class="btn btn-outline-primary btn-sm" id="btnCopyMany" disabled>
+      <i class="bi bi-copy"></i> Sao chép mục chọn<span class="selCount"></span>
+    </button>
+    <% if (currentUser && currentUser.role === 'admin') { %>
+    <button type="submit" formaction="/products/delete-many" class="btn btn-outline-danger btn-sm" id="btnDeleteMany" disabled
+            onclick="return confirm('Xóa các trang phục đã chọn?')"><i class="bi bi-trash"></i> Xóa mục chọn<span class="selCount"></span> <small>(Alt+D)</small></button>
+    <% } %>
+    <span class="text-muted small ms-1" id="selInfo">Chưa chọn dòng nào · bấm vào dòng để chọn</span>
+  </div>
+
+  <div class="table-responsive card">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:34px"><input type="checkbox" id="checkAll"></th>
+          <th data-col="ProductID">Mã</th>
+          <th data-col="PathImage">Ảnh</th>
+          <th data-col="ProductName">Tên trang phục</th>
+          <th data-col="ProductType">Loại</th>
+          <th data-col="Quantity">SL</th>
+          <th data-col="Unit">ĐV</th>
+          <th data-col="Price">Giá thuê/ngày</th>
+          <th data-col="DepositValue">Cọc</th>
+          <th data-col="Status">Tình trạng</th>
+          <th data-col="Description">Mô tả</th>
+          <th style="width:150px">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (products.length === 0) { %>
+          <tr><td colspan="12" class="text-center text-muted py-4">Không có trang phục nào.</td></tr>
+        <% } %>
+        <% products.forEach(p => { %>
+          <tr class="prod-row">
+            <td><input type="checkbox" class="rowChk" name="ids" value="<%= p.ProductID %>"></td>
+            <td data-col="ProductID">#<%= p.ProductID %></td>
+            <td data-col="PathImage">
+              <% if (p.PathImage) { %><img src="<%= p.PathImage %>" class="rounded" style="width:48px;height:48px;object-fit:cover" onerror="this.style.display='none'"><% } else { %><span class="text-muted">—</span><% } %>
+            </td>
+            <td data-col="ProductName"><strong><%= p.ProductName %></strong></td>
+            <td data-col="ProductType"><span class="chip"><%= p.ProductType %></span></td>
+            <td data-col="Quantity"><%= p.Quantity %></td>
+            <td data-col="Unit"><%= p.Unit %></td>
+            <td data-col="Price"><%= Number(p.Price).toLocaleString('vi-VN') %> đ</td>
+            <td data-col="DepositValue"><%= Number(p.DepositValue).toLocaleString('vi-VN') %> đ</td>
+            <td data-col="Status">
+              <% const cls = p.Status==='Còn trống'?'success':(p.Status==='Đang cho thuê'?'warning text-dark':(p.Status==='Chờ xử lý'?'secondary':'danger')); %>
+              <span class="badge bg-<%= cls %>"><%= p.Status %></span>
+            </td>
+            <td data-col="Description" class="text-muted small"><%= (p.Description||'').slice(0,40) %></td>
+            <td>
+              <a href="/products/<%= p.ProductID %>" class="btn btn-sm btn-outline-info" title="Chi tiết"><i class="bi bi-eye"></i></a>
+              <a href="/products/<%= p.ProductID %>/edit" class="btn btn-sm btn-outline-warning" title="Sửa"><i class="bi bi-pencil"></i></a>
+              <% if (currentUser && currentUser.role === 'admin') { %>
+              <button type="button" class="btn btn-sm btn-outline-danger btnDelOne" data-id="<%= p.ProductID %>" title="Xóa"><i class="bi bi-trash"></i></button>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</form>
+
+<form id="delOneForm" method="POST" style="display:none"></form>
+
+<!-- 1: Phân trang -->
+<nav class="d-flex justify-content-between align-items-center flex-wrap mt-3">
+  <small class="text-muted">Trang <%= page %>/<%= totalPages %> — <%= limit %> dòng/trang</small>
+  <ul class="pagination mb-0">
+    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&q=<%= q %>">«</a></li>
+    <% for (let i=1;i<=totalPages;i++){ %>
+      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&q=<%= q %>"><%= i %></a></li>
+    <% } %>
+    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&q=<%= q %>">»</a></li>
+  </ul>
+</nav>
+
+<div class="alert alert-light border mt-3 small">
+  <strong><i class="bi bi-keyboard"></i> Phím tắt:</strong>
+  <kbd>Alt+N</kbd> Thêm · <kbd>Alt+F</kbd> Tìm kiếm · <kbd>Alt+D</kbd> Xóa mục chọn · <kbd>Alt+A</kbd> Chọn tất cả
+</div>

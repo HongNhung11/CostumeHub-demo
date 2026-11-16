@@ -1,0 +1,137 @@
+<%
+  const pad = n => String(n).padStart(2,'0');
+  const d2s = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  const tmr = new Date(Date.now()+86400000);
+  const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
+%>
+<nav class="small text-muted mb-3"><a href="/products" class="text-muted">Sản phẩm</a> / <a href="/products/<%= product.ProductID %>" class="text-muted"><%= product.ProductName %></a> / <span>Đặt thuê</span></nav>
+
+<h3 class="font-serif mb-3"><i class="bi bi-bag-check" style="color:var(--gold)"></i> Đặt thuê & Thanh toán</h3>
+
+<form method="POST" action="/rentals" enctype="multipart/form-data" id="bookForm">
+  <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
+  <input type="hidden" id="price" value="<%= Number(product.Price) %>">
+  <input type="hidden" id="deposit" value="<%= Number(product.DepositValue) %>">
+  <div class="row g-4">
+
+    <!-- Cột trái: thông tin đặt thuê -->
+    <div class="col-lg-7">
+      <div class="card p-3 mb-3">
+        <h6 class="font-serif mb-3"><i class="bi bi-calendar-range"></i> Thời gian thuê</h6>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small text-muted">Ngày nhận</label>
+            <input type="date" name="StartDate" id="StartDate" class="form-control" value="<%= d2s(today) %>" min="<%= d2s(today) %>" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-muted">Ngày trả</label>
+            <input type="date" name="EndDate" id="EndDate" class="form-control" value="<%= d2s(tmr) %>" min="<%= d2s(tmr) %>" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-muted">Số lượng</label>
+            <input type="number" name="Quantity" id="Quantity" class="form-control" value="1" min="1" max="<%= product.Quantity %>">
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-3 mb-3">
+        <h6 class="font-serif mb-3"><i class="bi bi-person"></i> Thông tin khách hàng</h6>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Họ tên</label>
+            <input name="CustomerName" class="form-control" required value="<%= currentUser.fullName || '' %>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Số điện thoại</label>
+            <input name="CustomerPhone" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Số CCCD</label>
+            <input name="CustomerIDCard" class="form-control" placeholder="Nhập số CCCD">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Ảnh chụp CCCD</label>
+            <input type="file" name="IDCardImage" accept="image/*" class="form-control">
+            <small class="text-muted">Dùng để xác minh danh tính khi thuê.</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-3 mb-3">
+        <h6 class="font-serif mb-3"><i class="bi bi-truck"></i> Hình thức nhận đồ</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Tự đến lấy" id="pickup" checked>
+          <label class="form-check-label" for="pickup">Tự đến lấy tại cửa hàng <span class="text-muted small">(miễn phí)</span></label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Giao tận nơi" id="delivery">
+          <label class="form-check-label" for="delivery">Giao tận nơi</label>
+        </div>
+        <div class="mt-2" id="addrBox" style="display:none">
+          <label class="form-label small text-muted">Địa chỉ nhận hàng</label>
+          <input name="DeliveryAddress" id="DeliveryAddress" class="form-control" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP">
+        </div>
+      </div>
+
+      <div class="card p-3">
+        <h6 class="font-serif mb-3"><i class="bi bi-credit-card"></i> Hình thức thanh toán cọc</h6>
+        <select name="method" class="form-select">
+          <option>Tiền mặt</option><option>Chuyển khoản</option><option>Ví điện tử</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Cột phải: tóm tắt đơn -->
+    <div class="col-lg-5">
+      <div class="card p-3" style="position:sticky;top:90px">
+        <h6 class="font-serif mb-3">Tóm tắt đơn thuê</h6>
+        <div class="d-flex gap-2 mb-3 pb-3 border-bottom">
+          <% if (product.PathImage) { %><img src="<%= product.PathImage %>" style="width:70px;height:90px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
+          <div>
+            <strong><%= product.ProductName %></strong>
+            <div class="small text-muted"><%= product.ProductType %><% if (product.Color) { %> · <%= product.Color %><% } %><% if (product.Size) { %> · Size <%= product.Size %><% } %></div>
+            <div class="price-tag mt-1"><%= vnd(product.Price) %><small class="text-muted fw-normal">/ngày</small></div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between small py-1"><span>Số ngày thuê</span><span id="sumDays">1</span></div>
+        <div class="d-flex justify-content-between small py-1"><span>Tiền thuê</span><span id="sumRent">0 đ</span></div>
+        <div class="d-flex justify-content-between small py-1"><span>Tiền cọc (hoàn lại)</span><span id="sumDeposit">0 đ</span></div>
+        <hr class="my-2">
+        <div class="d-flex justify-content-between fw-bold mb-3"><span>Tổng tạm tính</span><span class="price-tag" id="sumTotal">0 đ</span></div>
+        <button class="btn btn-gold btn-lg w-100"><i class="bi bi-check2-circle"></i> Xác nhận đặt & cọc</button>
+        <p class="small text-muted text-center mt-2 mb-0">Đặt thuê là xác nhận cọc luôn để giữ chỗ.</p>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+(function(){
+  const s=document.getElementById('StartDate'), e=document.getElementById('EndDate'),
+        q=document.getElementById('Quantity'), price=+document.getElementById('price').value,
+        dep=+document.getElementById('deposit').value;
+  const vnd=n=>n.toLocaleString('vi-VN')+' đ';
+  function calc(){
+    const d1=new Date(s.value), d2=new Date(e.value);
+    let days=Math.round((d2-d1)/86400000); if(!(days>=1)) days=0;
+    const qty=Math.max(1,+q.value||1);
+    const rent=price*days*qty, deposit=dep*qty;
+    document.getElementById('sumDays').textContent=days;
+    document.getElementById('sumRent').textContent=vnd(rent);
+    document.getElementById('sumDeposit').textContent=vnd(deposit);
+    document.getElementById('sumTotal').textContent=vnd(rent+deposit);
+  }
+  [s,e,q].forEach(el=>el.addEventListener('change',calc)); calc();
+
+  // Hiện/ẩn ô địa chỉ theo hình thức nhận
+  const addrBox=document.getElementById('addrBox'), addr=document.getElementById('DeliveryAddress');
+  document.querySelectorAll('input[name="DeliveryMethod"]').forEach(r=>{
+    r.addEventListener('change',()=>{
+      const giao=document.getElementById('delivery').checked;
+      addrBox.style.display=giao?'block':'none';
+      addr.required=giao;
+    });
+  });
+})();
+</script>

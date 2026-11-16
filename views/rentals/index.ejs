@@ -1,0 +1,53 @@
+<%
+  const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
+  const stCls = s => s==='Hoàn tất'?'success':(s==='Đã hủy'?'danger':(s==='Đang thuê'?'warning text-dark':(s==='Đã cọc'?'info text-dark':'secondary')));
+%>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="font-serif mb-0"><i class="bi bi-receipt" style="color:var(--gold)"></i> <%= isStaff ? 'Quản lý đơn thuê' : 'Đơn thuê của tôi' %>
+    <span class="badge badge-soft"><%= rentals.length %></span>
+  </h3>
+  <a href="/products" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Thuê thêm</a>
+</div>
+
+<div class="card table-responsive">
+  <table class="table table-hover align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Mã</th><th>Trang phục</th><th>Khách</th><th>Thuê → Trả</th>
+        <th class="text-end">Tiền thuê</th><th class="text-end">Cọc</th><th>Trạng thái</th><th style="width:170px">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (rentals.length===0) { %>
+        <tr><td colspan="8" class="text-center text-muted py-4">Chưa có đơn thuê nào.</td></tr>
+      <% } %>
+      <% rentals.forEach(r => { %>
+        <tr>
+          <td><a href="/rentals/<%= r.RentalID %>">#<%= r.RentalID %></a></td>
+          <td><strong><%= r.Product ? r.Product.ProductName : '—' %></strong><div class="small text-muted">SL: <%= r.Quantity %></div></td>
+          <td><%= r.CustomerName %><div class="small text-muted"><%= r.CustomerPhone %></div></td>
+          <td class="small"><%= r.StartDate %><br><%= r.EndDate %> (<%= r.RentDays %> ngày)</td>
+          <td class="text-end"><%= vnd(r.RentFee) %></td>
+          <td class="text-end"><%= vnd(r.Deposit) %></td>
+          <td><span class="badge bg-<%= stCls(r.Status) %>"><%= r.Status %></span></td>
+          <td>
+            <a href="/rentals/<%= r.RentalID %>" class="btn btn-sm btn-outline-info" title="Xem"><i class="bi bi-eye"></i></a>
+            <% if (isStaff && r.Status==='Đã cọc') { %>
+              <form method="POST" action="/rentals/<%= r.RentalID %>/handover" class="d-inline">
+                <button class="btn btn-sm btn-outline-primary" title="Giao đồ"><i class="bi bi-box-arrow-up"></i> Giao</button>
+              </form>
+            <% } %>
+            <% if (isStaff && r.Status==='Đang thuê') { %>
+              <a href="/rentals/<%= r.RentalID %>/return" class="btn btn-sm btn-outline-success" title="Nhận trả"><i class="bi bi-box-arrow-in-down"></i> Nhận trả</a>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<div class="alert alert-light border mt-3 small">
+  <strong>Luồng trạng thái:</strong> <span class="badge bg-info text-dark">Đã cọc</span> (đặt = cọc luôn) → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-success">Hoàn tất</span> · hoặc <span class="badge bg-danger">Đã hủy</span>.
+  <% if (isStaff) { %> Nhân viên bấm <em>Giao</em> khi giao đồ, <em>Nhận trả</em> khi khách trả.<% } %>
+</div>
