@@ -319,3 +319,9 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
 /* Mẫu đã kín lịch trong khoảng ngày khách chọn */
 .prod-card.is-booked .prod-thumb img{ filter:grayscale(.85); opacity:.6; }
 .prod-card.is-booked .price-tag{ color:var(--muted); }
+
+/* Nút size / màu không chọn được (shop không có hoặc đã có khách thuê trong ngày đã chọn) */
+.btn-check:disabled + .btn.opt-off, .btn.opt-off{ opacity:.45; text-decoration:line-through; border-style:dashed; }
+/* Bảng số lượng theo size × màu trong form sản phẩm */
+.variant-grid input{ width:72px; }
+.variant-grid th, .variant-grid td{ white-space:nowrap; }

@@ -73,7 +73,9 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 - Trang chi tiết: chọn **size, màu, số lượng** → **Thêm vào giỏ** / **Thuê ngay**.
 - **Xem lịch trống theo ngày khách chọn**: xem bình thường thì không hiện mẫu nào đã có người thuê; khách chọn *ngày nhận – ngày trả* (ở cửa hàng hoặc trang chi tiết) thì mới hiện **"Còn N bộ"** / **"Đã kín lịch"**, có tùy chọn *chỉ hiện mẫu còn trống*. Ngày đã chọn được nhớ và tự điền vào giỏ thuê.
 - **Giỏ thuê** nhiều món, đặt 1 lần thành 1 đơn. Khách chưa đăng nhập vẫn thêm vào giỏ được, đăng nhập khi đặt.
-- **Chống trùng lịch**: số lượng sản phẩm là tổng số bộ; số bộ còn trống tính theo ngày thuê. Đơn giữ đồ từ ngày nhận đến hết ngày trả. Tối đa 30 ngày / đơn.
+- **Số lượng theo size × màu**: mỗi mẫu tự khai size / kích thước riêng (1 size cũng được; phụ kiện ghi "Ni 6", "40cm"...) và nhập số bộ cho từng size × màu. Khách thuê size S không ảnh hưởng size M.
+- **Chống trùng lịch theo từng size × màu**: số bộ còn trống tính theo ngày thuê. Đơn giữ đồ từ ngày nhận đến hết ngày trả. Tối đa 30 ngày / đơn.
+- **Lọc ở cửa hàng** (ngày + size): mẫu 1 size hết bộ → "Đã kín lịch"; mẫu nhiều size chỉ gắn "Đã kín lịch" khi hết mọi size; lọc size M thì mẫu hết size M → "Đã thuê size M". Trang chi tiết làm mờ size đã hết lịch.
 - Quy định: **SĐT** 10 số đầu 03/05/07/08/09, **CCCD** 12 số (mã tỉnh 001–096), ảnh CCCD (chỉ chủ đơn và nhân viên xem được).
 - Hủy đơn: ≥ 3 ngày trước ngày nhận hoàn 100% cọc · 1–2 ngày giữ 50% · trong ngày mất cọc.
 - **Nội quy & bảng trừ phí** `/noi-quy` (mức phí sửa ở `utils/fees.js`): khách phải tick **"đồng ý nội quy"** mới đặt được; hóa đơn ghi lại thời điểm đồng ý.

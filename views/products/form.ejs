@@ -35,21 +35,23 @@
               <div class="invalid-feedback">Chọn loại trang phục.</div>
             </div>
             <div class="col-md-6">
+              <label class="form-label">Size / kích thước <span class="text-danger">*</span></label>
+              <input name="Size" id="sizeList" class="form-control" required maxlength="200" placeholder="VD: S, M, L — hoặc chỉ M — hoặc Ni 6, Ni 7 — Free size" value="<%= v('Size') %>">
+              <div class="form-text">Chỉ ghi những size mẫu này có, cách nhau bằng dấu phẩy. Phụ kiện ghi kích thước (40cm, Ni 7...).</div>
+              <div class="invalid-feedback">Nhập size / kích thước.</div>
+            </div>
+            <div class="col-md-6">
               <label class="form-label">Màu sắc <span class="text-danger">*</span></label>
-              <input name="Color" class="form-control" required maxlength="100" placeholder="VD: Đỏ, Trắng" value="<%= v('Color') %>">
+              <input name="Color" id="colorList" class="form-control" required maxlength="200" placeholder="VD: Đỏ — hoặc Đỏ, Trắng" value="<%= v('Color') %>">
               <div class="form-text">Nhiều màu thì cách nhau bằng dấu phẩy.</div>
               <div class="invalid-feedback">Nhập màu sắc.</div>
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Size <span class="text-danger">*</span></label>
-              <input name="Size" class="form-control" required maxlength="100" placeholder="VD: S, M, L hoặc Free size" value="<%= v('Size') %>">
-              <div class="form-text">Nhiều size thì cách nhau bằng dấu phẩy.</div>
-              <div class="invalid-feedback">Nhập size.</div>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Số lượng <span class="text-danger">*</span></label>
-              <input type="number" name="Quantity" class="form-control" required min="0" step="1" value="<%= v('Quantity', 1) %>">
-              <div class="invalid-feedback">Số nguyên ≥ 0.</div>
+            <!-- Số bộ theo SIZE × MÀU: bảng tự tạo theo danh sách size / màu ở trên -->
+            <div class="col-12">
+              <label class="form-label">Số bộ theo size × màu <span class="text-danger">*</span>
+                <span class="small text-muted fw-normal">— tổng: <strong id="gridTotal">0</strong></span></label>
+              <div id="variantGrid" class="table-responsive variant-grid"></div>
+              <div class="form-text">Ô nào shop không có thì để 0. Khách chỉ chọn được size × màu còn bộ.</div>
             </div>
             <div class="col-md-3">
               <label class="form-label">Đơn vị <span class="text-danger">*</span></label>
@@ -108,6 +110,43 @@
 </div>
 
 <script>
+// Bảng số bộ theo SIZE × MÀU: tự vẽ lại khi sửa danh sách size / màu, giữ số đã nhập
+(function () {
+  const sizeEl = document.getElementById('sizeList'), colorEl = document.getElementById('colorList');
+  const box = document.getElementById('variantGrid'), totalEl = document.getElementById('gridTotal');
+  const values = new Map(<%- JSON.stringify((grid || []).map(g => [g.Size + '|' + g.Color, g.Quantity])).replace(/</g, '\\u003c') %>);
+  const list = (s) => [...new Set(s.split(/[,;]/).map(x => x.trim()).filter(Boolean))];
+  const esc = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function total() {
+    let t = 0;
+    box.querySelectorAll('input[type=number]').forEach(i => { t += Math.max(0, parseInt(i.value) || 0); });
+    totalEl.textContent = t;
+    return t;
+  }
+  function render() {
+    const sizes = list(sizeEl.value), colors = list(colorEl.value);
+    if (!sizes.length || !colors.length) { box.innerHTML = '<div class="small text-muted border rounded p-2">Nhập size và màu ở trên để tạo bảng số lượng.</div>'; total(); return; }
+    let h = '<table class="table table-sm table-bordered align-middle mb-0 small"><thead><tr><th>Size \\ Màu</th>' +
+      colors.map(c => `<th>${esc(c)}</th>`).join('') + '</tr></thead><tbody>';
+    for (const s of sizes) {
+      h += `<tr><th>${esc(s)}</th>`;
+      for (const c of colors) {
+        const k = s + '|' + c, val = values.has(k) ? values.get(k) : (sizes.length * colors.length === 1 ? 1 : 0);
+        h += `<td><input type="hidden" name="vSize[]" value="${esc(s)}"><input type="hidden" name="vColor[]" value="${esc(c)}">` +
+             `<input type="number" name="vQty[]" class="form-control form-control-sm" min="0" max="999" step="1" value="${val}" data-k="${esc(k)}"></td>`;
+      }
+      h += '</tr>';
+    }
+    box.innerHTML = h + '</tbody></table>';
+    total();
+  }
+  box.addEventListener('input', (e) => { if (e.target.dataset.k) { values.set(e.target.dataset.k, parseInt(e.target.value) || 0); total(); } });
+  sizeEl.addEventListener('input', render);
+  colorEl.addEventListener('input', render);
+  render();
+  window.__variantTotal = total;
+})();
+
 // Kiểm tra phía trình duyệt trước khi gửi (máy chủ vẫn kiểm tra lại)
 (function () {
   const form = document.getElementById('productForm');
@@ -115,6 +154,11 @@
     form.querySelectorAll('input:not([type=file]):not([type=hidden]), textarea').forEach(el => {
       el.value = el.value.trim();
     });
+    if (window.__variantTotal && window.__variantTotal() <= 0) {
+      e.preventDefault();
+      alert('Vui lòng nhập số bộ cho ít nhất một size × màu.');
+      return;
+    }
     if (!form.checkValidity()) {
       e.preventDefault();
       e.stopPropagation();

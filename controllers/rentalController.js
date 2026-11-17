@@ -4,8 +4,8 @@ const { normalizePhone, isValidPhone, isValidCCCD, splitList } = require('../uti
 const { todayStr, daysBetween, viDate, isDateStr } = require('../utils/dates');
 const { normalize } = require('../utils/text');
 const { DAMAGE_RULES, lossAmount } = require('../utils/fees');
-const { availableMap, checkDates } = require('../utils/availability');
-const { loadCart, needByProduct } = require('./cartController');
+const { productAvailability, checkDates } = require('../utils/availability');
+const { loadCart, needByVariant, lineKey } = require('./cartController');
 
 const path = require('path');
 const { privateDir, uploadDir } = require('../middlewares/upload');
@@ -37,16 +37,11 @@ exports.create = async (req, res) => {
     const CustomerPhone = normalizePhone(req.body.CustomerPhone);
     const CustomerIDCard = String(req.body.CustomerIDCard || '').replace(/\s/g, '');
 
-    const { lines, products } = await loadCart(req);
+    const { lines, products, removedCount } = await loadCart(req);
+    if (removedCount) return fail(`${removedCount} món trong giỏ không còn cho thuê (hoặc không còn size / màu đã chọn) nên đã được bỏ ra. Vui lòng xem lại giỏ trước khi đặt.`);
     if (!lines.length) return fail('Giỏ thuê đang trống.');
 
-    // Size / màu của từng dòng phải còn đúng với sản phẩm
-    for (const l of lines) {
-      const sizes = splitList(l.product.Size), colors = splitList(l.product.Color);
-      if ((sizes.length && !sizes.includes(l.size)) || (colors.length && !colors.includes(l.color))) {
-        return fail(`Size/màu của "${l.product.ProductName}" không còn, vui lòng bỏ ra và chọn lại.`);
-      }
-    }
+    // (loadCart đã bỏ các dòng có size × màu không còn trong kho của mẫu)
 
     const dateErr = checkDates(StartDate, EndDate);
     if (dateErr) return fail(dateErr);
@@ -61,15 +56,18 @@ exports.create = async (req, res) => {
     }
     if (req.body.agree !== '1') return fail('Vui lòng đọc và đồng ý nội quy thuê đồ trước khi đặt.');
 
-    // Kiểm tra trùng lịch + tạo đơn trong 1 transaction (tránh 2 khách cùng giữ 1 bộ)
-    const need = needByProduct(lines);
+    // Kiểm tra trùng lịch THEO TỪNG SIZE × MÀU + tạo đơn trong 1 transaction (tránh 2 khách cùng giữ 1 bộ)
+    const need = needByVariant(lines);
     const rental = await sequelize.transaction(async (t) => {
-      const avail = await availableMap(products, StartDate, EndDate, { transaction: t });
-      const short = products.filter(p => need[p.ProductID] > avail[p.ProductID]);
+      const avail = await productAvailability(products, StartDate, EndDate, { transaction: t });
+      const freeOf = (l) => (avail[l.productId].variants.find(v => v.Size === l.size && v.Color === l.color) || { free: 0 }).free;
+      const short = lines.filter(l => need[lineKey(l)] > freeOf(l));
       if (short.length) {
-        const e = new Error(short.map(p => avail[p.ProductID] > 0
-          ? `"${p.ProductName}" chỉ còn ${avail[p.ProductID]} ${p.Unit} trống từ ${viDate(StartDate)} đến ${viDate(EndDate)}`
-          : `"${p.ProductName}" đã kín lịch từ ${viDate(StartDate)} đến ${viDate(EndDate)}`).join('; ') + '. Vui lòng đổi ngày hoặc giảm số lượng.');
+        const range = `từ ${viDate(StartDate)} đến ${viDate(EndDate)}`;
+        const e = new Error(short.map(l => {
+          const f = freeOf(l), what = `"${l.product.ProductName}" size ${l.size} – ${l.color}`;
+          return f > 0 ? `${what} chỉ còn ${f} ${l.product.Unit} trống ${range}` : `${what} đã kín lịch ${range}`;
+        }).join('; ') + '. Vui lòng đổi ngày, đổi size hoặc giảm số lượng.');
         e.userFacing = true;
         throw e;
       }

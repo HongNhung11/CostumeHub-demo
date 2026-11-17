@@ -43,31 +43,39 @@
   <% if (q) { %><input type="hidden" name="q" value="<%= q %>"><% } %>
   <div class="d-flex flex-wrap align-items-end gap-2">
     <div class="me-2">
-      <div class="fw-semibold small"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Bạn muốn thuê ngày nào?</div>
-      <div class="small text-muted">Chọn ngày để xem mẫu nào còn trống</div>
+      <div class="fw-semibold small"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Bạn muốn thuê ngày nào, size gì?</div>
+      <div class="small text-muted">Chọn ngày để biết mẫu nào đã có người thuê</div>
     </div>
     <div>
       <label class="form-label small text-muted mb-0" for="fStart">Ngày nhận</label>
-      <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= todayYmd %>" value="<%= dates ? dates.start : '' %>" required>
+      <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= todayYmd %>" value="<%= dates ? dates.start : '' %>">
     </div>
     <div>
       <label class="form-label small text-muted mb-0" for="fEnd">Ngày trả</label>
-      <input type="date" name="end" id="fEnd" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.end : '' %>" required>
+      <input type="date" name="end" id="fEnd" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.end : '' %>">
+    </div>
+    <div>
+      <label class="form-label small text-muted mb-0" for="fSize">Size / kích thước</label>
+      <select name="size" id="fSize" class="form-select form-select-sm" style="min-width:110px">
+        <option value="">Tất cả</option>
+        <% sizeOptions.forEach(s => { %><option <%= size === s ? 'selected' : '' %>><%= s %></option><% }) %>
+      </select>
     </div>
     <div class="form-check mb-1 ms-1">
       <input class="form-check-input" type="checkbox" name="free" value="1" id="fFree" <%= onlyFree ? 'checked' : '' %>>
       <label class="form-check-label small" for="fFree">Chỉ hiện mẫu còn trống</label>
     </div>
-    <button class="btn btn-primary btn-sm"><i class="bi bi-search"></i> Xem lịch trống</button>
-    <% if (dates) { %>
-      <a href="/products?clear=1<%= type ? '&type=' + encodeURIComponent(type) : '' %><%= q ? '&q=' + encodeURIComponent(q) : '' %>" class="btn btn-light btn-sm"><i class="bi bi-x-lg"></i> Bỏ chọn ngày</a>
+    <button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> Lọc</button>
+    <% if (dates || size) { %>
+      <a href="/products?clear=1<%= type ? '&type=' + encodeURIComponent(type) : '' %><%= q ? '&q=' + encodeURIComponent(q) : '' %>" class="btn btn-light btn-sm"><i class="bi bi-x-lg"></i> Bỏ lọc ngày &amp; size</a>
     <% } %>
   </div>
   <% if (dates) { %>
     <div class="small mt-2 text-success-emphasis">
       <i class="bi bi-check-circle-fill text-success"></i>
-      Đang xem lịch trống từ <strong><%= viDate(dates.start) %></strong> đến <strong><%= viDate(dates.end) %></strong> (<%= rentDays %> ngày).
+      Đang xem lịch từ <strong><%= viDate(dates.start) %></strong> đến <strong><%= viDate(dates.end) %></strong> (<%= rentDays %> ngày)<%= size ? ', size ' + size : '' %>.
       Ngày này sẽ tự điền khi bạn đặt thuê.
+      <% if (!size) { %><span class="text-muted">Mẫu nhiều size chỉ báo kín lịch khi hết mọi size — chọn size để xem chính xác.</span><% } %>
     </div>
   <% } %>
 </form>
@@ -106,18 +114,16 @@
     </div>
   <% } %>
 
-  <% products.forEach(p => { const free = avail ? avail[p.ProductID] : null; %>
+  <% products.forEach(p => { const tag = tags[p.ProductID]; %>
     <div class="col-6 col-md-4 col-lg-3">
-      <div class="card prod-card h-100 reveal <%= free === 0 ? 'is-booked' : '' %>">
+      <div class="card prod-card h-100 reveal <%= tag ? 'is-booked' : '' %>">
         <a href="/products/<%= p.ProductID %>" class="prod-thumb d-block">
           <% if (p.PathImage) { %>
             <img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" onerror="this.style.display='none'">
           <% } %>
           <span class="prod-badge chip"><%= p.ProductType %></span>
-          <% if (free === 0) { %>
-            <span class="position-absolute top-0 end-0 m-2 badge bg-dark"><i class="bi bi-calendar-x"></i> Đã kín lịch</span>
-          <% } else if (free !== null) { %>
-            <span class="position-absolute top-0 end-0 m-2 badge bg-success"><i class="bi bi-calendar-check"></i> Còn <%= free %> <%= p.Unit %></span>
+          <% if (tag) { %>
+            <span class="position-absolute top-0 end-0 m-2 badge bg-dark"><i class="bi bi-calendar-x"></i> <%= tag %></span>
           <% } %>
         </a>
         <div class="card-body p-3 d-flex flex-column">
@@ -139,11 +145,11 @@
 <% if (totalPages > 1) { %>
 <nav class="d-flex justify-content-center mt-4">
   <ul class="pagination mb-0">
-    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %>">«</a></li>
+    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %><%= size ? '&size=' + encodeURIComponent(size) : '' %>">«</a></li>
     <% for (let i=1;i<=totalPages;i++){ %>
-      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %>"><%= i %></a></li>
+      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %><%= size ? '&size=' + encodeURIComponent(size) : '' %>"><%= i %></a></li>
     <% } %>
-    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %>">»</a></li>
+    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %><%= size ? '&size=' + encodeURIComponent(size) : '' %>">»</a></li>
   </ul>
 </nav>
 <% } %>

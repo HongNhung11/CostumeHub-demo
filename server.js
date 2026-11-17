@@ -144,6 +144,33 @@ async function migrateSchema() {
   }
 }
 
+// Tạo số lượng theo SIZE × MÀU cho sản phẩm chưa có (dữ liệu cũ / dữ liệu mẫu vừa nạp):
+// chia đều tổng số bộ hiện có cho các tổ hợp size × màu (nhân viên sửa lại cho đúng sau).
+// Các món trong đơn cũ chưa ghi size/màu -> gán vào tổ hợp có nhiều bộ nhất của mẫu đó.
+async function migrateVariants() {
+  const { Product, ProductVariant, RentalItem } = require('./models');
+  const { splitQuantity, sizesOf, colorsOf, saveVariants } = require('./utils/variants');
+  const { Op } = require('sequelize');
+  const products = await Product.findAll({ include: [{ model: ProductVariant, as: 'variants' }] });
+  let n = 0;
+  await sequelize.transaction(async (t) => {
+    for (const p of products) {
+      if (p.variants.length) continue;
+      if (!sizesOf(p).length) p.Size = 'Free size';
+      if (!colorsOf(p).length) p.Color = 'Một màu';
+      await saveVariants(p, splitQuantity(p.Quantity || 0, sizesOf(p), colorsOf(p)), { transaction: t });
+      if (p.changed()) await p.save({ transaction: t });
+      n++;
+    }
+    const orphan = await RentalItem.findAll({ where: { [Op.or]: [{ Size: null }, { Color: null }], ProductID: { [Op.ne]: null } }, transaction: t });
+    for (const it of orphan) {
+      const v = await ProductVariant.findOne({ where: { ProductID: it.ProductID }, order: [['Quantity', 'DESC']], transaction: t });
+      if (v) { it.Size = it.Size || v.Size; it.Color = it.Color || v.Color; await it.save({ transaction: t }); }
+    }
+  });
+  if (n) console.log(`🔁 Đã tạo số lượng theo size × màu cho ${n} sản phẩm.`);
+}
+
 // Khởi động
 (async () => {
   try {
@@ -153,6 +180,7 @@ async function migrateSchema() {
     await migrateSchema();             // thêm cột mới, chuyển trạng thái SP cũ
     await migrateRentalsToItems();     // chuyển dữ liệu đơn thuê cũ (nếu có)
     await seed();                      // nạp dữ liệu mẫu nếu rỗng
+    await migrateVariants();           // số lượng theo size × màu cho SP chưa có
     app.listen(PORT, () => {
       console.log(`🚀 CostumeHub chạy tại: http://localhost:${PORT}`);
     });

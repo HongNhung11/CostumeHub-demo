@@ -1,8 +1,12 @@
 <%
   const canRent = product.Status === 'Còn trống' && product.Quantity > 0;
-  const split = s => String(s||'').split(/[,;\/]/).map(x => x.trim()).filter(Boolean);
-  const sizes = split(product.Size), colors = split(product.Color);
-  const maxAdd = Math.max(0, product.Quantity - inCart);
+  // stock: [{ Size, Color, Quantity (shop có), free (còn trống theo ngày đã chọn | null), inCart }]
+  const sizeTotal = s => stock.filter(v => v.Size === s).reduce((n, v) => n + v.Quantity, 0);
+  const sizeFree = s => stock.filter(v => v.Size === s).reduce((n, v) => n + (v.free ?? v.Quantity), 0);
+  const colorTotal = c => stock.filter(v => v.Color === c).reduce((n, v) => n + v.Quantity, 0);
+  const onlySize = sizes.length === 1 ? sizes[0] : null, onlyColor = colors.length === 1 ? colors[0] : null;
+  const pad2 = n => String(n).padStart(2, '0');
+  const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 %>
 <nav class="small text-muted mb-3"><a href="/" class="text-muted">Trang chủ</a> / <a href="/products" class="text-muted">Sản phẩm</a> / <span><%= product.ProductName %></span></nav>
 
@@ -37,8 +41,10 @@
     <table class="table table-sm">
       <tr><td class="text-muted" style="width:150px">Mã sản phẩm</td><td class="fw-semibold">#<%= product.ProductID %></td></tr>
       <tr><td class="text-muted">Phân loại</td><td><%= product.ProductType %></td></tr>
-      <% if (product.Color) { %><tr><td class="text-muted">Màu sắc</td><td><%= product.Color %></td></tr><% } %>
-      <% if (product.Size) { %><tr><td class="text-muted">Size</td><td><%= product.Size %></td></tr><% } %>
+      <tr><td class="text-muted">Màu sắc</td><td><%= colors.join(', ') %></td></tr>
+      <tr><td class="text-muted">Size / kích thước</td><td>
+        <% sizes.forEach((s, i) => { %><%= i ? ' · ' : '' %><%= s %> <span class="text-muted">(<%= sizeTotal(s) %>)</span><% }) %>
+      </td></tr>
       <tr><td class="text-muted">Số bộ cửa hàng có</td><td><%= product.Quantity %> <%= product.Unit %></td></tr>
       <tr><td class="text-muted align-top">Mô tả</td><td><%= product.Description %></td></tr>
     </table>
@@ -47,46 +53,7 @@
     <% if (!canRent) { %>
       <div class="alert alert-warning">Sản phẩm hiện <strong><%= product.Status %></strong>, chưa thể đặt thuê. Vui lòng chọn mẫu khác.</div>
     <% } else { %>
-      <!-- Chọn size / màu / số lượng rồi thêm vào giỏ thuê -->
-      <form method="POST" action="/cart/add" id="addCartForm" class="card p-3 mb-2" novalidate>
-        <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
-        <% if (sizes.length) { %>
-          <label class="form-label small text-muted mb-1">Size <span class="text-danger">*</span></label>
-          <div class="d-flex flex-wrap gap-2 mb-1 opt-group">
-            <% sizes.forEach((sz, i) => { %>
-              <input type="radio" class="btn-check" name="Size" id="size<%= i %>" value="<%= sz %>" <%= sizes.length === 1 ? 'checked' : '' %>>
-              <label class="btn btn-outline-primary btn-sm px-3" for="size<%= i %>"><%= sz %></label>
-            <% }) %>
-          </div>
-          <div class="small text-danger mb-2 opt-msg" hidden>Vui lòng chọn size.</div>
-        <% } %>
-        <% if (colors.length) { %>
-          <label class="form-label small text-muted mb-1 mt-1">Màu sắc <span class="text-danger">*</span></label>
-          <div class="d-flex flex-wrap gap-2 mb-1 opt-group">
-            <% colors.forEach((c, i) => { %>
-              <input type="radio" class="btn-check" name="Color" id="color<%= i %>" value="<%= c %>" <%= colors.length === 1 ? 'checked' : '' %>>
-              <label class="btn btn-outline-primary btn-sm px-3" for="color<%= i %>"><%= c %></label>
-            <% }) %>
-          </div>
-          <div class="small text-danger mb-2 opt-msg" hidden>Vui lòng chọn màu.</div>
-        <% } %>
-        <div class="d-flex align-items-end gap-2 mt-2 flex-wrap">
-          <div style="width:110px">
-            <label class="form-label small text-muted mb-1">Số lượng</label>
-            <input type="number" name="Quantity" class="form-control" value="1" min="1" max="<%= maxAdd %>" step="1" required <%= maxAdd ? '' : 'disabled' %>>
-          </div>
-          <button class="btn btn-outline-primary flex-grow-1" <%= maxAdd ? '' : 'disabled' %>><i class="bi bi-bag-plus"></i> Thêm vào giỏ</button>
-          <button class="btn btn-gold flex-grow-1" name="buyNow" value="1" <%= maxAdd ? '' : 'disabled' %>><i class="bi bi-calendar-check"></i> Thuê ngay</button>
-        </div>
-        <% if (inCart) { %><div class="small text-muted mt-2"><i class="bi bi-bag-check"></i> Giỏ của bạn đã có <%= inCart %> <%= product.Unit %> mẫu này · <a href="/cart">Xem giỏ</a></div><% } %>
-        <% if (!currentUser) { %><div class="small text-muted mt-2">Bạn có thể thêm vào giỏ trước, đăng nhập khi đặt thuê.</div><% } %>
-      </form>
-
       <!-- Kiểm tra lịch trống: chỉ báo đã kín / còn trống khi khách chọn ngày -->
-      <%
-        const pad2 = n => String(n).padStart(2, '0');
-        const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-      %>
       <form method="GET" action="/products/<%= product.ProductID %>" class="card p-3 mb-2 small">
         <div class="fw-semibold mb-2"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Kiểm tra lịch trống</div>
         <div class="d-flex flex-wrap align-items-end gap-2">
@@ -100,42 +67,114 @@
           </div>
           <button class="btn btn-outline-primary btn-sm">Kiểm tra</button>
         </div>
-        <% if (dates && availNow !== null) { %>
-          <div class="mt-2 <%= availNow > 0 ? 'text-success' : 'text-danger' %>">
-            <% if (availNow > 0) { %>
-              <i class="bi bi-check-circle-fill"></i> Còn <strong><%= availNow %> <%= product.Unit %></strong> trống từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>.
-            <% } else { %>
-              <i class="bi bi-x-circle-fill"></i> Mẫu này <strong>đã có khách thuê</strong> từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>. Vui lòng chọn ngày khác hoặc mẫu khác.
-            <% } %>
-          </div>
+        <% if (dates && avail) { %>
+          <% if (avail.free > 0) { %>
+            <div class="mt-2 text-success"><i class="bi bi-check-circle-fill"></i>
+              Từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>:
+              <%= sizes.length > 1 ? 'còn size ' + avail.freeSizes.join(', ') : 'còn ' + avail.free + ' ' + product.Unit %>.
+              <% const full = sizes.filter(s => !avail.freeSizes.includes(s)); if (full.length && sizes.length > 1) { %><span class="text-muted">Size <%= full.join(', ') %> đã có khách thuê.</span><% } %>
+            </div>
+          <% } else { %>
+            <div class="mt-2 text-danger"><i class="bi bi-x-circle-fill"></i> Mẫu này <strong>đã có khách thuê</strong> từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>. Vui lòng chọn ngày khác hoặc mẫu khác.</div>
+          <% } %>
         <% } else { %>
-          <div class="mt-2 text-muted">Chọn ngày nhận – ngày trả để biết mẫu này còn trống không.</div>
+          <div class="mt-2 text-muted">Chọn ngày nhận – ngày trả để biết size nào còn trống.</div>
         <% } %>
       </form>
+
+      <!-- Chọn size / màu / số lượng rồi thêm vào giỏ thuê -->
+      <form method="POST" action="/cart/add" id="addCartForm" class="card p-3 mb-2" novalidate>
+        <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
+        <label class="form-label small text-muted mb-1">Size / kích thước <span class="text-danger">*</span></label>
+        <div class="d-flex flex-wrap gap-2 mb-1 opt-group" data-opt="Size">
+          <% sizes.forEach((sz, i) => { const total = sizeTotal(sz), free = sizeFree(sz); const off = !total || free <= 0; %>
+            <input type="radio" class="btn-check" name="Size" id="size<%= i %>" value="<%= sz %>" <%= off ? 'disabled' : '' %> <%= (onlySize && !off) ? 'checked' : '' %>>
+            <label class="btn btn-outline-primary btn-sm px-3 <%= off ? 'opt-off' : '' %>" for="size<%= i %>"
+                   title="<%= !total ? 'Shop không có size này' : off ? 'Đã có khách thuê trong ngày bạn chọn' : '' %>">
+              <%= sz %><% if (dates && total && free <= 0) { %> <small>· hết lịch</small><% } %>
+            </label>
+          <% }) %>
+        </div>
+        <div class="small text-danger mb-2 opt-msg" hidden>Vui lòng chọn size.</div>
+
+        <label class="form-label small text-muted mb-1 mt-1">Màu sắc <span class="text-danger">*</span></label>
+        <div class="d-flex flex-wrap gap-2 mb-1 opt-group" data-opt="Color">
+          <% colors.forEach((c, i) => { const off = !colorTotal(c); %>
+            <input type="radio" class="btn-check" name="Color" id="color<%= i %>" value="<%= c %>" <%= off ? 'disabled' : '' %> <%= (onlyColor && !off) ? 'checked' : '' %>>
+            <label class="btn btn-outline-primary btn-sm px-3 <%= off ? 'opt-off' : '' %>" for="color<%= i %>"><%= c %></label>
+          <% }) %>
+        </div>
+        <div class="small text-danger mb-2 opt-msg" hidden>Vui lòng chọn màu.</div>
+
+        <div class="small text-muted" id="comboInfo"></div>
+        <div class="d-flex align-items-end gap-2 mt-2 flex-wrap">
+          <div style="width:110px">
+            <label class="form-label small text-muted mb-1">Số lượng</label>
+            <input type="number" name="Quantity" id="qtyInput" class="form-control" value="1" min="1" step="1" required>
+          </div>
+          <button class="btn btn-outline-primary flex-grow-1 need-combo"><i class="bi bi-bag-plus"></i> Thêm vào giỏ</button>
+          <button class="btn btn-gold flex-grow-1 need-combo" name="buyNow" value="1"><i class="bi bi-calendar-check"></i> Thuê ngay</button>
+        </div>
+        <% if (inCart) { %><div class="small text-muted mt-2"><i class="bi bi-bag-check"></i> Giỏ của bạn đã có <%= inCart %> <%= product.Unit %> mẫu này · <a href="/cart">Xem giỏ</a></div><% } %>
+        <% if (!currentUser) { %><div class="small text-muted mt-2">Bạn có thể thêm vào giỏ trước, đăng nhập khi đặt thuê.</div><% } %>
+      </form>
+
       <script>
-        (function () {
-          const s = document.getElementById('cStart'), e = document.getElementById('cEnd');
-          const add = (v, n) => { const d = new Date(v); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-          s.addEventListener('change', () => {
-            if (!s.value) return;
-            e.min = add(s.value, 1); e.max = add(s.value, <%= MAX_RENT_DAYS %>);
-            if (!e.value || e.value <= s.value || e.value > e.max) e.value = add(s.value, 1);
+      (function () {
+        // Ngày trả luôn sau ngày nhận, tối đa <%= MAX_RENT_DAYS %> ngày
+        const s = document.getElementById('cStart'), e = document.getElementById('cEnd');
+        const add = (v, n) => { const d = new Date(v); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+        s.addEventListener('change', () => {
+          if (!s.value) return;
+          e.min = add(s.value, 1); e.max = add(s.value, <%= MAX_RENT_DAYS %>);
+          if (!e.value || e.value <= s.value || e.value > e.max) e.value = add(s.value, 1);
+        });
+
+        // Tồn kho theo size × màu: chọn size -> chỉ bật màu còn bộ của size đó (và ngược lại)
+        const STOCK = <%- JSON.stringify(stock).replace(/</g, '\\u003c') %>;
+        const unit = <%- JSON.stringify(product.Unit).replace(/</g, '\\u003c') %>, hasDates = <%= dates ? 'true' : 'false' %>;
+        const form = document.getElementById('addCartForm');
+        const qty = document.getElementById('qtyInput'), info = document.getElementById('comboInfo');
+        const picked = (name) => { const r = form.querySelector(`input[name="${name}"]:checked`); return r ? r.value : null; };
+        const canUse = (v) => v.Quantity > 0 && (v.free === null || v.free > 0);
+        function refresh() {
+          const size = picked('Size'), color = picked('Color');
+          form.querySelectorAll('input[name="Color"]').forEach(r => {
+            const ok = STOCK.some(v => v.Color === r.value && canUse(v) && (!size || v.Size === size));
+            r.disabled = !ok; r.nextElementSibling.classList.toggle('opt-off', !ok);
+            if (!ok && r.checked) r.checked = false;
           });
-        })();
-      </script>
-      <script>
-        document.getElementById('addCartForm').addEventListener('submit', function (e) {
+          form.querySelectorAll('input[name="Size"]').forEach(r => {
+            const ok = STOCK.some(v => v.Size === r.value && canUse(v) && (!color || v.Color === color));
+            r.disabled = !ok; r.nextElementSibling.classList.toggle('opt-off', !ok);
+          });
+          const c = size && picked('Color') ? STOCK.find(v => v.Size === size && v.Color === picked('Color')) : null;
+          if (c) {
+            const max = Math.max(0, Math.min(c.Quantity - c.inCart, c.free === null ? Infinity : c.free - c.inCart));
+            qty.max = max || 1;
+            if (+qty.value > max) qty.value = Math.max(1, max);
+            info.textContent = `Size ${c.Size} – ${c.Color}: shop có ${c.Quantity} ${unit}` +
+              (hasDates ? `, còn ${c.free} ${unit} trống trong ngày bạn chọn` : '') + (c.inCart ? ` (giỏ đã có ${c.inCart})` : '') + '.';
+            form.querySelectorAll('.need-combo').forEach(b => { b.disabled = max <= 0; });
+            if (max <= 0) info.textContent += ' Bạn đã chọn hết số bộ có thể thuê.';
+          } else {
+            info.textContent = '';
+            form.querySelectorAll('.need-combo').forEach(b => { b.disabled = false; });
+          }
+          form.querySelectorAll('.opt-group').forEach(g => { if (g.querySelector('input:checked')) g.nextElementSibling.hidden = true; });
+        }
+        form.addEventListener('change', refresh);
+        form.addEventListener('submit', function (ev) {
           let ok = true;
           this.querySelectorAll('.opt-group').forEach(g => {
-            const picked = !!g.querySelector('input:checked');
-            g.nextElementSibling.hidden = picked;
-            if (!picked) ok = false;
+            const has = !!g.querySelector('input:checked');
+            g.nextElementSibling.hidden = has;
+            if (!has) ok = false;
           });
-          if (!ok) e.preventDefault();
+          if (!ok) ev.preventDefault();
         });
-        document.querySelectorAll('#addCartForm .opt-group input').forEach(r => r.addEventListener('change', () => {
-          r.closest('.opt-group').nextElementSibling.hidden = true;
-        }));
+        refresh();
+      })();
       </script>
     <% } %>
 

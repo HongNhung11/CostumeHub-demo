@@ -3,9 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
-const { Product } = require('../models');
+const { sequelize, Product, ProductVariant } = require('../models');
 const { searchProducts } = require('../utils/search');
-const { peakFutureUsage, productsInRentals, availableMap, rentDatesFrom, MAX_RENT_DAYS } = require('../utils/availability');
+const { peakFutureUsage, productsInRentals, productAvailability, rentDatesFrom, MAX_RENT_DAYS } = require('../utils/availability');
+const { splitQuantity, formatVariants, parseVariants, sizesOf, colorsOf, variantGrid, saveVariants } = require('../utils/variants');
+const { splitList } = require('../utils/text');
 const { viDate, daysBetween } = require('../utils/dates');
 const { PRODUCT_TYPES, PRODUCT_STATUSES, normalizeStatus } = require('../utils/constants');
 const { uploadDir } = require('../middlewares/upload');
@@ -41,7 +43,7 @@ function backToList(req, fallback = '/products/manage') {
   return fallback;
 }
 
-const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES, errors: [], ...extra });
+const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES, errors: [], grid: [], ...extra });
 
 // ===== CỬA HÀNG: lưới thẻ sản phẩm + lọc danh mục + tìm kiếm + phân trang =====
 exports.index = async (req, res) => {
@@ -58,15 +60,35 @@ exports.index = async (req, res) => {
   let list = await Product.findAll({ where, order: NEWEST_FIRST });
   if (q) list = searchProducts(list, q);
 
-  // Chỉ khi khách CHỌN NGÀY THUÊ mới tính và hiện số bộ còn trống / đã kín lịch
+  // Danh sách size để lọc (lấy từ các mẫu đang hiện, chỉ size shop thực sự có bộ)
+  const allVariants = list.length ? await ProductVariant.findAll({ where: { ProductID: { [Op.in]: list.map(p => p.ProductID) }, Quantity: { [Op.gt]: 0 } } }) : [];
+  const sizesOfP = {};
+  for (const v of allVariants) (sizesOfP[v.ProductID] ||= new Set()).add(v.Size);
+  const sizeOptions = [...new Set(allVariants.map(v => v.Size))].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
+  const size = sizeOptions.includes(String(req.query.size || '')) ? String(req.query.size) : '';
+  if (size) list = list.filter(p => sizesOfP[p.ProductID] && sizesOfP[p.ProductID].has(size));   // chỉ mẫu CÓ size này
+
+  // Tag lịch thuê — CHỈ khi khách chọn ngày:
+  //  - lọc size: size đó hết bộ -> "Đã thuê size X"
+  //  - không lọc size: mẫu 1 size hết bộ, hoặc mẫu nhiều size mà MỌI size đều hết -> "Đã kín lịch"
+  //    (mẫu nhiều size còn size khác thì giữ nguyên, không gắn tag)
   const { dates, error: dateError } = rentDatesFrom(req);
-  let avail = null;
+  if (dateError) res.locals.error = [dateError];
+  const tags = {};
   const onlyFree = !!dates && req.query.free === '1';
   if (dates) {
-    avail = await availableMap(list, dates.start, dates.end);
-    if (onlyFree) list = list.filter(p => avail[p.ProductID] > 0);
+    const avail = await productAvailability(list, dates.start, dates.end);   // theo size × màu
+    for (const p of list) {
+      const a = avail[p.ProductID];
+      if (size) {
+        const freeOfSize = a.variants.filter(v => v.Size === size).reduce((s, v) => s + v.free, 0);
+        if (!freeOfSize) tags[p.ProductID] = `Đã thuê size ${size}`;
+      } else if (!a.free) {
+        tags[p.ProductID] = 'Đã kín lịch';
+      }
+    }
+    if (onlyFree) list = list.filter(p => !tags[p.ProductID]);
   }
-  if (dateError) res.locals.error = [dateError];
 
   const count = list.length;
   const totalPages = Math.max(1, Math.ceil(count / limit));
@@ -85,7 +107,7 @@ exports.index = async (req, res) => {
     title: 'Trang phục & Phụ kiện',
     products: rows, counts, totalAll, type, q, page, totalPages, count,
     COSTUME_TYPES, ACCESSORY_TYPES,
-    dates, avail, onlyFree, viDate, rentDays: dates ? daysBetween(dates.start, dates.end) : 0, MAX_RENT_DAYS,
+    dates, tags, onlyFree, size, sizeOptions, viDate, rentDays: dates ? daysBetween(dates.start, dates.end) : 0, MAX_RENT_DAYS,
   });
 };
 
@@ -113,14 +135,26 @@ exports.manage = async (req, res) => {
 exports.show = async (req, res) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
-  // Không hiện lịch đã thuê khi xem bình thường; khách chọn ngày thì mới báo còn trống / đã kín
+  const variants = await ProductVariant.findAll({ where: { ProductID: product.ProductID } });
+  // Không hiện lịch đã thuê khi xem bình thường; khách chọn ngày thì mới báo còn trống / đã kín (theo size × màu)
   const { dates, error: dateError } = rentDatesFrom(req);
   if (dateError) res.locals.error = [dateError];
-  const availNow = dates && product.Status === 'Còn trống'
-    ? (await availableMap([product], dates.start, dates.end))[product.ProductID]
+  const avail = dates && product.Status === 'Còn trống'
+    ? (await productAvailability([product], dates.start, dates.end))[product.ProductID]
     : null;
-  const inCart = (req.session.cart || []).filter(l => l.productId === product.ProductID).reduce((s, l) => s + l.qty, 0);
-  res.render('products/show', { title: 'Chi tiết sản phẩm', product, dates, availNow, inCart, viDate, MAX_RENT_DAYS });
+  // Bảng size × màu cho trang: số bộ shop có, số bộ còn trống (nếu đã chọn ngày), số bộ đã có trong giỏ
+  const cart = req.session.cart || [];
+  const freeOf = avail ? Object.fromEntries(avail.variants.map(v => [`${v.Size}|${v.Color}`, v.free])) : null;
+  const stock = variantGrid(product, variants).map(v => ({
+    ...v,
+    free: freeOf ? (freeOf[`${v.Size}|${v.Color}`] ?? 0) : null,
+    inCart: cart.filter(l => l.productId === product.ProductID && l.size === v.Size && l.color === v.Color).reduce((s, l) => s + l.qty, 0),
+  }));
+  const inCart = stock.reduce((s, v) => s + v.inCart, 0);
+  res.render('products/show', {
+    title: 'Chi tiết sản phẩm', product, dates, avail, stock, inCart, viDate, MAX_RENT_DAYS,
+    sizes: sizesOf(product), colors: colorsOf(product),
+  });
 };
 
 // Link cũ /products/:id/book -> giờ chọn size/màu ở trang chi tiết rồi đặt qua giỏ thuê
@@ -137,17 +171,23 @@ exports.createForm = (req, res) => {
 // ===== 2: THÊM MỚI =====
 exports.create = async (req, res) => {
   const back = safeBack(req.body.back);
-  const errors = validateProduct(req.body, { hasImage: !!req.file });
+  const { combos, errors: gridErrors } = readVariantForm(req.body);
+  const errors = [...validateProduct(req.body, { hasImage: !!req.file, withGrid: true }), ...gridErrors];
   if (errors.length) {
     removeUpload(req.file);
     return res.status(400).render('products/form', formView({
-      title: 'Thêm trang phục', product: req.body, action: '/products', method: 'POST', back, errors,
+      title: 'Thêm trang phục', product: req.body, grid: combos, action: '/products', method: 'POST', back, errors,
     }));
   }
   try {
     const data = pickBody(req.body);
     data.PathImage = '/uploads/' + req.file.filename;
-    const created = await Product.create(data);
+    Object.assign(data, normalizedLists(req.body));
+    const created = await sequelize.transaction(async (t) => {
+      const p = await Product.create({ ...data, Quantity: 0 }, { transaction: t });
+      await saveVariants(p, combos, { transaction: t });
+      return p;
+    });
     req.flash('success', `Đã thêm "${created.ProductName}" — sản phẩm mới hiển thị ở đầu danh sách.`);
     // 7: quay về TRANG 1 của danh sách (SP mới nằm đầu)
     const listPath = back.split('?')[0];
@@ -163,8 +203,9 @@ exports.create = async (req, res) => {
 exports.editForm = async (req, res) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
+  const variants = await ProductVariant.findAll({ where: { ProductID: product.ProductID } });
   res.render('products/form', formView({
-    title: 'Cập nhật trang phục', product,
+    title: 'Cập nhật trang phục', product, grid: variantGrid(product, variants),
     action: `/products/${product.ProductID}?_method=PUT`, method: 'POST',
     back: backToList(req),
   }));
@@ -176,26 +217,36 @@ exports.update = async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id);
     if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
-    const errors = validateProduct(req.body, { hasImage: !!req.file || !!product.PathImage });
-    // Không cho giảm số bộ xuống dưới số bộ khách đang giữ cùng lúc (tránh trùng lịch)
-    const newQty = Number(req.body.Quantity);
-    if (!errors.length && newQty < product.Quantity) {
-      const peak = await peakFutureUsage(product.ProductID);
-      if (newQty < peak) errors.push(`Không thể giảm số lượng xuống ${newQty}: đang có ${peak} ${product.Unit} được khách đặt cùng lúc. Tối thiểu là ${peak}.`);
+    const { combos, errors: gridErrors } = readVariantForm(req.body);
+    const errors = [...validateProduct(req.body, { hasImage: !!req.file || !!product.PathImage, withGrid: true }), ...gridErrors];
+    // Không cho giảm số bộ của một size × màu xuống dưới số bộ khách đang giữ cùng lúc (kể cả bỏ size / màu đó đi)
+    if (!errors.length) {
+      const peaks = await peakFutureUsage(product.ProductID);
+      const newQty = Object.fromEntries(combos.map(c => [`${c.Size}|${c.Color}`, c.Quantity]));
+      for (const [k, peak] of Object.entries(peaks)) {
+        const [size, color] = k.split('|');
+        const q = newQty[k] || 0;
+        if (q < peak) errors.push(`Size ${size} – ${color}: đang có ${peak} ${product.Unit} được khách đặt cùng lúc, không thể ${k in newQty ? `giảm xuống ${q}` : 'bỏ size / màu này'}. Tối thiểu là ${peak}.`);
+      }
     }
     if (errors.length) {
       removeUpload(req.file);
       return res.status(400).render('products/form', formView({
         title: 'Cập nhật trang phục',
-        product: { ...req.body, ProductID: product.ProductID, PathImage: product.PathImage },
+        product: { ...req.body, ProductID: product.ProductID, PathImage: product.PathImage }, grid: combos,
         action: `/products/${product.ProductID}?_method=PUT`, method: 'POST', back, errors,
       }));
     }
     const data = pickBody(req.body);
     delete data.PathImage;                    // ảnh chỉ đổi khi upload file mới
+    delete data.Quantity;                     // tổng số bộ tính từ bảng size × màu
+    Object.assign(data, normalizedLists(req.body));
     const oldImage = product.PathImage;
     if (req.file) data.PathImage = '/uploads/' + req.file.filename;
-    await product.update(data);
+    await sequelize.transaction(async (t) => {
+      await product.update(data, { transaction: t });
+      await saveVariants(product, combos, { transaction: t });
+    });
     if (req.file) await removeImageIfUnused(oldImage);   // đổi ảnh -> xóa ảnh cũ nếu không SP nào dùng
     req.flash('success', 'Đã cập nhật trang phục.');
     res.redirect(back);                       // 7: quay về trang danh sách
@@ -226,6 +277,7 @@ exports.destroy = async (req, res) => {
   } else {
     const p = await Product.findByPk(id);
     if (p) {
+      await ProductVariant.destroy({ where: { ProductID: id } });
       await p.destroy();
       await removeImageIfUnused(p.PathImage);
       req.flash('success', 'Đã xóa 1 trang phục.');
@@ -245,6 +297,7 @@ exports.destroyMany = async (req, res) => {
   const ok = ids.filter(id => !used.active.has(id) && !used.history.has(id));
   if (ok.length) {
     const images = (await Product.findAll({ attributes: ['PathImage'], where: { ProductID: { [Op.in]: ok } } })).map(p => p.PathImage);
+    await ProductVariant.destroy({ where: { ProductID: { [Op.in]: ok } } });
     const n = await Product.destroy({ where: { ProductID: { [Op.in]: ok } } });
     for (const img of new Set(images)) await removeImageIfUnused(img);
     if (n) req.flash('success', `Đã xóa ${n} trang phục được chọn.`);
@@ -260,14 +313,18 @@ exports.copyMany = async (req, res) => {
     req.flash('error', 'Chưa chọn bản ghi nào để sao chép.');
     return res.redirect(backToList(req));
   }
-  const list = await Product.findAll({ where: { ProductID: { [Op.in]: ids } } });
+  const list = await Product.findAll({ where: { ProductID: { [Op.in]: ids } }, include: [{ model: ProductVariant, as: 'variants' }] });
   for (const p of list) {
     const clone = p.toJSON();
     delete clone.ProductID;
     delete clone.CreateDate;
     delete clone.UpdateDate;
+    delete clone.variants;
     clone.ProductName = clone.ProductName + ' (Copy)';
-    await Product.create(clone);
+    await sequelize.transaction(async (t) => {
+      const c = await Product.create(clone, { transaction: t });
+      await saveVariants(c, p.variants.map(v => ({ Size: v.Size, Color: v.Color, Quantity: v.Quantity })), { transaction: t });
+    });
   }
   req.flash('success', `Đã sao chép ${list.length} bản ghi.`);
   res.redirect(backToList(req));              // 7: quay về trang danh sách
@@ -276,7 +333,9 @@ exports.copyMany = async (req, res) => {
 // ===== 9a: EXPORT (excel / json / xml) =====
 exports.exportData = async (req, res) => {
   const type = req.params.type;
-  const rows = (await Product.findAll({ order: [['ProductID', 'ASC']] })).map(r => r.toJSON());
+  // Kèm cột "SoLuongTheoSizeMau" dạng "S|Tím=1; M|Tím=2" để import lại giữ đúng số bộ từng size × màu
+  const rows = (await Product.findAll({ order: [['ProductID', 'ASC']], include: [{ model: ProductVariant, as: 'variants' }] }))
+    .map(r => { const o = r.toJSON(); o.SoLuongTheoSizeMau = formatVariants(o.variants || []); delete o.variants; return o; });
 
   if (type === 'json') {
     res.setHeader('Content-Disposition', 'attachment; filename="products.json"');
@@ -331,15 +390,34 @@ exports.importData = async (req, res) => {
     records.forEach((r, i) => {
       const row = { ...r, Status: normalizeStatus(r.Status ?? 'Còn trống') };
       const img = String(row.PathImage ?? '').trim();
+      // Có cột SoLuongTheoSizeMau -> dùng đúng số bộ từng size × màu; không có -> chia đều "Quantity"
+      const detail = parseVariants(row.SoLuongTheoSizeMau);
+      const lists = normalizedLists(row);
+      if (detail.length) row.Quantity = detail.reduce((s, v) => s + v.Quantity, 0);
       const errors = validateProduct(row, { hasImage: !!img });
       if (img && !SAFE_IMAGE_PATH.test(img)) errors.push('Đường dẫn ảnh không hợp lệ (chỉ /img/..., /uploads/... hoặc http(s)://).');
+      if (detail.some(v => !splitList(lists.Size).includes(v.Size) || !splitList(lists.Color).includes(v.Color))) {
+        errors.push('Cột SoLuongTheoSizeMau có size / màu không nằm trong cột Size / Color.');
+      }
       // Dòng 1 của Excel là tiêu đề -> dữ liệu bắt đầu từ dòng 2
       const rowNo = name.endsWith('.json') || name.endsWith('.xml') ? `#${i + 1}` : `dòng ${i + 2}`;
       if (errors.length) bad.push(`${rowNo}${row.ProductName ? ` (${String(row.ProductName).slice(0, 30)})` : ''}: ${errors[0]}`);
-      else valid.push(pickBody(row));
+      else {
+        const combos = detail.length
+          ? splitList(lists.Size).flatMap(Size => splitList(lists.Color).map(Color => ({ Size, Color, Quantity: (detail.find(v => v.Size === Size && v.Color === Color) || {}).Quantity || 0 })))
+          : splitQuantity(Number(row.Quantity), splitList(lists.Size), splitList(lists.Color));
+        valid.push({ data: { ...pickBody(row), ...lists }, combos });
+      }
     });
 
-    if (valid.length) await Product.bulkCreate(valid);
+    if (valid.length) {
+      await sequelize.transaction(async (t) => {
+        for (const v of valid) {
+          const p = await Product.create({ ...v.data, Quantity: 0 }, { transaction: t });
+          await saveVariants(p, v.combos, { transaction: t });
+        }
+      });
+    }
     if (valid.length) req.flash('success', `Đã import ${valid.length} trang phục từ file.`);
     if (bad.length) {
       const shown = bad.slice(0, 5).map(s => s.replace(/\.$/, '')).join(' · ');
@@ -368,16 +446,53 @@ function toArray(v) {
   return (Array.isArray(v) ? v : [v]).map(Number).filter(Boolean);
 }
 
+// Danh sách size / màu đã chuẩn hóa: bỏ trùng, bỏ khoảng trắng thừa -> "S, M, L"
+function normalizedLists(body) {
+  const uniq = (s) => [...new Set(splitList(s))].join(', ');
+  return { Size: uniq(body.Size), Color: uniq(body.Color) };
+}
+
+// Đọc bảng số lượng size × màu từ form (vSize[] / vColor[] / vQty[]).
+// Chỉ lấy đúng các tổ hợp của danh sách size / màu đang khai; tổ hợp không nhập = 0 bộ.
+function readVariantForm(body) {
+  const arr = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
+  const S = arr(body.vSize), C = arr(body.vColor), Q = arr(body.vQty);
+  const posted = new Map();
+  const errors = [];
+  S.forEach((s, i) => {
+    const raw = String(Q[i] ?? '0').trim() || '0';
+    if (!/^\d+$/.test(raw) || Number(raw) > 999) { errors.push(`Số bộ của size ${s} – ${C[i]} phải là số nguyên từ 0 đến 999.`); return; }
+    posted.set(`${String(s).trim()}|${String(C[i]).trim()}`, Number(raw));
+  });
+  const lists = normalizedLists(body);
+  const combos = [];
+  for (const Size of splitList(lists.Size)) for (const Color of splitList(lists.Color)) {
+    combos.push({ Size, Color, Quantity: posted.get(`${Size}|${Color}`) || 0 });
+  }
+  if (!errors.length && combos.length && combos.every(c => c.Quantity === 0)) {
+    errors.push('Vui lòng nhập số bộ cho ít nhất một size × màu.');
+  }
+  return { combos, errors: [...new Set(errors)].slice(0, 3) };
+}
+
 // Kiểm tra dữ liệu Thêm/Sửa: bắt buộc mọi trường, giá từ 1.000 đ trở lên
-function validateProduct(body, { hasImage }) {
+// withGrid: số lượng nhập theo bảng size × màu (không dùng ô "Số lượng" chung)
+function validateProduct(body, { hasImage, withGrid = false }) {
   const errors = [];
   const str = (k) => String(body[k] ?? '').trim();
   const required = {
-    ProductName: 'Tên trang phục', ProductType: 'Loại', Quantity: 'Số lượng', Unit: 'Đơn vị',
+    ProductName: 'Tên trang phục', ProductType: 'Loại', ...(withGrid ? {} : { Quantity: 'Số lượng' }), Unit: 'Đơn vị',
     Price: 'Giá thuê / ngày', DepositValue: 'Tiền cọc', LateFeePerDay: 'Phí phạt trễ / ngày',
-    Color: 'Màu sắc', Size: 'Size', Status: 'Tình trạng', Description: 'Mô tả',
+    Color: 'Màu sắc', Size: 'Size / kích thước', Status: 'Tình trạng', Description: 'Mô tả',
   };
   for (const [k, label] of Object.entries(required)) if (!str(k)) errors.push(`Vui lòng nhập "${label}".`);
+  // Size / màu: mỗi mẫu tự khai (1 size cũng được; phụ kiện ghi kích thước: "Ni 6, Ni 7", "40cm"...)
+  for (const [k, label] of [['Size', 'size / kích thước'], ['Color', 'màu']]) {
+    const items = splitList(str(k));
+    if (items.length > 10) errors.push(`Tối đa 10 ${label} cho một mẫu.`);
+    if (items.some(x => x.length > 30)) errors.push(`Mỗi ${label} tối đa 30 ký tự.`);
+    if (items.some(x => /[|=]/.test(x))) errors.push(`Tên ${label} không được chứa ký tự "|" hoặc "=".`);
+  }
   if (!hasImage) errors.push('Vui lòng chọn ảnh trang phục.');
 
   if (str('ProductName') && str('ProductName').length < 3) errors.push('Tên trang phục phải có ít nhất 3 ký tự.');

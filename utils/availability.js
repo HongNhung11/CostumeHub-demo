@@ -1,11 +1,15 @@
-// CHỐNG TRÙNG LỊCH THUÊ
-// Product.Quantity = TỔNG số bộ cửa hàng có (không trừ khi đặt nữa).
-// Số bộ còn trống trong khoảng [start, end] = Tổng − (số bộ bị đơn khác giữ vào NGÀY ĐÔNG NHẤT trong khoảng đó).
+// CHỐNG TRÙNG LỊCH THUÊ — tính theo từng SIZE × MÀU
+// Mỗi tổ hợp size × màu của một mẫu có số bộ riêng (bảng ProductVariants).
+// Số bộ còn trống của 1 tổ hợp trong [start, end] = số bộ shop có − số bộ bị các đơn khác giữ
+// vào NGÀY ĐÔNG NHẤT trong khoảng đó.
 // - Một đơn giữ đồ từ ngày nhận đến HẾT ngày trả (ngày trả còn để kiểm tra/giặt) => khách sau nhận từ hôm sau.
 // - Đơn "Đang thuê" mà quá hạn chưa trả vẫn tính là đang giữ đồ tới hôm nay.
+// => Khách A thuê size S, khách B thuê size M cùng ngày: không ảnh hưởng nhau;
+//    hai khách cùng thuê size S thì phải còn đủ bộ size S.
 const { Op } = require('sequelize');
-const { Rental, RentalItem } = require('../models');
+const { Rental, RentalItem, ProductVariant } = require('../models');
 const { todayStr, addDays, daysBetween } = require('./dates');
+const { keyOf } = require('./variants');
 
 const ACTIVE = ['Đã đặt', 'Đã cọc', 'Đang thuê'];
 const MAX_RENT_DAYS = 30;
@@ -31,56 +35,68 @@ async function activeHolds(productIds, start, end, { transaction, excludeRentalI
       const r = it.Rental;
       let holdEnd = r.EndDate;
       if (r.Status === 'Đang thuê' && holdEnd < today) holdEnd = today; // quá hạn chưa trả
-      return { productId: it.ProductID, qty: it.Quantity, from: r.StartDate, to: holdEnd };
+      return { key: keyOf(it.ProductID, it.Size, it.Color), qty: it.Quantity, from: r.StartDate, to: holdEnd };
     })
     .filter(h => h.to >= start);
 }
 
-// Số bộ bị giữ theo từng ngày trong [start, end]: { productId: { 'YYYY-MM-DD': qty } }
-function usageByDay(holds, start, end) {
+// Số bộ bị giữ cùng lúc nhiều nhất trong [start, end], theo từng tổ hợp: { key: peak }
+function peakByKey(holds, start, end) {
   const usage = {};
   for (const h of holds) {
     const from = h.from > start ? h.from : start;
     const to = h.to < end ? h.to : end;
-    const u = (usage[h.productId] ||= {});
+    const u = (usage[h.key] ||= {});
     for (let d = from; d <= to; d = addDays(d, 1)) u[d] = (u[d] || 0) + h.qty;
   }
-  return usage;
+  const peak = {};
+  for (const [k, days] of Object.entries(usage)) peak[k] = Math.max(0, ...Object.values(days));
+  return peak;
 }
 
-// { productId: số bộ còn trống trong cả khoảng [start, end] }
-async function availableMap(products, start, end, opts) {
+// Chỗ trống theo size × màu của các SP trong [start, end]:
+// { productId: { free: tổng bộ còn trống, freeSizes: [size còn ít nhất 1 bộ],
+//                variants: [{ Size, Color, total, free }] } }
+async function productAvailability(products, start, end, opts = {}) {
   const ids = products.map(p => p.ProductID);
-  const usage = usageByDay(await activeHolds(ids, start, end, opts), start, end);
-  const out = {};
-  for (const p of products) {
-    const peak = Math.max(0, ...Object.values(usage[p.ProductID] || {}));
-    out[p.ProductID] = Math.max(0, p.Quantity - peak);
+  if (!ids.length) return {};
+  const [variants, holds] = await Promise.all([
+    ProductVariant.findAll({ where: { ProductID: { [Op.in]: ids } }, transaction: opts.transaction }),
+    activeHolds(ids, start, end, opts),
+  ]);
+  const peak = peakByKey(holds, start, end);
+  const out = Object.fromEntries(ids.map(id => [id, { free: 0, freeSizes: [], variants: [] }]));
+  for (const v of variants) {
+    const free = Math.max(0, v.Quantity - (peak[keyOf(v.ProductID, v.Size, v.Color)] || 0));
+    const o = out[v.ProductID];
+    o.variants.push({ Size: v.Size, Color: v.Color, total: v.Quantity, free });
+    o.free += free;
+    if (free > 0 && !o.freeSizes.includes(v.Size)) o.freeSizes.push(v.Size);
   }
   return out;
 }
 
-// Lịch kín của 1 sản phẩm trong N ngày tới: danh sách khoảng ngày đã hết bộ trống
-async function bookedOutRanges(product, days = 60) {
-  const start = todayStr(), end = addDays(start, days - 1);
-  const usage = usageByDay(await activeHolds([product.ProductID], start, end), start, end)[product.ProductID] || {};
-  const ranges = [];
-  for (let d = start; d <= end; d = addDays(d, 1)) {
-    if ((usage[d] || 0) >= product.Quantity) {
-      const last = ranges[ranges.length - 1];
-      if (last && addDays(last.to, 1) === d) last.to = d; else ranges.push({ from: d, to: d });
-    }
-  }
-  return ranges;
+// { productId: tổng số bộ còn trống (mọi size × màu) trong [start, end] }
+async function availableMap(products, start, end, opts) {
+  const a = await productAvailability(products, start, end, opts);
+  return Object.fromEntries(Object.entries(a).map(([id, v]) => [id, v.free]));
 }
 
-// Số bộ bị giữ cùng lúc nhiều nhất từ hôm nay trở đi (dùng khi sửa "Số lượng" của SP)
+// { "Size|Color": số bộ còn trống } của 1 SP — dùng khi đặt thuê / thêm vào giỏ
+async function freeByVariant(product, start, end, opts) {
+  const a = (await productAvailability([product], start, end, opts))[product.ProductID];
+  return Object.fromEntries(a.variants.map(v => [`${v.Size}|${v.Color}`, v.free]));
+}
+
+// Số bộ bị giữ cùng lúc nhiều nhất từ hôm nay trở đi, theo từng "Size|Color" (dùng khi sửa số lượng SP)
 async function peakFutureUsage(productId) {
   const start = todayStr();
   const holds = await activeHolds([productId], start, '9999-12-31');
-  if (!holds.length) return 0;
+  if (!holds.length) return {};
   const end = holds.reduce((m, h) => (h.to > m ? h.to : m), start);
-  return Math.max(0, ...Object.values(usageByDay(holds, start, end)[productId] || {}));
+  const out = {};
+  for (const [k, v] of Object.entries(peakByKey(holds, start, end))) out[k.split('|').slice(1).join('|')] = v;
+  return out;
 }
 
 // Các ProductID đã từng nằm trong đơn thuê: { active: đơn chưa xong, history: chỉ còn đơn đã xong/hủy }
@@ -128,4 +144,7 @@ function rentDatesFrom(req) {
   return { dates: null, error: null };
 }
 
-module.exports = { ACTIVE, MAX_RENT_DAYS, availableMap, bookedOutRanges, checkDates, peakFutureUsage, productsInRentals, rentDatesFrom };
+module.exports = {
+  ACTIVE, MAX_RENT_DAYS, productAvailability, availableMap, freeByVariant,
+  checkDates, peakFutureUsage, productsInRentals, rentDatesFrom,
+};

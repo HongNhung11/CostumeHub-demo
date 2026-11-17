@@ -12,9 +12,9 @@ function normalize(s) {
     .trim();
 }
 
-// Tách danh sách "S, M, L" -> ['S','M','L']
+// Tách danh sách "S, M, L" -> ['S','M','L'] (chỉ tách theo dấu phẩy / chấm phẩy để giữ được kích thước kiểu "40/42")
 function splitList(s) {
-  return String(s || '').split(/[,;/]/).map(x => x.trim()).filter(Boolean);
+  return String(s || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
 }
 
 // SĐT di động Việt Nam: 10 số, đầu 03/05/07/08/09 (chấp nhận +84 / 84 thay cho 0)
