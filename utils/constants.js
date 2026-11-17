@@ -11,4 +11,10 @@ const PRODUCT_TYPES = ['Áo dài', 'Váy tiệc', 'Phụ kiện', 'Khác'];
 
 const ROLES = { admin: 'Admin', nhanvien: 'Nhân viên', khach: 'Khách' };
 
-module.exports = { PRODUCT_STATUSES, LEGACY_STATUS, normalizeStatus, PRODUCT_TYPES, ROLES };
+// Đặt thuê xong đơn ở trạng thái "Chờ cọc": khách có DEPOSIT_HOLD_HOURS giờ để cọc (chuyển khoản / ví / tiền mặt tại shop).
+// Nhân viên kiểm tra đã nhận tiền rồi bấm "Xác nhận đã cọc". Quá hạn chưa cọc -> đơn tự hủy.
+const DEPOSIT_HOLD_HOURS = 24;
+// Thông tin nhận cọc hiển thị cho khách — SỐ TÀI KHOẢN DEMO, sửa lại thông tin thật của cửa hàng khi dùng
+const SHOP_BANK = { bank: 'Vietcombank', account: '0123 456 789', owner: 'CUA HANG COSTUMEHUB', demo: true };
+
+module.exports = { PRODUCT_STATUSES, LEGACY_STATUS, normalizeStatus, PRODUCT_TYPES, ROLES, DEPOSIT_HOLD_HOURS, SHOP_BANK };

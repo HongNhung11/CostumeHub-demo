@@ -8,7 +8,8 @@ exports.show = async (req, res) => {
   const user = await User.findByPk(req.session.user.id, { attributes: { exclude: ['password'] } });
   const rentals = await Rental.findAll({ where: { UserID: user.id }, attributes: ['Status'], raw: true });
   const stats = { total: rentals.length, active: rentals.filter(r => ACTIVE.includes(r.Status)).length, done: rentals.filter(r => r.Status === 'Hoàn tất').length };
-  res.render('account/index', { title: 'Tài khoản của tôi', user, stats, ROLES });
+  const notifications = await require('./notificationController').latest(user.id, 5);
+  res.render('account/index', { title: 'Tài khoản của tôi', user, stats, ROLES, notifications });
 };
 
 exports.updateProfile = async (req, res) => {

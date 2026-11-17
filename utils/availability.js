@@ -11,7 +11,8 @@ const { Rental, RentalItem, ProductVariant } = require('../models');
 const { todayStr, addDays, daysBetween } = require('./dates');
 const { keyOf } = require('./variants');
 
-const ACTIVE = ['Đã đặt', 'Đã cọc', 'Đang thuê'];
+// Đơn đang giữ lịch: "Chờ cọc" cũng giữ chỗ (tối đa DEPOSIT_HOLD_HOURS giờ, quá hạn tự hủy)
+const ACTIVE = ['Đã đặt', 'Chờ cọc', 'Đã cọc', 'Đang thuê'];
 const MAX_RENT_DAYS = 30;
 
 // Lấy các dòng đơn đang giữ đồ của các sản phẩm, có chồng lên [start, end]

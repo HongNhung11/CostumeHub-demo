@@ -115,6 +115,14 @@
               <div id="chartGrid" class="table-responsive"></div>
               <div class="form-text">Ghi 1 số (VD 82) hoặc khoảng (VD 80-84). Khách xem bảng này ở trang chi tiết để chọn size. <a href="#" id="fillStd">Điền số đo tham khảo cho S/M/L/XL</a></div>
             </div>
+            <!-- Thông tin chi tiết (không bắt buộc) — hiện thành bảng ở trang chi tiết sản phẩm -->
+            <div class="col-12"><div class="fw-semibold mt-2">Thông tin chi tiết <span class="small text-muted fw-normal">— không bắt buộc, hiện ở tab "Mô tả sản phẩm"</span></div></div>
+            <% DETAIL_FIELDS.forEach(f => { %>
+              <div class="<%= f.key === 'CareGuide' ? 'col-12' : 'col-md-6' %>">
+                <label class="form-label"><%= f.label %></label>
+                <input name="<%= f.key %>" class="form-control" maxlength="<%= f.key === 'CareGuide' ? 500 : 150 %>" placeholder="<%= f.placeholder %>" value="<%= v(f.key) %>">
+              </div>
+            <% }) %>
             <div class="col-12">
               <label class="form-label">Mô tả <span class="text-danger">*</span></label>
               <textarea name="Description" rows="3" class="form-control" required maxlength="2000"><%= v('Description') %></textarea>

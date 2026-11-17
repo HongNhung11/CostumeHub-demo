@@ -8,6 +8,7 @@ const ProductImage = require('./ProductImage');
 const Review = require('./Review');
 const Favorite = require('./Favorite');
 const Coupon = require('./Coupon');
+const Notification = require('./Notification');
 
 // Số lượng theo size × màu (xóa SP thì xóa luôn biến thể)
 Product.hasMany(ProductVariant, { foreignKey: 'ProductID', as: 'variants', onDelete: 'CASCADE' });
@@ -40,4 +41,6 @@ Product.hasMany(Favorite, { foreignKey: 'ProductID', onDelete: 'CASCADE' });
 Favorite.belongsTo(Product, { foreignKey: 'ProductID' });
 User.hasMany(Favorite, { foreignKey: 'UserID' });
 
-module.exports = { sequelize, Product, User, Rental, RentalItem, ProductVariant, ProductImage, Review, Favorite, Coupon };
+User.hasMany(Notification, { foreignKey: 'UserID' });
+
+module.exports = { sequelize, Product, User, Rental, RentalItem, ProductVariant, ProductImage, Review, Favorite, Coupon, Notification };

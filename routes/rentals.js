@@ -12,6 +12,7 @@ router.get('/', requireLogin, c.index);
 
 // Nhân viên: giao đồ / nhận trả
 router.post('/:id/handover', requireStaff, c.handover);
+router.post('/:id/deposit', requireStaff, c.confirmDeposit);   // xác nhận đã nhận cọc (Chờ cọc -> Đã cọc)
 router.get('/:id/return', requireStaff, c.returnForm);
 router.post('/:id/return', requireStaff, c.receiveReturn);
 

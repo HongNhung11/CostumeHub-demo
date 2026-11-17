@@ -1,28 +1,39 @@
-<div class="row justify-content-center">
-  <div class="col-md-5">
-    <div class="card shadow-sm mt-4">
-      <div class="card-body p-4">
-        <h4 class="mb-3 text-center"><i class="bi bi-person-plus text-primary"></i> Đăng ký tài khoản</h4>
-        <form method="POST" action="/register">
-          <input type="hidden" name="returnTo" value="<%= returnTo %>">
-          <div class="mb-3">
-            <label class="form-label">Họ và tên</label>
-            <input name="fullName" class="form-control" required minlength="2" maxlength="100">
+<div class="row justify-content-center my-md-3">
+  <div class="col-xl-10 col-xxl-9">
+    <div class="card auth-card">
+      <div class="row g-0">
+        <%- include('../partials/auth-side', { img: '/img/aodai/p7.jpg', heading: 'Tạo tài khoản, thuê đồ trong vài phút' }) %>
+
+        <div class="col-md-7">
+          <div class="auth-form">
+            <div class="mb-4">
+              <h2 class="font-serif mb-1" style="color:var(--primary)">Đăng ký tài khoản</h2>
+              <p class="text-muted mb-0">Miễn phí. Đơn đầu tiên dùng mã <span class="coupon-code">CHAOBANMOI</span> để được giảm giá.</p>
+            </div>
+            <form method="POST" action="/register">
+              <input type="hidden" name="returnTo" value="<%= returnTo %>">
+              <div class="mb-3">
+                <label class="form-label small text-muted">Họ và tên</label>
+                <input name="fullName" class="form-control form-control-lg" required minlength="2" maxlength="100" autocomplete="name">
+              </div>
+              <div class="row g-3 mb-4">
+                <div class="col-sm-6">
+                  <label class="form-label small text-muted">Tên đăng nhập</label>
+                  <input name="username" class="form-control form-control-lg" required pattern="[a-zA-Z0-9_.]{3,30}" maxlength="30"
+                         title="3–30 ký tự: chữ không dấu, số, dấu chấm hoặc gạch dưới" autocomplete="username">
+                  <div class="form-text">3–30 ký tự, chữ không dấu, số, dấu chấm hoặc gạch dưới.</div>
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label small text-muted">Mật khẩu</label>
+                  <input type="password" name="password" class="form-control form-control-lg" required minlength="6" maxlength="100" autocomplete="new-password">
+                  <div class="form-text">Ít nhất 6 ký tự.</div>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-lg w-100">Đăng ký</button>
+            </form>
+            <p class="text-center mt-3 mb-0">Đã có tài khoản? <a href="/login?next=<%= encodeURIComponent(returnTo) %>" class="fw-semibold" style="color:var(--primary)">Đăng nhập</a></p>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Tên đăng nhập</label>
-            <input name="username" class="form-control" required pattern="[a-zA-Z0-9_.]{3,30}" maxlength="30"
-                   title="3–30 ký tự: chữ không dấu, số, dấu chấm hoặc gạch dưới" autocomplete="username">
-            <div class="form-text">3–30 ký tự, chữ không dấu, số, dấu chấm hoặc gạch dưới.</div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Mật khẩu</label>
-            <input type="password" name="password" class="form-control" required minlength="6" maxlength="100" autocomplete="new-password">
-            <div class="form-text">Ít nhất 6 ký tự.</div>
-          </div>
-          <button class="btn btn-success w-100">Đăng ký</button>
-        </form>
-        <p class="text-center mt-3 mb-0">Đã có tài khoản? <a href="/login?next=<%= encodeURIComponent(returnTo) %>">Đăng nhập</a></p>
+        </div>
       </div>
     </div>
   </div>

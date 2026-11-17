@@ -13,6 +13,43 @@ const { PRODUCT_TYPES, PRODUCT_STATUSES, normalizeStatus } = require('../utils/c
 const { uploadDir, MAX_GALLERY } = require('../middlewares/upload');
 const { FIELDS: CHART_FIELDS, parseChart, chartRows, readChartForm } = require('../utils/sizeChart');
 const { ratingMap, reviewSummary } = require('../utils/reviews');
+const { CATEGORIES, filterByCategory, menuGroups } = require('../utils/categories');
+const { DETAIL_FIELDS } = require('../utils/details');
+const { hotSet, hotScores } = require('../utils/hot');
+
+// Thứ tự size: XS → S → M → L → XL → XXL (kể cả "S+", "M/L"), rồi Free size, rồi size số / ni / kích thước (theo số tăng dần)
+const LETTER_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+function sizeRank(s) {
+  const t = String(s).trim().toUpperCase();
+  const m = t.match(/^(XXXL|XXL|XL|XXS|XS|S|M|L)(?!\p{L})/u);   // không nhầm "Lớn" là "L"
+  if (m) return [0, LETTER_SIZES.indexOf(m[1]), t];
+  const w = ['NHỎ', 'VỪA', 'LỚN'].indexOf(t);
+  if (w >= 0) return [0.5, w, t];
+  if (/FREE/.test(t)) return [1, 0, t];
+  const n = t.match(/\d+(\.\d+)?/);
+  return [2, n ? Number(n[0]) : 9999, t];
+}
+function bySize(a, b) {
+  const x = sizeRank(a), y = sizeRank(b);
+  return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2], 'vi', { numeric: true });
+}
+exports.bySize = bySize;
+
+// Bộ lọc giá thuê / ngày (cột trái trang cửa hàng)
+const PRICE_RANGES = [
+  { key: 'duoi-100k', label: 'Dưới 100.000 đ', min: 0, max: 100000 },
+  { key: '100-200k', label: '100.000 – 200.000 đ', min: 100000, max: 200000 },
+  { key: '200-300k', label: '200.000 – 300.000 đ', min: 200000, max: 300000 },
+  { key: 'tren-300k', label: 'Từ 300.000 đ', min: 300000, max: Infinity },
+];
+const SORTS = [
+  { key: '', label: 'Mới nhất' },
+  { key: 'oldest', label: 'Cũ nhất' },
+  { key: 'price-asc', label: 'Giá tăng dần' },
+  { key: 'price-desc', label: 'Giá giảm dần' },
+  { key: 'popular', label: 'Nổi bật (HOT)' },
+  { key: 'rating', label: 'Đánh giá cao' },
+];
 
 // Sắp xếp: sản phẩm tạo GẦN NHẤT lên đầu
 const NEWEST_FIRST = [['CreateDate', 'DESC'], ['ProductID', 'DESC']];
@@ -45,12 +82,12 @@ function backToList(req, fallback = '/products/manage') {
   return fallback;
 }
 
-const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES, errors: [], grid: [], gallery: [], chart: {}, CHART_FIELDS, MAX_GALLERY, ...extra });
+const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES, errors: [], grid: [], gallery: [], chart: {}, CHART_FIELDS, MAX_GALLERY, DETAIL_FIELDS, ...extra });
 
 // ===== CỬA HÀNG: lưới thẻ sản phẩm + lọc danh mục + tìm kiếm + phân trang =====
 exports.index = async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = 12;
+  const limit = 24;   // chia hết cho 6 / 4 / 3 / 2 cột
   const q = (req.query.q || '').trim();
   const type = (req.query.type || '').trim();
 
@@ -61,12 +98,22 @@ exports.index = async (req, res) => {
   // (tìm không phân biệt dấu/hoa thường, ưu tiên khớp Tên/Loại/Màu)
   let list = await Product.findAll({ where, order: NEWEST_FIRST });
   if (q) list = searchProducts(list, q);
+  // Danh mục con từ menu "Danh mục" (VD ?cat=tui-xach, ?cat=cuoi)
+  const cat = CATEGORIES[req.query.cat] ? String(req.query.cat) : '';
+  if (cat) list = filterByCategory(list, cat);
+
+  // Bộ lọc ở cột trái: màu sắc + khoảng giá (danh sách màu lấy từ các mẫu đang hiện)
+  const colorOptions = [...new Set(list.flatMap(p => splitList(p.Color)))].sort((a, b) => a.localeCompare(b, 'vi'));
+  const color = colorOptions.includes(String(req.query.color || '')) ? String(req.query.color) : '';
+  if (color) list = list.filter(p => splitList(p.Color).includes(color));
+  const price = PRICE_RANGES.find(r => r.key === req.query.price) ? String(req.query.price) : '';
+  if (price) { const r = PRICE_RANGES.find(x => x.key === price); list = list.filter(p => Number(p.Price) >= r.min && Number(p.Price) < r.max); }
 
   // Danh sách size để lọc (lấy từ các mẫu đang hiện, chỉ size shop thực sự có bộ)
   const allVariants = list.length ? await ProductVariant.findAll({ where: { ProductID: { [Op.in]: list.map(p => p.ProductID) }, Quantity: { [Op.gt]: 0 } } }) : [];
   const sizesOfP = {};
   for (const v of allVariants) (sizesOfP[v.ProductID] ||= new Set()).add(v.Size);
-  const sizeOptions = [...new Set(allVariants.map(v => v.Size))].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
+  const sizeOptions = [...new Set(allVariants.map(v => v.Size))].sort(bySize);
   const size = sizeOptions.includes(String(req.query.size || '')) ? String(req.query.size) : '';
   if (size) list = list.filter(p => sizesOfP[p.ProductID] && sizesOfP[p.ProductID].has(size));   // chỉ mẫu CÓ size này
 
@@ -92,6 +139,21 @@ exports.index = async (req, res) => {
     if (onlyFree) list = list.filter(p => !tags[p.ProductID]);
   }
 
+  // Sắp xếp (mặc định: mới nhất; đang tìm kiếm thì giữ thứ tự theo độ khớp)
+  const sort = SORTS.find(s => s.key === req.query.sort) ? String(req.query.sort) : '';
+  if (sort === 'price-asc') list.sort((a, b) => a.Price - b.Price);
+  else if (sort === 'price-desc') list.sort((a, b) => b.Price - a.Price);
+  else if (sort === 'rating') {
+    const all = await ratingMap(list.map(p => p.ProductID));
+    const sc = (p) => (all[p.ProductID] ? all[p.ProductID].avg * 1000 + all[p.ProductID].count : 0);
+    list.sort((a, b) => sc(b) - sc(a));
+  } else if (sort === 'popular') {
+    const sc = await hotScores();   // thuê nhiều + thêm vào giỏ nhiều
+    list.sort((a, b) => (sc[b.ProductID] || 0) - (sc[a.ProductID] || 0));
+  } else if (sort === 'oldest') {
+    list.sort((a, b) => (new Date(a.CreateDate) - new Date(b.CreateDate)) || (a.ProductID - b.ProductID));
+  }
+
   const count = list.length;
   const totalPages = Math.max(1, Math.ceil(count / limit));
   const rows = list.slice((page - 1) * limit, page * limit);
@@ -108,10 +170,12 @@ exports.index = async (req, res) => {
   // Sao đánh giá trung bình + mẫu khách đã thả tim
   const ratings = await ratingMap(rows.map(p => p.ProductID));
   const favSet = await favoriteSet(req, rows.map(p => p.ProductID));
+  const hot = await hotSet();
 
   res.render('products/index', {
     title: 'Trang phục & Phụ kiện',
-    products: rows, counts, totalAll, type, q, page, totalPages, count, ratings, favSet,
+    products: rows, counts, totalAll, type, q, page, totalPages, count, ratings, favSet, cat, catLabel: cat ? CATEGORIES[cat].label : '',
+    color, colorOptions, price, PRICE_RANGES, sort, SORTS, CAT_GROUPS: menuGroups(), hot,
     COSTUME_TYPES, ACCESSORY_TYPES,
     dates, tags, onlyFree, size, sizeOptions, viDate, rentDays: dates ? daysBetween(dates.start, dates.end) : 0, MAX_RENT_DAYS,
   });
@@ -180,11 +244,50 @@ exports.show = async (req, res) => {
   }
   const isFav = u ? !!(await Favorite.findOne({ where: { UserID: u.id, ProductID: product.ProductID } })) : false;
 
+  // Sản phẩm liên quan: cùng loại, mới nhất trước (tối đa 8)
+  const related = await Product.findAll({
+    where: { ...ON_SALE, ProductType: product.ProductType, ProductID: { [Op.ne]: product.ProductID } },
+    order: NEWEST_FIRST, limit: 8,
+  });
+  // Sản phẩm đã xem: nhớ trong phiên (tối đa 8, mới xem nằm đầu)
+  const seenIds = (req.session.viewed || []).filter(id => id !== product.ProductID);
+  req.session.viewed = [product.ProductID, ...seenIds].slice(0, 9);
+  const viewed = seenIds.length
+    ? (await Product.findAll({ where: { ...ON_SALE, ProductID: { [Op.in]: seenIds } } })).sort((a, b) => seenIds.indexOf(a.ProductID) - seenIds.indexOf(b.ProductID)).slice(0, 8)
+    : [];
+  const cardRatings = await ratingMap([...related, ...viewed].map(p => p.ProductID));
+  const favs = await favoriteSet(req, [...related, ...viewed].map(p => p.ProductID));
+  // Khuyến mãi dành cho bạn: các mã giảm giá đang áp dụng
+  const { activeCoupons, summary: couponSummary } = require('../utils/coupons');
+  const promos = (await activeCoupons()).map(c => ({ code: c.Code, text: c.Description || couponSummary(c) }));
+
   res.render('products/show', {
     title: product.ProductName, product, dates, avail, stock, inCart, viDate, MAX_RENT_DAYS,
     sizes: sizesOf(product), colors: colorsOf(product),
     images, chart: chartRows(product), CHART_FIELDS,
     reviews: withPhotos ? reviews.filter(r => r.imageList().length) : reviews, withPhotos, summary, canReview, myReview, isFav, staff,
+    related, viewed, cardRatings, favs, promos, DETAIL_FIELDS, hot: await hotSet(), savedCoupon: req.session.couponCode || '',
+  });
+};
+
+// ===== XEM NHANH (khung nhỏ ở trang cửa hàng, không kèm layout) =====
+exports.quick = async (req, res) => {
+  const product = await Product.findByPk(req.params.id);
+  if (!product) return res.status(404).send('Không tìm thấy sản phẩm');
+  const extra = await ProductImage.findAll({ where: { ProductID: product.ProductID }, order: [['SortOrder', 'ASC'], ['ImageID', 'ASC']] });
+  const reviews = await Review.findAll({ where: { ProductID: product.ProductID, isHidden: false } });
+  const u = req.session.user;
+  const isFav = u ? !!(await Favorite.findOne({ where: { UserID: u.id, ProductID: product.ProductID } })) : false;
+  const ref = req.get('Referer') || '';
+  let back = '/products';
+  try { const x = new URL(ref); if (x.pathname === '/products') back = x.pathname + x.search; } catch (_) {}
+  // Size / màu nào shop có bộ (khách không thấy số bộ, chỉ biết chọn được hay không)
+  const variants = await ProductVariant.findAll({ where: { ProductID: product.ProductID, Quantity: { [Op.gt]: 0 } } });
+  res.render('products/quick', {
+    layout: false, product, isFav, back,
+    combos: variants.map(v => [v.Size, v.Color]),
+    images: [product.PathImage, ...extra.map(i => i.Path)].filter(Boolean),
+    sizes: sizesOf(product), colors: colorsOf(product), summary: reviewSummary(reviews),
   });
 };
 
@@ -491,6 +594,8 @@ exports.importData = async (req, res) => {
 function pickBody(body) {
   const d = {};
   const fields = ['ProductName', 'ProductType', 'Unit', 'Color', 'Size', 'Description', 'PathImage', 'Status'];
+  // Thông tin chi tiết: không bắt buộc, để trống = xóa
+  for (const f of DETAIL_FIELDS) if (body[f.key] !== undefined) d[f.key] = String(body[f.key]).trim().slice(0, f.key === 'CareGuide' ? 500 : 150) || null;
   const nums = ['Quantity', 'Price', 'DepositValue', 'LateFeePerDay'];
   for (const f of fields) if (body[f] !== undefined && body[f] !== '') d[f] = String(body[f]).trim();
   for (const f of nums) if (body[f] !== undefined && body[f] !== '') d[f] = Number(body[f]) || 0;

@@ -69,6 +69,13 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 10. **Ẩn / hiện cột** (lưu trong trình duyệt).
 11. **Phím tắt**: `Alt+N` Thêm · `Alt+F` Tìm · `Alt+S` Lưu · `Alt+A` Chọn tất cả · `Alt+D` Xóa mục chọn.
 
+### Cửa hàng & trang chi tiết (khách)
+- **Cửa hàng** `/products`: cột lọc bên trái (Danh mục, Ngày thuê, Kích thước, Màu sắc, Giá thuê — Phụ kiện / Kích thước / Màu sắc thu gọn, bấm mới xổ), thanh **tìm kiếm + sắp xếp** cùng 1 hàng (Mới nhất, Cũ nhất, Giá tăng / giảm dần, Nổi bật, Đánh giá cao). Size xếp đúng thứ tự XS → S → M → L → XL.
+- Menu **Danh mục** xổ xuống có mục con (Trang phục › Áo dài, Váy tiệc · Phụ kiện › Dây chuyền, Bông tai, Nhẫn, Vòng tay, Túi xách) — cấu hình ở `utils/categories.js`.
+- Thẻ sản phẩm ghi **Giá thuê / Giá cọc**; nhãn **HOT** cho tối đa 6 mẫu được thuê / thêm vào giỏ nhiều nhất (`utils/hot.js`); nút 👁 **Xem nhanh** mở khung chọn size, màu, thêm vào giỏ; bấm chỗ khác vào trang chi tiết.
+- **Không hiện số lượng cho khách** (số mẫu, số bộ tồn kho) — chỉ báo còn trống / hết lịch. Nhân viên vẫn thấy số bộ.
+- **Trang chi tiết**: ảnh nhỏ dọc + ảnh lớn; Giá thuê / cọc / phí trễ; chọn Kích thước (nút *Bảng số đo* mở cửa sổ nhỏ), Màu sắc, Số lượng, **Mã giảm giá** (chọn ở đây thì giỏ thuê tự điền); kiểm tra lịch trống; Mô tả sản phẩm + **Thông tin chi tiết** (chất liệu, kiểu dáng, độ dài, dịp, bảo quản); **Đánh giá**; **Câu hỏi thường gặp** riêng theo mẫu; Sản phẩm tương tự; Sản phẩm đã xem.
+
 ### Thuê đồ (khách)
 - Trang chi tiết: chọn **size, màu, số lượng** → **Thêm vào giỏ** / **Thuê ngay**.
 - **Xem lịch trống theo ngày khách chọn**: xem bình thường thì không hiện mẫu nào đã có người thuê; khách chọn *ngày nhận – ngày trả* (ở cửa hàng hoặc trang chi tiết) thì mới hiện **"Còn N bộ"** / **"Đã kín lịch"**, có tùy chọn *chỉ hiện mẫu còn trống*. Ngày đã chọn được nhớ và tự điền vào giỏ thuê.
@@ -77,7 +84,9 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 - **Chống trùng lịch theo từng size × màu**: số bộ còn trống tính theo ngày thuê. Đơn giữ đồ từ ngày nhận đến hết ngày trả. Tối đa 30 ngày / đơn.
 - **Lọc ở cửa hàng** (ngày + size): mẫu 1 size hết bộ → "Đã kín lịch"; mẫu nhiều size chỉ gắn "Đã kín lịch" khi hết mọi size; lọc size M thì mẫu hết size M → "Đã thuê size M". Trang chi tiết làm mờ size đã hết lịch.
 - Quy định: **SĐT** 10 số đầu 03/05/07/08/09, **CCCD** 12 số (mã tỉnh 001–096), ảnh CCCD (chỉ chủ đơn và nhân viên xem được).
-- Hủy đơn: ≥ 3 ngày trước ngày nhận hoàn 100% cọc · 1–2 ngày giữ 50% · trong ngày mất cọc.
+- **Chờ cọc**: đặt xong đơn giữ chỗ **24 giờ** để khách cọc (chuyển khoản theo thông tin trên trang đơn, ví, hoặc tiền mặt tại shop). Nhân viên bấm *Nhận cọc* → **Đã cọc**. Quá 24 giờ chưa cọc → đơn **tự hủy**, không mất phí. Số tài khoản demo ở `SHOP_BANK` (`utils/constants.js`).
+- Hủy đơn: chưa cọc → không phí · ≥ 3 ngày trước ngày nhận hoàn 100% cọc · 1–2 ngày giữ 50% · trong ngày mất cọc.
+- **Thông báo** (chuông trên menu, `/notifications`, trang Tài khoản): báo khi đơn đổi trạng thái (đặt, nhận cọc, giao đồ, hoàn tất, hủy, đổi size) và **nhắc** hạn cọc, ngày mai / hôm nay nhận đồ, ngày mai / hôm nay trả đồ, quá hạn trả.
 - **Nội quy & bảng trừ phí** `/noi-quy` (mức phí sửa ở `utils/fees.js`): khách phải tick **"đồng ý nội quy"** mới đặt được; hóa đơn ghi lại thời điểm đồng ý.
 
 - **Nhiều ảnh / sản phẩm**: ảnh chính + tối đa 6 ảnh phụ (mặt sau, chi tiết, ảnh mặc thật); trang chi tiết có thư viện ảnh bấm chuyển.
@@ -89,7 +98,7 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 - **Trang hỗ trợ**: `/cach-thue` (5 bước có hình minh họa), `/hoi-dap` (FAQ có ô tìm kiếm không dấu), `/doi-size`, `/noi-quy`.
 
 ### Xử lý đơn (nhân viên) — `/rentals`
-- Trạng thái: **Đã cọc → Đang thuê → Hoàn tất** (hoặc **Đã hủy**).
+- Trạng thái: **Chờ cọc → Đã cọc → Đang thuê → Hoàn tất** (hoặc **Đã hủy**). Nút **Nhận cọc** ở danh sách đơn / trang đơn.
 - **Giao đồ** (từ ngày nhận trở đi), **Nhận trả**: ngày trả thực tế từ ngày nhận đến hôm nay; nhân viên chọn số bộ bị bẩn / hư / mất **theo bảng nội quy** cho từng món, hệ thống tự tính phí trễ + phí vệ sinh/hư hỏng → hoàn cọc (âm = khách đền thêm). Hóa đơn liệt kê từng khoản trừ.
 - Mất đồ / hư nặng: đền theo **Giá trị sản phẩm** (ô không bắt buộc khi thêm SP); sản phẩm chưa ghi giá trị thì mất tiền cọc của bộ đó.
 - **Cảnh báo**: quá hạn trả, quá ngày nhận chưa lấy đồ, hôm nay giao / hôm nay trả.
@@ -110,11 +119,11 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 ```
 ├── server.js                 # Khởi động, nâng cấp CSDL cũ, xử lý lỗi chung
 ├── config/database.js        # Sequelize (postgres / sqlite theo .env)
-├── models/                   # Product, ProductVariant, ProductImage, User, Rental, RentalItem, Review, Favorite, Coupon
-├── controllers/              # product, cart, rental, review, favorite, coupon, auth, account, user (admin), stats, home
+├── models/                   # Product, ProductVariant, ProductImage, User, Rental, RentalItem, Review, Favorite, Coupon, Notification
+├── controllers/              # product, cart, rental, review, favorite, coupon, notification, auth, account, user (admin), stats, home
 ├── routes/                   # index, products, cart, rentals, admin
 ├── middlewares/              # auth (requireLogin / Staff / Admin), upload (Multer: ảnh SP + ảnh phụ, ảnh đánh giá, CCCD)
-├── utils/                    # availability (lịch theo ngày), variants, sizeChart, coupons, reviews, fees, search, text, dates
+├── utils/                    # availability (lịch theo ngày), variants, sizeChart, details, categories, hot, coupons, notify, reviews, fees, search, text, dates
 ├── views/                    # EJS + Bootstrap
 ├── public/                   # CSS, JS, ảnh mẫu, uploads/ (ảnh trang phục)
 ├── private_uploads/          # ảnh CCCD (không công khai, tạo khi chạy)

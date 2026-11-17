@@ -65,7 +65,7 @@
                       <select name="Target" class="form-select form-select-sm" required>
                         <option value="">-- Chọn size · màu --</option>
                         <% opts.forEach(v => { %>
-                          <option value="<%= v.Size %>|<%= v.Color %>" <%= v.free < 1 ? 'disabled' : '' %>>Size <%= v.Size %> · <%= v.Color %> — <%= v.free > 0 ? 'còn ' + v.free + ' bộ' : 'hết lịch' %></option>
+                          <option value="<%= v.Size %>|<%= v.Color %>" <%= v.free < 1 ? 'disabled' : '' %>>Size <%= v.Size %> · <%= v.Color %> — <%= v.free > 0 ? (isStaff ? 'còn ' + v.free + ' bộ' : 'còn trống') : 'hết lịch' %></option>
                         <% }) %>
                       </select>
                     </div>
@@ -124,7 +124,7 @@
           <% } %>
         </div>
       </div>
-      <% if (swap.reason && ['Đã cọc', 'Đang thuê'].includes(rental.Status)) { %>
+      <% if (swap.reason && ['Chờ cọc', 'Đã cọc', 'Đang thuê'].includes(rental.Status)) { %>
         <div class="small text-muted mt-2 d-print-none"><i class="bi bi-arrow-left-right"></i> Đổi size: <%= swap.reason %> <a href="/doi-size">Chính sách đổi size</a></div>
       <% } else if (swap.ok) { %>
         <div class="small text-muted mt-2 d-print-none"><i class="bi bi-arrow-left-right"></i> Không vừa size? Bấm "Đổi size / màu" dưới từng món — miễn phí, theo <a href="/doi-size">chính sách đổi size</a>.</div>
@@ -139,10 +139,37 @@
     </div>
 
     <!-- Hành động theo trạng thái -->
+    <% if (st==='Chờ cọc') { %>
+      <div class="card p-3 border-warning d-print-none">
+        <div class="fw-semibold text-warning-emphasis mb-2"><i class="bi bi-hourglass-split"></i> Đơn đang chờ cọc — giữ chỗ đến <strong><%= deadline %></strong></div>
+        <% if (rental.PaymentMethod === 'Tiền mặt') { %>
+          <p class="small mb-2">Vui lòng đến cửa hàng (8:00 – 21:00) đóng cọc <strong><%= vnd(rental.Deposit) %></strong> trước thời hạn trên. Mang theo CCCD.</p>
+        <% } else { %>
+          <p class="small mb-1">Vui lòng chuyển <strong><%= vnd(rental.Deposit) %></strong> tiền cọc trước thời hạn trên:</p>
+          <div class="small p-2 rounded mb-2" style="background:var(--cream-2)">
+            Ngân hàng: <strong><%= SHOP_BANK.bank %></strong> · Số tài khoản: <strong><%= SHOP_BANK.account %></strong> · Chủ tài khoản: <strong><%= SHOP_BANK.owner %></strong><br>
+            Nội dung chuyển khoản: <strong class="coupon-code">COC <%= rental.RentalID %> <%= rental.CustomerPhone %></strong>
+            <% if (SHOP_BANK.demo) { %><div class="text-muted mt-1">(Thông tin tài khoản dùng để demo.)</div><% } %>
+          </div>
+        <% } %>
+        <p class="small text-muted mb-2">Cửa hàng xác nhận đã nhận tiền thì đơn chuyển sang <strong>Đã cọc</strong> và bạn nhận được thông báo. Quá <%= DEPOSIT_HOLD_HOURS %> giờ chưa cọc, đơn tự hủy (không mất phí).</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <% if (isStaff) { %>
+            <form method="POST" action="/rentals/<%= rental.RentalID %>/deposit" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(rental.Deposit) %> tiền cọc?')">
+              <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
+              <button class="btn btn-success btn-sm"><i class="bi bi-cash-coin"></i> Xác nhận đã nhận cọc</button>
+            </form>
+          <% } %>
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Đơn chưa cọc nên không mất phí.')">
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
     <% if (st==='Đã cọc') { %>
       <div class="card p-3">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <span class="text-success"><i class="bi bi-check-circle-fill"></i> Đã cọc <%= vnd(rental.Deposit) %> (<%= rental.PaymentMethod %>). Vui lòng đến nhận đồ đúng hẹn.</span>
+          <span class="text-success"><i class="bi bi-check-circle-fill"></i> Đã cọc <%= vnd(rental.Deposit) %> (<%= rental.PaymentMethod %><%= rental.DepositPaidAt ? ', xác nhận lúc ' + new Date(rental.DepositPaidAt).toLocaleString('vi-VN') : '' %>). Vui lòng đến nhận đồ đúng hẹn.</span>
           <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Phí hủy tính theo thời điểm hủy.')">
             <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
           </form>

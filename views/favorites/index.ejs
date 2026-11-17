@@ -8,9 +8,9 @@
     <div><a href="/products" class="btn btn-primary"><i class="bi bi-bag"></i> Xem trang phục</a></div>
   </div>
 <% } else { %>
-  <div class="row g-3 g-md-4">
+  <div class="row g-2 g-md-3 prod-grid">
     <% favs.forEach(f => { const p = f.Product, rt = ratings[p.ProductID], off = p.Status !== 'Còn trống'; %>
-      <div class="col-6 col-md-4 col-lg-3">
+      <div class="col-6 col-sm-4 col-lg-3 col-xl-2">
         <div class="card prod-card h-100 <%= off ? 'is-booked' : '' %>">
           <a href="/products/<%= p.ProductID %>" class="prod-thumb d-block">
             <% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" onerror="this.style.display='none'"><% } %>

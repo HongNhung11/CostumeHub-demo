@@ -19,6 +19,19 @@
       <a href="/rentals" class="small mt-2 d-inline-block"><i class="bi bi-receipt"></i> Xem đơn thuê của tôi</a>
     </div>
 
+    <!-- Thông báo gần đây -->
+    <div class="card mb-3" id="thong-bao">
+      <div class="d-flex justify-content-between align-items-center p-3 pb-2">
+        <h6 class="font-serif mb-0"><i class="bi bi-bell"></i> Thông báo gần đây <% if (unreadCount) { %><span class="badge bg-danger"><%= unreadCount %> mới</span><% } %></h6>
+        <a href="/notifications" class="small">Xem tất cả</a>
+      </div>
+      <% if (!notifications.length) { %>
+        <p class="small text-muted px-3 pb-3 mb-0">Chưa có thông báo. Bạn sẽ được nhắc khi đơn đổi trạng thái, trước ngày nhận và ngày trả đồ.</p>
+      <% } else { %>
+        <div class="noti-list border-top"><% notifications.forEach(n => { %><%- include('../partials/notification-item', { n }) %><% }) %></div>
+      <% } %>
+    </div>
+
     <div class="row g-3">
       <div class="col-md-6">
         <div class="card p-3 h-100">

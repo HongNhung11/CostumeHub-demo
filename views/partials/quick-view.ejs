@@ -1,0 +1,78 @@
+<!-- XEM NHANH: bấm nút "Xem nhanh" giữa ảnh -> mở khung tóm tắt (chọn size, màu, thêm vào giỏ); "Xem chi tiết sản phẩm" -> trang chi tiết -->
+<div class="modal fade" id="quickView" tabindex="-1" aria-label="Xem nhanh sản phẩm">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content quick-content">
+      <button type="button" class="btn-close quick-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      <div class="modal-body" id="quickBody"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const modalEl = document.getElementById('quickView'), body = document.getElementById('quickBody');
+  const spinner = '<div class="text-center text-muted py-5"><div class="spinner-border" role="status"></div></div>';
+  let modal;
+
+  // Mở khung khi bấm ảnh (Ctrl/Shift + bấm vẫn mở trang chi tiết như link bình thường)
+  document.addEventListener('click', async (e) => {
+    const a = e.target.closest('[data-quick]');
+    if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    modal = modal || new bootstrap.Modal(modalEl);
+    body.innerHTML = spinner;
+    modal.show();
+    try {
+      const r = await fetch(`/products/${a.dataset.quick}/quick`);
+      if (!r.ok) throw new Error();
+      body.innerHTML = await r.text();
+      setup();
+    } catch (_) { location.href = a.dataset.href || a.href; }
+  });
+
+  // Gắn xử lý cho nội dung vừa chèn (script trong innerHTML không tự chạy)
+  function setup() {
+    const form = body.querySelector('#qvForm');
+    const fb = body.querySelector('.qv-share.fb');
+    const detail = body.querySelector('.qv-detail');
+    if (fb && detail) fb.href = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(location.origin + detail.getAttribute('href'));
+    if (!form) return;
+    let combos = [];
+    try { combos = JSON.parse(body.querySelector('#qvCombos').textContent); } catch (_) {}
+    const picked = (n) => { const r = form.querySelector(`input[name="${n}"]:checked`); return r ? r.value : null; };
+    const refresh = () => {
+      const s = picked('Size'), c = picked('Color');
+      form.querySelectorAll('input[name="Color"]').forEach(r => {
+        const ok = combos.some(x => x[1] === r.value && (!s || x[0] === s));
+        r.disabled = !ok; r.nextElementSibling.classList.toggle('opt-off', !ok); if (!ok) r.checked = false;
+      });
+      form.querySelectorAll('input[name="Size"]').forEach(r => {
+        const ok = combos.some(x => x[0] === r.value && (!c || x[1] === c));
+        r.disabled = !ok; r.nextElementSibling.classList.toggle('opt-off', !ok);
+      });
+      body.querySelector('#qvColorName').textContent = picked('Color') || '';
+    };
+    form.addEventListener('change', refresh);
+    form.addEventListener('submit', (ev) => {
+      const ok = picked('Size') && picked('Color');
+      form.querySelector('.qv-msg').hidden = !!ok;
+      if (!ok) ev.preventDefault();
+    });
+    refresh();
+  }
+
+  body.addEventListener('click', async (e) => {
+    // Đổi ảnh
+    const t = e.target.closest('.qv-thumb');
+    if (t) { body.querySelector('.qv-main').src = t.dataset.src; body.querySelectorAll('.qv-thumb').forEach(x => x.classList.toggle('active', x === t)); return; }
+    // Nút − / + số lượng
+    const q = e.target.closest('.qty-box button');
+    if (q) { const i = q.parentNode.querySelector('input'); i.value = Math.max(1, (+i.value || 1) + +q.dataset.d); return; }
+    // Sao chép đường dẫn
+    const cp = e.target.closest('.qv-copy');
+    if (cp) {
+      const url = location.origin + cp.dataset.url;
+      try { await navigator.clipboard.writeText(url); cp.innerHTML = '<i class="bi bi-check2"></i>'; } catch (_) { prompt('Sao chép đường dẫn:', url); }
+    }
+  });
+})();
+</script>

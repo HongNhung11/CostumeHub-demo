@@ -4,22 +4,22 @@
     <div class="reveal">
       <div class="eyebrow" style="letter-spacing:4px;text-transform:uppercase;font-size:.78rem;color:var(--gold);font-weight:700">Thuê trang phục nữ cao cấp</div>
       <h1>Tỏa sáng trong<br><span class="accent">từng khoảnh khắc</span></h1>
-      <p class="lead">Áo dài, váy tiệc – đầm dạ hội và phụ kiện nữ. Hàng trăm mẫu đẹp, giá thuê hợp lý, đặt lịch chỉ trong vài phút. Có trợ lý AI gợi ý theo từng dịp.</p>
+      <p class="lead">Áo dài, váy tiệc – đầm dạ hội và phụ kiện nữ. Mẫu đẹp, giá thuê hợp lý, xem lịch trống và đặt thuê chỉ trong vài phút.</p>
       <div class="d-flex gap-2 flex-wrap">
         <a href="/products" class="btn btn-gold btn-lg"><i class="bi bi-grid-3x3-gap-fill"></i> Khám phá bộ sưu tập</a>
         <a href="/contact" class="btn btn-light btn-lg"><i class="bi bi-chat-heart"></i> Tư vấn ngay</a>
       </div>
       <div class="hs-mini">
-        <div><div class="n"><%= total %>+</div><small class="text-muted">Mẫu trang phục</small></div>
-        <div><div class="n"><%= available %></div><small class="text-muted">Còn trống hôm nay</small></div>
-        <div><div class="n">4.9★</div><small class="text-muted">Khách hài lòng</small></div>
+        <div><div class="n"><i class="bi bi-stars"></i></div><small class="text-muted">Giặt hấp sau mỗi lượt</small></div>
+        <div><div class="n"><i class="bi bi-arrow-left-right"></i></div><small class="text-muted">Đổi size miễn phí</small></div>
+        <div><div class="n"><i class="bi bi-bell"></i></div><small class="text-muted">Nhắc lịch nhận – trả</small></div>
       </div>
     </div>
     <div class="collage reveal">
       <img class="ph p-main" src="/img/vaytiec/v3.jpg" alt="Đầm dạ hội" onerror="this.style.display='none'">
       <img class="ph p-sec" src="/img/aodai/p1.jpg" alt="Áo dài" onerror="this.style.display='none'">
       <div class="chip-float c-price"><i class="bi bi-tag-fill"></i> Chỉ từ 45.000đ/ngày</div>
-      <div class="chip-float c-rate"><i class="bi bi-stars"></i> 4.9/5 · 320+ lượt thuê</div>
+      <div class="chip-float c-rate"><i class="bi bi-arrow-left-right"></i> Đổi size miễn phí</div>
     </div>
   </div>
 </section>
@@ -30,13 +30,6 @@
   <div class="col-6 col-md-3"><div class="trust-item"><i class="bi bi-calendar2-check"></i><div><h6 class="font-serif mb-0">Đặt lịch dễ dàng</h6><p class="small text-muted mb-0">Chọn ngày thuê – trả, hệ thống tự kiểm tra lịch.</p></div></div></div>
   <div class="col-6 col-md-3"><div class="trust-item"><i class="bi bi-shield-check"></i><div><h6 class="font-serif mb-0">An toàn, minh bạch</h6><p class="small text-muted mb-0">Cọc rõ ràng, xác minh CCCD bằng AI (OCR).</p></div></div></div>
   <div class="col-6 col-md-3"><div class="trust-item"><i class="bi bi-robot"></i><div><h6 class="font-serif mb-0">Trợ lý AI</h6><p class="small text-muted mb-0">Gợi ý trang phục theo dịp &amp; tìm kiếm thông minh.</p></div></div></div>
-</div>
-
-<!-- Dải chữ chạy -->
-<div class="marquee mb-5 reveal">
-  <div class="mtrack">
-    <span>Áo dài<i>✦</i></span><span>Váy tiệc<i>✦</i></span><span>Đầm dạ hội<i>✦</i></span><span>Phụ kiện<i>✦</i></span><span>Giá thuê hợp lý<i>✦</i></span><span>Đặt lịch dễ dàng<i>✦</i></span><span>Áo dài<i>✦</i></span><span>Váy tiệc<i>✦</i></span><span>Đầm dạ hội<i>✦</i></span><span>Phụ kiện<i>✦</i></span><span>Giá thuê hợp lý<i>✦</i></span><span>Đặt lịch dễ dàng<i>✦</i></span>
-  </div>
 </div>
 
 <!-- CATEGORIES -->
@@ -63,31 +56,30 @@
   <% }) %>
 </div>
 
-<!-- FEATURED (dữ liệu động từ CSDL) -->
+<!-- MỚI VỀ: sản phẩm tạo gần nhất (dữ liệu động từ CSDL) -->
 <div class="d-flex justify-content-between align-items-end mb-4">
   <div>
-    <div class="section-eyebrow mb-1">Nổi bật</div>
-    <h2 class="section-title mb-0">Trang phục được yêu thích</h2>
+    <div class="section-eyebrow mb-1">Mới về</div>
+    <h2 class="section-title mb-0">Trang phục mới nhất</h2>
   </div>
   <a href="/products" class="btn btn-outline-primary">Xem tất cả <i class="bi bi-arrow-right"></i></a>
 </div>
 <div class="row g-3 g-md-4 mb-5">
-  <% featured.forEach(p => { %>
-    <div class="col-6 col-md-4 col-lg-2">
-      <div class="card prod-card h-100 reveal">
-        <a href="/products/<%= p.ProductID %>" class="prod-thumb d-block">
-          <% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" onerror="this.style.display='none'"><% } %>
-          <span class="prod-badge chip"><%= p.ProductType %></span>
-        </a>
-        <div class="card-body p-3">
-          <h6 class="mb-1" style="min-height:2.4em;font-size:.92rem"><a href="/products/<%= p.ProductID %>" class="text-dark"><%= p.ProductName %></a></h6>
-          <div class="price-tag mb-2"><%= Number(p.Price).toLocaleString('vi-VN') %> đ<small class="text-muted fw-normal">/ngày</small></div>
-          <a href="/products/<%= p.ProductID %>" class="btn btn-sm btn-primary w-100">Xem chi tiết</a>
-        </div>
-      </div>
-    </div>
-  <% }) %>
+  <% featured.forEach(p => { %><%- include('../partials/home-card', { p, rt: ratings[p.ProductID], isNew: true }) %><% }) %>
 </div>
+
+<!-- ĐƯỢC ĐÁNH GIÁ CAO: điểm trung bình từ đánh giá của khách đã thuê -->
+<% if (topRated.length) { %>
+<div class="d-flex justify-content-between align-items-end mb-4">
+  <div>
+    <div class="section-eyebrow mb-1">Khách khen nhiều</div>
+    <h2 class="section-title mb-0">Được đánh giá cao</h2>
+  </div>
+</div>
+<div class="row g-3 g-md-4 mb-5">
+  <% topRated.forEach(p => { %><%- include('../partials/home-card', { p, rt: ratings[p.ProductID], isNew: false }) %><% }) %>
+</div>
+<% } %>
 
 <!-- LƯU Ý & QUY ĐỊNH (phần "Quy định" — khớp tab điều hướng) -->
 <div id="quy-dinh" class="card rules-card p-4 mb-5 reveal">
@@ -106,7 +98,7 @@
       </ul>
       <h6 class="font-serif mt-3"><i class="bi bi-cash-coin" style="color:var(--gold)"></i> Cọc &amp; thanh toán</h6>
       <ul class="small text-muted">
-        <li>Đặt thuê là thanh toán cọc luôn để giữ chỗ (tiền mặt / chuyển khoản / ví).</li>
+        <li>Đặt thuê xong, đơn được giữ chỗ 24 giờ để bạn cọc (tiền mặt / chuyển khoản / ví); cửa hàng xác nhận đã nhận cọc là xong.</li>
         <li>Cọc được hoàn lại đầy đủ khi trả đồ đúng hạn, nguyên vẹn.</li>
         <li>Cần cung cấp CCCD (số + ảnh chụp) để xác minh khi thuê.</li>
       </ul>

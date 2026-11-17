@@ -26,6 +26,7 @@ router.post('/', requireStaff, uploadProductImages, c.create);
 router.get('/:id/book', requireLogin, c.bookForm);
 
 // Chi tiết (công khai) / Sửa, Cập nhật (nhân viên) / Xóa 1 (admin)
+router.get('/:id/quick', c.quick);   // xem nhanh (khung nhỏ ở trang cửa hàng)
 router.get('/:id', c.show);
 router.get('/:id/edit', requireStaff, c.editForm);
 router.put('/:id', requireStaff, uploadProductImages, c.update);

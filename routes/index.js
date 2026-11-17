@@ -32,6 +32,11 @@ router.use('/products', productRoutes);
   router.get('/account', requireLogin, account.show);
   router.post('/account/profile', requireLogin, account.updateProfile);
   router.post('/account/password', requireLogin, account.changePassword);
+  // Thông báo của tôi
+  const noti = require('../controllers/notificationController');
+  router.get('/notifications', requireLogin, noti.index);
+  router.post('/notifications/read-all', requireLogin, noti.readAll);
+  router.get('/notifications/:id', requireLogin, noti.open);
 }
 
 // Yêu thích + đánh giá sản phẩm (cần đăng nhập)

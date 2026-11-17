@@ -1,0 +1,43 @@
+<%
+  // Hỏi đáp ngay dưới sản phẩm (kiểu web thời trang): câu trả lời lấy số liệu của CHÍNH mẫu này
+  const vnd = n => Number(n || 0).toLocaleString('vi-VN') + '₫';
+  const pv = Number(product.ProductValue) > 0;
+  const faqs = [
+    ['Thuê mẫu này hết bao nhiêu tiền?',
+     `Giá thuê ${vnd(product.Price)}/ngày cho mỗi ${product.Unit}, cộng tiền cọc ${vnd(product.DepositValue)}/${product.Unit} (hoàn lại khi trả đồ). Có mã giảm giá thì nhập ở giỏ thuê — mã chỉ giảm tiền thuê.`],
+    ['Làm sao biết mẫu còn trống đúng ngày tôi cần?',
+     'Chọn ngày nhận – ngày trả ở ô "Kiểm tra lịch trống" phía trên: size nào đã có khách thuê sẽ bị làm mờ. Đặt xong, đơn được giữ chỗ 24 giờ để bạn cọc.'],
+    ['Tôi nên chọn size nào?',
+     sizes.length > 1
+       ? `Mẫu này có size ${sizes.join(', ')}. ${chart.length ? 'Bấm "Bảng số đo" cạnh mục Kích thước để đối chiếu số đo của bạn; số đo nằm giữa 2 size thì chọn size lớn hơn.' : 'Liên hệ cửa hàng để được tư vấn size theo số đo của bạn.'}`
+       : `Mẫu này chỉ có một size / kích thước: ${sizes[0] || 'Free size'}.`],
+    ['Mặc không vừa có được đổi size không?',
+     'Được, miễn phí. Trước khi nhận đồ: tự đổi size / màu ngay trong trang đơn thuê. Sau khi nhận: mang đến cửa hàng trong ngày nhận hoặc ngày hôm sau, nhân viên đổi giúp nếu size mới còn trống.'],
+    ['Trả trễ hoặc làm bẩn, hư hỏng thì sao?',
+     `Trả trễ tính ${vnd(product.LateFeePerDay)}/ngày/${product.Unit}. Bẩn, sứt chỉ, rách nhỏ tính theo bảng nội quy. Mất hoặc hư nặng: ` +
+       (pv ? `đền theo giá trị sản phẩm ${vnd(product.ProductValue)}.` : 'mất tiền cọc của bộ đó.') + ' Tất cả trừ vào tiền cọc.'],
+    ['Có cần giặt đồ trước khi trả không?',
+     'Không cần. Vui lòng không tự giặt, ủi hay sửa — cửa hàng giặt hấp chuyên dụng sau mỗi lượt thuê.'],
+    ['Nhận đồ bằng cách nào?',
+     'Đến lấy tại cửa hàng (8:00 – 21:00) hoặc chọn giao tận nơi khi đặt. Nhớ mang CCCD khi nhận đồ.'],
+  ];
+%>
+<section id="product-faq" class="mt-5">
+  <h4 class="font-serif mb-3"><i class="bi bi-question-circle" style="color:var(--gold)"></i> Câu hỏi thường gặp</h4>
+  <div class="accordion product-faq" id="pfaq">
+    <% faqs.forEach(([q, a], i) => { %>
+      <div class="accordion-item <%= i >= 5 ? 'faq-more d-none' : '' %>">
+        <h2 class="accordion-header">
+          <button class="accordion-button <%= i ? 'collapsed' : '' %>" type="button" data-bs-toggle="collapse" data-bs-target="#pf<%= i %>"><%= q %></button>
+        </h2>
+        <div id="pf<%= i %>" class="accordion-collapse collapse <%= i ? '' : 'show' %>" data-bs-parent="#pfaq">
+          <div class="accordion-body"><%= a %></div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+  <% if (faqs.length > 5) { %>
+    <div class="text-center mt-2"><button type="button" class="btn btn-light border" onclick="document.querySelectorAll('.faq-more').forEach(x => x.classList.remove('d-none')); this.remove()">Xem thêm <i class="bi bi-chevron-down"></i></button></div>
+  <% } %>
+  <p class="text-muted mt-2 mb-0">Xem thêm: <a href="/hoi-dap">Tất cả câu hỏi</a> · <a href="/doi-size">Chính sách đổi size</a> · <a href="/noi-quy">Nội quy &amp; bảng phí</a></p>
+</section>

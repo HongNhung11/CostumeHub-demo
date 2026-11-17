@@ -1,0 +1,16 @@
+<%
+  const icon = { success: 'bi-check-circle-fill text-success', warning: 'bi-exclamation-circle-fill text-warning', danger: 'bi-x-octagon-fill text-danger', info: 'bi-bell-fill text-primary' }[n.Level] || 'bi-bell-fill text-primary';
+  const ago = (d) => { const m = Math.floor((Date.now() - new Date(d)) / 60000);
+    return m < 1 ? 'vừa xong' : m < 60 ? m + ' phút trước' : m < 1440 ? Math.floor(m / 60) + ' giờ trước' : new Date(d).toLocaleDateString('vi-VN'); };
+%>
+<a href="/notifications/<%= n.NotificationID %>" class="noti-item d-flex gap-3 p-3 text-dark <%= n.isRead ? '' : 'unread' %>">
+  <i class="bi <%= icon %> fs-5"></i>
+  <div class="flex-grow-1">
+    <div class="d-flex justify-content-between gap-2">
+      <strong class="small"><%= n.Title %></strong>
+      <span class="small text-muted text-nowrap"><%= ago(n.createdAt) %></span>
+    </div>
+    <% if (n.Message) { %><div class="small text-muted"><%= n.Message %></div><% } %>
+  </div>
+  <% if (!n.isRead) { %><span class="noti-dot" title="Chưa đọc"></span><% } %>
+</a>

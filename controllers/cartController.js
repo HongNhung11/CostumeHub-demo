@@ -64,14 +64,21 @@ exports.add = async (req, res) => {
   const same = cart.find(l => l.productId === productId && l.size === size && l.color === color);
   const inCart = same ? same.qty : 0;
   if (inCart + qty > stock) {
-    req.flash('error', `Size ${size} – ${color}: cửa hàng chỉ có ${stock} ${product.Unit}${inCart ? ` (giỏ đã có ${inCart})` : ''}.`);
+    req.flash('error', `Size ${size} – ${color} không đủ số lượng bạn chọn${inCart ? ` (giỏ đã có ${inCart})` : ''}. Vui lòng giảm số lượng.`);
     return res.redirect(back);
   }
 
+  await Product.increment('CartAdds', { by: 1, where: { ProductID: productId } });   // tính nhãn HOT
   if (same) same.qty += qty;
   else {
     if (cart.length >= MAX_LINES) { req.flash('error', `Giỏ thuê tối đa ${MAX_LINES} dòng.`); return res.redirect(back); }
     cart.push({ key: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), productId, size, color, qty });
+  }
+
+  // Mã giảm giá chọn ở trang chi tiết -> nhớ lại để giỏ thuê điền sẵn (khi đặt máy chủ vẫn kiểm tra lại)
+  if (req.body.CouponCode !== undefined) {
+    const code = String(req.body.CouponCode).trim().toUpperCase().replace(/\s+/g, '').slice(0, 30);
+    if (code) req.session.couponCode = code; else delete req.session.couponCode;
   }
 
   if (req.body.buyNow) return res.redirect('/cart');
@@ -91,7 +98,7 @@ exports.view = async (req, res) => {
   // Mã giảm giá đang áp dụng (gợi ý cho khách bấm chọn)
   const { activeCoupons, summary } = require('../utils/coupons');
   const coupons = (await activeCoupons()).map(c => ({ code: c.Code, text: c.Description || summary(c), summary: summary(c) }));
-  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons });
+  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons, savedCoupon: req.session.couponCode || '' });
 };
 
 // ===== Đổi số lượng 1 dòng =====
@@ -102,7 +109,7 @@ exports.update = async (req, res) => {
     const qty = parseInt(req.body.qty);
     const stock = await stockOf(line.productId, line.size, line.color);
     if (!(qty >= 1)) req.flash('error', 'Số lượng phải từ 1 trở lên.');
-    else if (qty > stock) req.flash('error', `Size ${line.size} – ${line.color}: cửa hàng chỉ có ${stock} bộ.`);
+    else if (qty > stock) req.flash('error', `Size ${line.size} – ${line.color} không đủ số lượng bạn chọn. Vui lòng giảm số lượng.`);
     else line.qty = qty;
   }
   res.redirect('/cart');

@@ -11,7 +11,7 @@ const { todayStr } = require('../utils/dates');
 const num = (v) => Number(v) || 0;
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => { const t = new Date(d); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`; };
-const STATUSES = ['Đã cọc', 'Đang thuê', 'Hoàn tất', 'Đã hủy'];
+const STATUSES = ['Chờ cọc', 'Đã cọc', 'Đang thuê', 'Hoàn tất', 'Đã hủy'];
 
 exports.index = async (req, res) => {
   const rentals = await Rental.findAll({ include: [{ model: RentalItem, as: 'items' }] });
@@ -46,7 +46,8 @@ exports.index = async (req, res) => {
   // Số đơn theo trạng thái + đơn đang hoạt động
   const statusCounts = Object.fromEntries(STATUSES.map(s => [s, rentals.filter(r => r.Status === s).length]));
   const active = rentals.filter(r => ACTIVE.includes(r.Status));
-  const depositHeld = active.reduce((s, r) => s + num(r.Deposit), 0);
+  // Cọc đang giữ: chỉ tính đơn đã thực nhận tiền (đơn "Chờ cọc" chưa thu)
+  const depositHeld = active.filter(r => r.Status !== 'Chờ cọc' && r.Status !== 'Đã đặt').reduce((s, r) => s + num(r.Deposit), 0);
   const overdue = active.filter(r => { const a = alertOf(r, today); return a && a.overdue; }).length;
 
   // Mẫu được thuê nhiều nhất (tính theo số bộ, bỏ đơn đã hủy)

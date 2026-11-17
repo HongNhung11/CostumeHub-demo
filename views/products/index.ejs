@@ -1,84 +1,178 @@
-<!-- Banner nhỏ -->
-<div class="rounded-4 p-4 p-md-5 mb-4 text-white position-relative overflow-hidden shop-banner"
-     style="background:linear-gradient(90deg,rgba(44,36,32,.85),rgba(138,46,59,.45)),url('/img/vaytiec/v5.jpg') center 25%/cover">
-  <div class="section-eyebrow mb-1" style="color:var(--gold)">Bộ sưu tập</div>
-  <h1 class="font-serif mb-2">Trang phục nữ &amp; Phụ kiện</h1>
-  <p class="mb-3" style="max-width:520px;color:#efe6d9">Áo dài · Váy tiệc – đầm dạ hội · Phụ kiện. Chọn theo danh mục bên dưới, hoặc tìm nhanh mẫu bạn cần.</p>
-  <form method="GET" action="/products" class="d-flex" style="max-width:460px">
-    <% if (type) { %><input type="hidden" name="type" value="<%= type %>"><% } %>
-    <input type="search" name="q" value="<%= q %>" class="form-control form-control-lg" placeholder="Tìm áo dài, váy tiệc, phụ kiện... (gõ không dấu cũng được)">
-    <button class="btn btn-gold btn-lg ms-2"><i class="bi bi-search"></i></button>
-  </form>
-</div>
-
-<!-- Menu danh mục -->
-<div class="d-flex flex-wrap gap-2 align-items-center mb-4">
-  <a href="/products" class="btn btn-sm <%= !type ? 'btn-primary' : 'btn-light' %>">
-    Tất cả <span class="badge badge-soft ms-1"><%= totalAll %></span>
-  </a>
-
-  <span class="text-muted small ms-2 me-1 d-none d-md-inline">Trang phục:</span>
-  <% COSTUME_TYPES.forEach(t => { %>
-    <a href="/products?type=<%= encodeURIComponent(t) %>" class="btn btn-sm <%= type===t ? 'btn-primary' : 'btn-light' %>">
-      <%= t %> <span class="badge badge-soft ms-1"><%= counts[t] || 0 %></span>
-    </a>
-  <% }) %>
-
-  <span class="text-muted small ms-2 me-1 d-none d-md-inline">· Phụ kiện:</span>
-  <% ACCESSORY_TYPES.forEach(t => { %>
-    <a href="/products?type=<%= encodeURIComponent(t) %>" class="btn btn-sm <%= type===t ? 'btn-gold' : 'btn-light' %>">
-      <i class="bi bi-gem"></i> <%= t %> <span class="badge badge-soft ms-1"><%= counts[t] || 0 %></span>
-    </a>
-  <% }) %>
-</div>
-
-<!-- Chọn ngày thuê: chỉ khi khách chọn ngày mới hiện còn trống / đã kín -->
 <%
+  // Trạng thái lọc hiện tại -> tạo link giữ nguyên các bộ lọc khác (đổi 1 bộ lọc / sang trang)
+  const state = { type, cat, q, size, color, price, sort, free: onlyFree ? '1' : '' };
+  const u = (over = {}) => {
+    const s = { ...state, ...over };
+    const qs = Object.entries(s).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    return '/products' + (qs ? '?' + qs : '');
+  };
   const pad2 = n => String(n).padStart(2, '0');
   const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   const todayYmd = ymd(new Date()), tmrYmd = ymd(new Date(Date.now() + 864e5));
+  const subOf = (g) => (CAT_GROUPS.find(x => x.group === g) || { items: [] }).items;
+  const title = catLabel || type || 'Tất cả sản phẩm';
+  const hidden = (skip = []) => Object.entries(state).filter(([k, v]) => v && !skip.includes(k));
+  const anyFilter = type || cat || q || size || color || price || dates || onlyFree;
 %>
-<form method="GET" action="/products" class="card p-3 mb-4 date-filter">
-  <% if (type) { %><input type="hidden" name="type" value="<%= type %>"><% } %>
-  <% if (q) { %><input type="hidden" name="q" value="<%= q %>"><% } %>
-  <div class="d-flex flex-wrap align-items-end gap-2">
-    <div class="me-2">
-      <div class="fw-semibold small"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Bạn muốn thuê ngày nào, size gì?</div>
-      <div class="small text-muted">Chọn ngày để biết mẫu nào đã có người thuê</div>
+<nav class="small text-muted mb-3"><a href="/" class="text-muted">Trang chủ</a> / <a href="/products?clear=1" class="text-muted">Sản phẩm</a><% if (type || cat) { %> / <span><%= title %></span><% } %></nav>
+
+<div class="row g-4">
+  <!-- ===== CỘT LỌC BÊN TRÁI ===== -->
+  <aside class="col-lg-3 col-xxl-2">
+    <button class="btn btn-light border w-100 d-lg-none mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#filters"><i class="bi bi-funnel"></i> Bộ lọc</button>
+    <div class="collapse d-lg-block shop-filters" id="filters">
+      <!-- Danh mục -->
+      <div class="filter-box">
+        <div class="filter-title">Danh mục</div>
+        <a href="<%= u({ type: '', cat: '' }) %>" class="filter-link <%= !type && !cat ? 'on' : '' %>">Tất cả</a>
+        <% COSTUME_TYPES.forEach(t => { %>
+          <a href="<%= u({ type: t, cat: '' }) %>" class="filter-link <%= type === t && !cat ? 'on' : '' %>"><%= t %></a>
+        <% }) %>
+        <% const pkOpen = type === 'Phụ kiện' || !!cat; %>
+        <!-- Phụ kiện: thu gọn, bấm mới xổ các mục con (đang xem phụ kiện thì mở sẵn) -->
+        <a href="#pkSub" class="filter-link <%= type === 'Phụ kiện' && !cat ? 'on' : '' %> <%= pkOpen ? '' : 'collapsed' %>" data-bs-toggle="collapse" role="button" aria-expanded="<%= pkOpen %>">Phụ kiện <i class="bi bi-chevron-down filter-caret"></i></a>
+        <div class="filter-sub collapse <%= pkOpen ? 'show' : '' %>" id="pkSub">
+          <a href="<%= u({ type: 'Phụ kiện', cat: '' }) %>" class="filter-link <%= type === 'Phụ kiện' && !cat ? 'on' : '' %>">Tất cả phụ kiện</a>
+          <% subOf('Phụ kiện').forEach(c => { %>
+            <a href="<%= u({ type: '', cat: c.key }) %>" class="filter-link <%= cat === c.key ? 'on' : '' %>"><%= c.label %></a>
+          <% }) %>
+        </div>
+      </div>
+
+      <!-- Ngày thuê: chỉ khi chọn ngày mới báo còn trống / đã kín -->
+      <form method="GET" action="/products" class="filter-box">
+        <% hidden(['free']).forEach(([k, v]) => { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }) %>
+        <div class="filter-title"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Ngày thuê</div>
+        <div class="row g-2">
+          <div class="col-6 col-lg-12 col-xl-6">
+            <label class="form-label small text-muted mb-0" for="fStart">Ngày nhận</label>
+            <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= todayYmd %>" value="<%= dates ? dates.start : '' %>" required>
+          </div>
+          <div class="col-6 col-lg-12 col-xl-6">
+            <label class="form-label small text-muted mb-0" for="fEnd">Ngày trả</label>
+            <input type="date" name="end" id="fEnd" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.end : '' %>" required>
+          </div>
+        </div>
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" name="free" value="1" id="fFree" <%= onlyFree ? 'checked' : '' %>>
+          <label class="form-check-label small" for="fFree">Chỉ hiện mẫu còn trống</label>
+        </div>
+        <button class="btn btn-primary btn-sm w-100 mt-2">Xem lịch trống</button>
+        <% if (dates) { %>
+          <div class="small mt-2 text-success-emphasis"><i class="bi bi-check-circle-fill text-success"></i> <%= viDate(dates.start) %> → <%= viDate(dates.end) %> (<%= rentDays %> ngày). Tự điền khi đặt thuê.</div>
+          <a href="/products?clear=1<%= u({}).replace('/products', '').replace('?', '&') %>" class="small"><i class="bi bi-x"></i> Bỏ chọn ngày</a>
+        <% } else { %>
+          <div class="small text-muted mt-2">Chọn ngày để biết mẫu nào đã có người thuê.</div>
+        <% } %>
+      </form>
+
+      <!-- Kích thước + Màu sắc: chỉ hiện tiêu đề, bấm mới xổ danh sách (đang lọc thì mở sẵn) -->
+      <% if (sizeOptions.length) { %>
+      <div class="filter-box">
+        <a href="#sizeBox" class="filter-title filter-toggle <%= size ? '' : 'collapsed' %>" data-bs-toggle="collapse" role="button" aria-expanded="<%= !!size %>">
+          <span>Kích thước<% if (size) { %>: <span style="color:var(--primary)"><%= size %></span><% } %></span> <i class="bi bi-chevron-down filter-caret"></i></a>
+        <div class="collapse <%= size ? 'show' : '' %>" id="sizeBox">
+          <div class="d-flex flex-wrap gap-1 pt-2">
+            <% sizeOptions.forEach(s => { %>
+              <a href="<%= u({ size: size === s ? '' : s }) %>" class="filter-chip <%= size === s ? 'on' : '' %>"><%= s %></a>
+            <% }) %>
+          </div>
+          <% if (dates && !size) { %><div class="small text-muted mt-2">Chọn size để xem chính xác size đó còn trống không.</div><% } %>
+        </div>
+      </div>
+      <% } %>
+
+      <% if (colorOptions.length) { %>
+      <div class="filter-box">
+        <a href="#colorBox" class="filter-title filter-toggle <%= color ? '' : 'collapsed' %>" data-bs-toggle="collapse" role="button" aria-expanded="<%= !!color %>">
+          <span>Màu sắc<% if (color) { %>: <span style="color:var(--primary)"><%= color %></span><% } %></span> <i class="bi bi-chevron-down filter-caret"></i></a>
+        <div class="collapse <%= color ? 'show' : '' %>" id="colorBox">
+          <div class="d-flex flex-wrap gap-1 pt-2">
+            <% colorOptions.forEach(c => { %>
+              <a href="<%= u({ color: color === c ? '' : c }) %>" class="filter-chip <%= color === c ? 'on' : '' %>"><%= c %></a>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Giá thuê -->
+      <div class="filter-box">
+        <div class="filter-title">Giá thuê / ngày</div>
+        <% PRICE_RANGES.forEach(r => { %>
+          <a href="<%= u({ price: price === r.key ? '' : r.key }) %>" class="filter-link <%= price === r.key ? 'on' : '' %>"><i class="bi <%= price === r.key ? 'bi-check-square-fill' : 'bi-square' %> me-2"></i><%= r.label %></a>
+        <% }) %>
+      </div>
+
+      <% if (anyFilter) { %><a href="/products?clear=1" class="btn btn-outline-primary w-100"><i class="bi bi-x-circle"></i> Xóa tất cả bộ lọc</a><% } %>
     </div>
-    <div>
-      <label class="form-label small text-muted mb-0" for="fStart">Ngày nhận</label>
-      <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= todayYmd %>" value="<%= dates ? dates.start : '' %>">
+  </aside>
+
+  <!-- ===== LƯỚI SẢN PHẨM ===== -->
+  <section class="col-lg-9 col-xxl-10">
+    <h4 class="mb-3 font-serif"><%= title %><% if (q) { %> <small class="text-muted fs-6 fw-normal">— kết quả cho "<%= q %>"</small><% } %></h4>
+    <!-- Tìm kiếm + Sắp xếp cùng 1 hàng -->
+    <div class="shop-toolbar mb-3">
+      <form method="GET" action="/products" class="shop-search">
+        <% hidden(['q']).forEach(([k, v]) => { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }) %>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="search" name="q" value="<%= q %>" class="form-control" placeholder="Tìm áo dài, váy tiệc, phụ kiện... (gõ không dấu cũng được)">
+          <button class="btn btn-primary px-4">Tìm kiếm</button>
+        </div>
+      </form>
+      <div class="d-flex align-items-center gap-2 shop-sort">
+        <label for="sortSel" class="text-muted text-nowrap mb-0">Sắp xếp:</label>
+        <select id="sortSel" class="form-select" onchange="location.href=this.value">
+          <% SORTS.forEach(s => { %><option value="<%= u({ sort: s.key }) %>" <%= sort === s.key ? 'selected' : '' %>><%= s.label %></option><% }) %>
+        </select>
+      </div>
     </div>
-    <div>
-      <label class="form-label small text-muted mb-0" for="fEnd">Ngày trả</label>
-      <input type="date" name="end" id="fEnd" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.end : '' %>">
-    </div>
-    <div>
-      <label class="form-label small text-muted mb-0" for="fSize">Size / kích thước</label>
-      <select name="size" id="fSize" class="form-select form-select-sm" style="min-width:110px">
-        <option value="">Tất cả</option>
-        <% sizeOptions.forEach(s => { %><option <%= size === s ? 'selected' : '' %>><%= s %></option><% }) %>
-      </select>
-    </div>
-    <div class="form-check mb-1 ms-1">
-      <input class="form-check-input" type="checkbox" name="free" value="1" id="fFree" <%= onlyFree ? 'checked' : '' %>>
-      <label class="form-check-label small" for="fFree">Chỉ hiện mẫu còn trống</label>
-    </div>
-    <button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> Lọc</button>
-    <% if (dates || size) { %>
-      <a href="/products?clear=1<%= type ? '&type=' + encodeURIComponent(type) : '' %><%= q ? '&q=' + encodeURIComponent(q) : '' %>" class="btn btn-light btn-sm"><i class="bi bi-x-lg"></i> Bỏ lọc ngày &amp; size</a>
+
+    <!-- Bộ lọc đang chọn -->
+    <% const chips = [];
+       if (q) chips.push(['Từ khóa: ' + q, { q: '' }]);
+       if (size) chips.push(['Size ' + size, { size: '' }]);
+       if (color) chips.push(['Màu ' + color, { color: '' }]);
+       if (price) chips.push([PRICE_RANGES.find(r => r.key === price).label, { price: '' }]);
+       if (onlyFree) chips.push(['Chỉ mẫu còn trống', { free: '' }]); %>
+    <% if (chips.length) { %>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <% chips.forEach(([label, over]) => { %><a href="<%= u(over) %>" class="active-chip"><%= label %> <i class="bi bi-x"></i></a><% }) %>
+      </div>
     <% } %>
-  </div>
-  <% if (dates) { %>
-    <div class="small mt-2 text-success-emphasis">
-      <i class="bi bi-check-circle-fill text-success"></i>
-      Đang xem lịch từ <strong><%= viDate(dates.start) %></strong> đến <strong><%= viDate(dates.end) %></strong> (<%= rentDays %> ngày)<%= size ? ', size ' + size : '' %>.
-      Ngày này sẽ tự điền khi bạn đặt thuê.
-      <% if (!size) { %><span class="text-muted">Mẫu nhiều size chỉ báo kín lịch khi hết mọi size — chọn size để xem chính xác.</span><% } %>
+
+    <div class="row g-3 prod-grid">
+      <% if (products.length === 0) { %>
+        <div class="col-12 text-center text-muted py-5">
+          <i class="bi bi-search" style="font-size:2.5rem"></i>
+          <p class="mt-2">Không tìm thấy trang phục phù hợp.</p>
+          <a href="/products?clear=1" class="btn btn-outline-primary">Xem tất cả</a>
+        </div>
+      <% } %>
+
+      <% products.forEach(p => { %>
+        <div class="col-6 col-md-4 col-xl-3 col-xxl-20">
+          <%- include('../partials/product-card', { p, tag: tags[p.ProductID], rt: ratings[p.ProductID], fav: favSet.has(p.ProductID), hot: hot.has(p.ProductID), back: reqUrl }) %>
+        </div>
+      <% }) %>
     </div>
-  <% } %>
-</form>
+
+    <!-- Phân trang -->
+    <% if (totalPages > 1) { %>
+    <nav class="d-flex justify-content-center mt-4">
+      <ul class="pagination mb-0">
+        <li class="page-item <%= page <= 1 ? 'disabled' : '' %>"><a class="page-link" href="<%= u({ page: page - 1 }) %>">«</a></li>
+        <% for (let i = 1; i <= totalPages; i++) { %>
+          <li class="page-item <%= i === page ? 'active' : '' %>"><a class="page-link" href="<%= u({ page: i }) %>"><%= i %></a></li>
+        <% } %>
+        <li class="page-item <%= page >= totalPages ? 'disabled' : '' %>"><a class="page-link" href="<%= u({ page: page + 1 }) %>">»</a></li>
+      </ul>
+    </nav>
+    <% } %>
+  </section>
+</div>
+
 <script>
   // Ngày trả luôn sau ngày nhận, tối đa <%= MAX_RENT_DAYS %> ngày
   (function () {
@@ -92,74 +186,4 @@
   })();
 </script>
 
-<!-- Tiêu đề kết quả -->
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0 font-serif"><%= type ? type : 'Tất cả sản phẩm' %>
-    <small class="text-muted">(<%= count %> mẫu<%= q ? ' cho "'+q+'"' : '' %>)</small>
-  </h5>
-  <% if (q) { %>
-    <a href="/products<%= type ? '?type=' + encodeURIComponent(type) : '' %>" class="btn btn-outline-primary btn-sm">
-      <i class="bi bi-arrow-left"></i> Quay lại danh sách
-    </a>
-  <% } %>
-</div>
-
-<!-- Lưới thẻ sản phẩm -->
-<div class="row g-3 g-md-4">
-  <% if (products.length === 0) { %>
-    <div class="col-12 text-center text-muted py-5">
-      <i class="bi bi-search" style="font-size:2.5rem"></i>
-      <p class="mt-2">Không tìm thấy trang phục phù hợp.</p>
-      <a href="/products" class="btn btn-outline-primary">Xem tất cả</a>
-    </div>
-  <% } %>
-
-  <% products.forEach(p => { const tag = tags[p.ProductID]; %>
-    <div class="col-6 col-md-4 col-lg-3">
-      <div class="card prod-card h-100 reveal <%= tag ? 'is-booked' : '' %>">
-        <a href="/products/<%= p.ProductID %>" class="prod-thumb d-block">
-          <% if (p.PathImage) { %>
-            <img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" onerror="this.style.display='none'">
-          <% } %>
-          <span class="prod-badge chip"><%= p.ProductType %></span>
-          <% if (tag) { %>
-            <span class="position-absolute bottom-0 start-0 m-2 badge bg-dark"><i class="bi bi-calendar-x"></i> <%= tag %></span>
-          <% } %>
-        </a>
-        <!-- Thả tim: lưu vào danh sách yêu thích -->
-        <form method="POST" action="/favorites/<%= p.ProductID %>" class="fav-form">
-          <input type="hidden" name="back" value="<%= reqUrl %>">
-          <button class="fav-btn <%= favSet.has(p.ProductID) ? 'on' : '' %>" title="<%= favSet.has(p.ProductID) ? 'Bỏ yêu thích' : 'Yêu thích' %>" aria-label="Yêu thích">
-            <i class="bi <%= favSet.has(p.ProductID) ? 'bi-heart-fill' : 'bi-heart' %>"></i>
-          </button>
-        </form>
-        <div class="card-body p-3 d-flex flex-column">
-          <h6 class="mb-1" style="min-height:2.6em;font-size:.95rem;line-height:1.3">
-            <a href="/products/<%= p.ProductID %>" class="text-dark"><%= p.ProductName %></a>
-          </h6>
-          <div class="price-tag mb-1"><%= Number(p.Price).toLocaleString('vi-VN') %> đ<small class="text-muted fw-normal">/ngày</small></div>
-          <div class="small mb-2" style="min-height:1.3em">
-            <% const rt = ratings[p.ProductID]; if (rt) { %><i class="bi bi-star-fill text-warning"></i> <%= rt.avg %> <span class="text-muted">(<%= rt.count %>)</span><% } %>
-          </div>
-          <div class="mt-auto d-flex gap-1">
-            <a href="/products/<%= p.ProductID %>" class="btn btn-sm btn-outline-primary flex-grow-1">Chi tiết</a>
-            <a href="/products/<%= p.ProductID %>" class="btn btn-sm btn-primary" title="Đặt thuê"><i class="bi bi-calendar-check"></i></a>
-          </div>
-        </div>
-      </div>
-    </div>
-  <% }) %>
-</div>
-
-<!-- Phân trang -->
-<% if (totalPages > 1) { %>
-<nav class="d-flex justify-content-center mt-4">
-  <ul class="pagination mb-0">
-    <li class="page-item <%= page<=1?'disabled':'' %>"><a class="page-link" href="?page=<%= page-1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %><%= size ? '&size=' + encodeURIComponent(size) : '' %>">«</a></li>
-    <% for (let i=1;i<=totalPages;i++){ %>
-      <li class="page-item <%= i===page?'active':'' %>"><a class="page-link" href="?page=<%= i %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %><%= size ? '&size=' + encodeURIComponent(size) : '' %>"><%= i %></a></li>
-    <% } %>
-    <li class="page-item <%= page>=totalPages?'disabled':'' %>"><a class="page-link" href="?page=<%= page+1 %>&type=<%= encodeURIComponent(type) %>&q=<%= encodeURIComponent(q) %><%= onlyFree ? '&free=1' : '' %><%= size ? '&size=' + encodeURIComponent(size) : '' %>">»</a></li>
-  </ul>
-</nav>
-<% } %>
+<%- include('../partials/quick-view') %>

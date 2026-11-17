@@ -38,7 +38,7 @@
                 <div class="small avail-msg"></div></div>
             </div>
           </td>
-          <td class="small">Size <strong><%= l.size %></strong> · <%= l.color %><div class="text-muted">shop có <%= l.stock %> <%= p.Unit %></div></td>
+          <td class="small">Size <strong><%= l.size %></strong> · <%= l.color %></td>
           <td class="text-end"><%= vnd(p.Price) %></td>
           <td>
             <form method="POST" action="/cart/<%= l.key %>/update" class="d-flex gap-1">
@@ -160,7 +160,7 @@
         <div class="py-2">
           <div class="input-group input-group-sm">
             <span class="input-group-text"><i class="bi bi-ticket-perforated"></i></span>
-            <input name="CouponCode" id="CouponCode" class="form-control text-uppercase" maxlength="30" placeholder="Mã giảm giá" value="<%= o('CouponCode') %>" autocomplete="off">
+            <input name="CouponCode" id="CouponCode" class="form-control text-uppercase" maxlength="30" placeholder="Mã giảm giá" value="<%= o('CouponCode', savedCoupon) %>" autocomplete="off">
             <button type="button" class="btn btn-outline-primary" id="btnCoupon">Áp dụng</button>
           </div>
           <div class="small mt-1" id="couponMsg"></div>
@@ -186,8 +186,8 @@
           </label>
           <div class="invalid-feedback">Vui lòng đọc và đồng ý nội quy trước khi đặt.</div>
         </div>
-        <button class="btn btn-gold btn-lg w-100" id="btnBook"><i class="bi bi-check2-circle"></i> Xác nhận đặt & cọc</button>
-        <p class="small text-muted text-center mt-2 mb-0">Đặt thuê là xác nhận cọc luôn để giữ chỗ.</p>
+        <button class="btn btn-gold btn-lg w-100" id="btnBook"><i class="bi bi-check2-circle"></i> Đặt thuê &amp; giữ chỗ</button>
+        <p class="small text-muted text-center mt-2 mb-0">Đơn được giữ chỗ 24 giờ để bạn cọc (chuyển khoản / ví / tiền mặt tại cửa hàng). Cửa hàng xác nhận đã nhận tiền thì đơn chuyển sang "Đã cọc".</p>
       </div>
     </div>
   </div>
@@ -246,7 +246,7 @@
         if(!info||!m) return;
         m.className='small avail-msg '+(info.need<=info.available?'text-success':'text-danger');
         m.textContent= info.available===0 ? `Size ${info.size} đã có khách thuê trong những ngày này`
-          : info.need<=info.available ? `Size ${info.size}: còn ${info.available} bộ trống` : `Size ${info.size}: chỉ còn ${info.available} bộ trống (bạn chọn ${info.need})`;
+          : info.need<=info.available ? `Size ${info.size}: còn trống` : `Size ${info.size}: không đủ số bộ trống cho số lượng bạn chọn — giảm số lượng hoặc đổi ngày`;
       });
       box.innerHTML = r.ok ? '<span class="text-success"><i class="bi bi-check-circle"></i> Tất cả các món còn trống trong khoảng ngày này.</span>'
         : '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Có món không đủ bộ trống — vui lòng đổi ngày hoặc giảm số lượng.</span>';

@@ -37,8 +37,9 @@ const Rental = sequelize.define('Rental', {
 
   PaymentMethod: { type: DataTypes.STRING },                        // tiền mặt / chuyển khoản / ví
   PaymentStatus: { type: DataTypes.STRING, defaultValue: 'Chưa thanh toán' },
+  DepositPaidAt: { type: DataTypes.DATE },                           // lúc nhân viên xác nhận đã nhận cọc
 
-  // Trạng thái đơn: Đã đặt -> Đã cọc -> Đang thuê -> Hoàn tất | Đã hủy
+  // Trạng thái đơn: Chờ cọc -> Đã cọc -> Đang thuê -> Hoàn tất | Đã hủy  ("Đã đặt": dữ liệu cũ)
   Status: { type: DataTypes.STRING, defaultValue: 'Đã đặt' },
   Note: { type: DataTypes.TEXT },
 }, {

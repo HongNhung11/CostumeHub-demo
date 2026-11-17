@@ -20,6 +20,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layout');
 app.locals.FEES = require('./utils/fees');   // bảng nội quy trừ phí, dùng trong mọi view
+app.locals.unreadCount = 0;                  // số thông báo chưa đọc (ghi đè cho từng người ở middleware bên dưới)
+app.locals.CAT_GROUPS = require('./utils/categories').menuGroups();   // danh mục con trên menu "Danh mục"
 
 // Middlewares
 app.use(express.urlencoded({ extended: true }));
@@ -49,6 +51,27 @@ app.use(async (req, res, next) => {
   req.session.user = { id: u.id, username: u.username, fullName: u.fullName, role: u.role };
   next();
 });
+
+// Thông báo: tự hủy đơn chờ cọc quá hạn (tối đa 1 lần / phút), tạo lời nhắc cho khách (1 lần / 5 phút / phiên),
+// đếm thông báo chưa đọc cho chuông trên menu
+{
+  const { expirePending, remindersFor } = require('./utils/notify');
+  let lastExpire = 0;
+  app.use(async (req, res, next) => {
+    if (Date.now() - lastExpire > 60e3) { lastExpire = Date.now(); await expirePending(); }
+    res.locals.unreadCount = 0;
+    const u = req.session.user;
+    if (u) {
+      if (!req.session.remindAt || Date.now() - req.session.remindAt > 5 * 60e3) {
+        req.session.remindAt = Date.now();
+        await remindersFor(u.id);
+      }
+      const { Notification } = require('./models');
+      res.locals.unreadCount = await Notification.count({ where: { UserID: u.id, isRead: false } });
+    }
+    next();
+  });
+}
 
 // Biến dùng chung cho mọi view
 app.use((req, res, next) => {
@@ -134,11 +157,18 @@ async function migrateSchema() {
     await User.update({ isActive: true }, { where: {}, hooks: false });
   }
   // Các cột mới khác (đều cho phép trống)
-  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount']] };
+  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt']] };
   const added = [];
   for (const [table, [model, cols]] of Object.entries(NEW_COLUMNS)) {
     const desc = await qi.describeTable(table);
     for (const c of cols) if (!desc[c]) { await qi.addColumn(table, c, { type: model.rawAttributes[c].type, allowNull: true }); added.push(c); }
+  }
+  // Vừa thêm cột thông tin chi tiết -> điền gợi ý từ tên / mô tả (nhân viên sửa lại sau)
+  if (added.includes('Material')) {
+    const { guessDetails } = require('./utils/details');
+    const list = await Product.findAll();
+    for (const p of list) await p.update(guessDetails(p), { silent: true });
+    if (list.length) console.log(`📝 Đã thêm thông tin chi tiết gợi ý cho ${list.length} sản phẩm.`);
   }
   // Vừa thêm cột bảng số đo -> điền số đo tham khảo cho áo dài / váy tiệc có size chữ (S, M, L...); nhân viên sửa lại sau
   if (added.includes('SizeChart')) {

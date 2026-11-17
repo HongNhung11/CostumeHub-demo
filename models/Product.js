@@ -21,7 +21,14 @@ const Product = sequelize.define('Product', {
   LateFeePerDay: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },  // Phí phạt trễ/ngày
   ProductValue: { type: DataTypes.DECIMAL(12, 0), allowNull: true },   // Giá trị SP (đền bù khi mất / hư nặng); trống = mất cọc
   Status: { type: DataTypes.STRING, defaultValue: 'Còn trống' },      // Tình trạng
-  SizeChart: { type: DataTypes.TEXT, allowNull: true },               // JSON bảng số đo theo size: { "M": { bust, waist, hip, height } }
+  // Thông tin chi tiết (không bắt buộc) — xem utils/details.js
+  Material: { type: DataTypes.STRING, allowNull: true },             // Chất liệu
+  Style: { type: DataTypes.STRING, allowNull: true },                // Kiểu dáng
+  Length: { type: DataTypes.STRING, allowNull: true },               // Độ dài
+  Occasion: { type: DataTypes.STRING, allowNull: true },             // Phù hợp dịp
+  CareGuide: { type: DataTypes.TEXT, allowNull: true },              // Bảo quản
+  SizeChart: { type: DataTypes.TEXT, allowNull: true },
+  CartAdds: { type: DataTypes.INTEGER, defaultValue: 0 },              // số lần được thêm vào giỏ (tính nhãn HOT)               // JSON bảng số đo theo size: { "M": { bust, waist, hip, height } }
 }, {
   tableName: 'Products',
   timestamps: true,

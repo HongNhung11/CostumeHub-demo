@@ -83,6 +83,12 @@
           </td>
           <td>
             <a href="/rentals/<%= r.RentalID %>" class="btn btn-sm btn-outline-info" title="Xem"><i class="bi bi-eye"></i></a>
+            <% if (isStaff && r.Status==='Chờ cọc') { %>
+              <form method="POST" action="/rentals/<%= r.RentalID %>/deposit" class="d-inline" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(r.Deposit) %> tiền cọc của đơn #<%= r.RentalID %>?')">
+                <input type="hidden" name="back" value="<%= reqUrl %>">
+                <button class="btn btn-sm btn-outline-success" title="Xác nhận đã nhận cọc"><i class="bi bi-cash-coin"></i> Nhận cọc</button>
+              </form>
+            <% } %>
             <% if (isStaff && r.Status==='Đã cọc' && r.StartDate <= today) { %>
               <form method="POST" action="/rentals/<%= r.RentalID %>/handover" class="d-inline">
                 <button class="btn btn-sm btn-outline-primary" title="Giao đồ"><i class="bi bi-box-arrow-up"></i> Giao</button>
@@ -113,6 +119,6 @@
 </div>
 
 <div class="alert alert-light border mt-3 small">
-  <strong>Luồng trạng thái:</strong> <span class="badge bg-info text-dark">Đã cọc</span> (đặt = cọc luôn) → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-success">Hoàn tất</span> · hoặc <span class="badge bg-danger">Đã hủy</span>.
+  <strong>Luồng trạng thái:</strong> <span class="badge bg-secondary">Chờ cọc</span> (giữ chỗ 24 giờ, quá hạn tự hủy) → <span class="badge bg-info text-dark">Đã cọc</span> (nhân viên xác nhận đã nhận tiền) → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-success">Hoàn tất</span> · hoặc <span class="badge bg-danger">Đã hủy</span>.
   <% if (isStaff) { %> Nhân viên bấm <em>Giao</em> khi giao đồ, <em>Nhận trả</em> khi khách trả.<% } %>
 </div>

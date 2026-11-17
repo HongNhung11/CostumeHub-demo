@@ -1,0 +1,29 @@
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <nav class="small text-muted mb-3"><a href="/account" class="text-muted">Tài khoản</a> / <span>Thông báo</span></nav>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h3 class="font-serif mb-0"><i class="bi bi-bell" style="color:var(--gold)"></i> Thông báo
+        <% if (unreadCount) { %><span class="badge bg-danger fs-6 align-middle"><%= unreadCount %> mới</span><% } %></h3>
+      <% if (unreadCount) { %>
+        <form method="POST" action="/notifications/read-all"><button class="btn btn-sm btn-light"><i class="bi bi-check2-all"></i> Đánh dấu tất cả đã đọc</button></form>
+      <% } %>
+    </div>
+
+    <% if (!list.length) { %>
+      <div class="card p-5 text-center text-muted">
+        <i class="bi bi-bell-slash" style="font-size:2.5rem"></i>
+        <p class="mt-2 mb-0">Chưa có thông báo. Khi đơn thuê đổi trạng thái hoặc sắp đến ngày nhận / trả đồ, bạn sẽ thấy ở đây.</p>
+      </div>
+    <% } else { %>
+      <div class="card noti-list">
+        <% list.forEach(n => { %><%- include('../partials/notification-item', { n }) %><% }) %>
+      </div>
+      <% if (totalPages > 1) { %>
+        <nav class="d-flex justify-content-center mt-3"><ul class="pagination pagination-sm mb-0">
+          <% for (let i = 1; i <= totalPages; i++) { %><li class="page-item <%= i === page ? 'active' : '' %>"><a class="page-link" href="?page=<%= i %>"><%= i %></a></li><% } %>
+        </ul></nav>
+      <% } %>
+    <% } %>
+    <p class="small text-muted mt-3"><i class="bi bi-info-circle"></i> Hệ thống tự nhắc: hạn cọc sắp hết, ngày mai / hôm nay nhận đồ, ngày mai / hôm nay hạn trả, quá hạn trả.</p>
+  </div>
+</div>

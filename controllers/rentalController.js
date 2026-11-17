@@ -9,6 +9,10 @@ const { loadCart, needByVariant, lineKey } = require('./cartController');
 const { applyCoupon } = require('../utils/coupons');
 const { ProductVariant } = require('../models');
 const { addDays } = require('../utils/dates');
+const { notify, depositDeadline } = require('../utils/notify');
+const { DEPOSIT_HOLD_HOURS, SHOP_BANK } = require('../utils/constants');
+const vnd = (n) => Number(n || 0).toLocaleString('vi-VN') + ' đ';
+const timeVi = (d) => new Date(d).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 const path = require('path');
 const { privateDir, uploadDir } = require('../middlewares/upload');
@@ -69,7 +73,7 @@ exports.create = async (req, res) => {
         const range = `từ ${viDate(StartDate)} đến ${viDate(EndDate)}`;
         const e = new Error(short.map(l => {
           const f = freeOf(l), what = `"${l.product.ProductName}" size ${l.size} – ${l.color}`;
-          return f > 0 ? `${what} chỉ còn ${f} ${l.product.Unit} trống ${range}` : `${what} đã kín lịch ${range}`;
+          return f > 0 ? `${what} không đủ số bộ trống ${range}` : `${what} đã kín lịch ${range}`;
         }).join('; ') + '. Vui lòng đổi ngày, đổi size hoặc giảm số lượng.');
         e.userFacing = true;
         throw e;
@@ -104,8 +108,9 @@ exports.create = async (req, res) => {
         Discount: discount,
         Deposit: deposit,
         PaymentMethod: ['Tiền mặt', 'Chuyển khoản', 'Ví điện tử'].includes(req.body.method) ? req.body.method : 'Tiền mặt',
-        PaymentStatus: 'Đã cọc',
-        Status: 'Đã cọc',
+        // Chưa thu tiền: đơn giữ chỗ DEPOSIT_HOLD_HOURS giờ, nhân viên xác nhận khi đã nhận cọc
+        PaymentStatus: 'Chưa cọc',
+        Status: 'Chờ cọc',
         TermsAcceptedAt: new Date(),
         Note,
       }, { transaction: t });
@@ -120,8 +125,12 @@ exports.create = async (req, res) => {
     });
 
     req.session.cart = [];
-    req.flash('success', `Đặt thuê thành công ${rental.Quantity} món! Đã cọc ${num(rental.Deposit).toLocaleString('vi-VN')} đ (${rental.PaymentMethod}). Đơn được giữ chỗ.` +
-      (rental.CouponCode ? ` Mã ${rental.CouponCode} giảm ${num(rental.Discount).toLocaleString('vi-VN')} đ tiền thuê.` : ''));
+    delete req.session.couponCode;          // mã đã dùng cho đơn này
+    const deadline = timeVi(depositDeadline(rental));
+    req.flash('success', `Đặt thuê thành công ${rental.Quantity} món! Vui lòng cọc ${vnd(rental.Deposit)} (${rental.PaymentMethod}) trước ${deadline} để giữ chỗ — xem hướng dẫn bên dưới.` +
+      (rental.CouponCode ? ` Mã ${rental.CouponCode} giảm ${vnd(rental.Discount)} tiền thuê.` : ''));
+    await notify(rental, { level: 'warning', title: `Đặt thuê thành công — đơn #${rental.RentalID} chờ cọc`,
+      message: `Vui lòng cọc ${vnd(rental.Deposit)} trước ${deadline}. Cửa hàng xác nhận đã nhận cọc thì đơn chuyển sang "Đã cọc". Quá hạn đơn sẽ tự hủy.` });
     res.redirect(`/rentals/${rental.RentalID}`);
   } catch (e) {
     return fail(e.userFacing ? e.message : 'Lỗi đặt thuê: ' + e.message);
@@ -157,7 +166,10 @@ exports.show = async (req, res) => {
     const rows = await Review.findAll({ where: { UserID: rental.UserID }, attributes: ['ProductID'] });
     reviewed = new Set(rows.map(r => r.ProductID));
   }
-  res.render('rentals/show', { title: `Đơn thuê #${rental.RentalID}`, rental, damageDetails, swap, swapOptions, reviewed, isOwner: rental.UserID === req.session.user.id });
+  res.render('rentals/show', {
+    title: `Đơn thuê #${rental.RentalID}`, rental, damageDetails, swap, swapOptions, reviewed, isOwner: rental.UserID === req.session.user.id,
+    isStaff: isStaff(req.session.user), SHOP_BANK, DEPOSIT_HOLD_HOURS, deadline: rental.Status === 'Chờ cọc' ? timeVi(depositDeadline(rental)) : null,
+  });
 };
 
 // ===== CHÍNH SÁCH ĐỔI SIZE =====
@@ -167,7 +179,7 @@ exports.show = async (req, res) => {
 const SWAP_DAYS_AFTER_PICKUP = 1;
 function swapRule(req, rental) {
   const u = req.session.user, staff = isStaff(u);
-  if (rental.Status === 'Đã cọc') return { ok: staff || rental.UserID === u.id };
+  if (rental.Status === 'Chờ cọc' || rental.Status === 'Đã cọc') return { ok: staff || rental.UserID === u.id };
   if (rental.Status === 'Đang thuê') {
     const last = addDays(rental.StartDate, SWAP_DAYS_AFTER_PICKUP);
     if (todayStr() > last) return { ok: false, reason: `Đã quá thời hạn đổi size (đến hết ngày ${viDate(last)}).` };
@@ -206,7 +218,7 @@ exports.changeSize = async (req, res) => {
       const { start, end } = swapRange(rental);
       const a = (await productAvailability([it.Product], start, end, { transaction: t }))[it.ProductID];
       const free = (a.variants.find(x => x.Size === size && x.Color === color) || { free: 0 }).free;
-      if (free < n) throw Object.assign(new Error(`Size ${size} – ${color} chỉ còn ${free} ${it.Product.Unit} trống từ ${viDate(start)} đến ${viDate(end)}, không đổi được ${n}.`), { userFacing: true });
+      if (free < n) throw Object.assign(new Error(`Size ${size} – ${color} không đủ số bộ trống từ ${viDate(start)} đến ${viDate(end)} để đổi ${n} bộ.`), { userFacing: true });
 
       const target = rental.items.find(x => x.ItemID !== it.ItemID && x.ProductID === it.ProductID && x.Size === size && x.Color === color);
       if (n === it.Quantity && !target) {
@@ -224,6 +236,9 @@ exports.changeSize = async (req, res) => {
   } catch (e) {
     req.flash('error', e.userFacing ? e.message : 'Lỗi đổi size: ' + e.message);
     return res.redirect(backTo);
+  }
+  if (isStaff(req.session.user) && rental.UserID !== req.session.user.id) {
+    await notify(rental, { title: `Đơn #${rental.RentalID}: đã đổi size`, message: `Cửa hàng đã đổi "${it.ProductName}" ${n} bộ ${from} sang size ${size} · ${color} theo yêu cầu của bạn.` });
   }
   req.flash('success', `Đã đổi "${it.ProductName}" sang size ${size} – ${color}. Giá thuê và tiền cọc không thay đổi.`);
   res.redirect(backTo);
@@ -253,7 +268,8 @@ exports.cancel = async (req, res) => {
 
   const daysToStart = daysBetween(todayStr(), rental.StartDate);
   let cancelFee = 0;
-  if (daysToStart >= 3) cancelFee = 0;                       // hoàn 100% cọc
+  if (rental.Status === 'Chờ cọc') cancelFee = 0;            // chưa cọc -> hủy không mất phí
+  else if (daysToStart >= 3) cancelFee = 0;                  // hoàn 100% cọc
   else if (daysToStart >= 1) cancelFee = Math.round(num(rental.Deposit) * 0.5); // giữ 50%
   else cancelFee = num(rental.Deposit);                      // mất cọc
 
@@ -261,6 +277,9 @@ exports.cancel = async (req, res) => {
   rental.RefundAmount = rental.PaymentStatus === 'Đã cọc' ? num(rental.Deposit) - cancelFee : 0;
   rental.Status = 'Đã hủy';                                  // hủy => các bộ tự trống lại theo lịch
   await rental.save();
+  const byStaff = isStaff(req.session.user) && rental.UserID !== req.session.user.id;
+  await notify(rental, { level: 'danger', title: `Đơn #${rental.RentalID} đã hủy${byStaff ? ' bởi cửa hàng' : ''}`,
+    message: `Phí hủy ${vnd(cancelFee)} · hoàn lại ${vnd(rental.RefundAmount)}.` });
 
   req.flash('success', `Đã hủy đơn. Phí hủy: ${cancelFee.toLocaleString('vi-VN')} đ. Hoàn lại: ${Number(rental.RefundAmount).toLocaleString('vi-VN')} đ.`);
   res.redirect(`/rentals/${rental.RentalID}`);
@@ -268,6 +287,10 @@ exports.cancel = async (req, res) => {
 
 // Cảnh báo theo ngày: quá hạn trả, quá ngày nhận mà chưa lấy đồ, hôm nay giao / hôm nay trả
 function alertOf(r, today = todayStr()) {
+  if (r.Status === 'Chờ cọc') {
+    const left = (depositDeadline(r) - Date.now()) / 3600e3;
+    return { level: 'warning', text: `Chờ cọc · còn ${left >= 1 ? Math.floor(left) + ' giờ' : Math.max(1, Math.round(left * 60)) + ' phút'}` };
+  }
   if (r.Status === 'Đang thuê' && r.EndDate < today) return { level: 'danger', text: `Quá hạn trả ${daysBetween(r.EndDate, today)} ngày`, overdue: true };
   if (r.Status === 'Đã cọc' && r.StartDate < today) return { level: 'warning', text: `Quá ngày nhận ${daysBetween(r.StartDate, today)} ngày, chưa lấy đồ`, overdue: true };
   if (r.Status === 'Đang thuê' && r.EndDate === today) return { level: 'info', text: 'Hạn trả hôm nay' };
@@ -276,7 +299,7 @@ function alertOf(r, today = todayStr()) {
 }
 exports.alertOf = alertOf;
 
-const STATUS_TABS = ['Đã cọc', 'Đang thuê', 'Hoàn tất', 'Đã hủy'];
+const STATUS_TABS = ['Chờ cọc', 'Đã cọc', 'Đang thuê', 'Hoàn tất', 'Đã hủy'];
 const PAGE_SIZE = 15;
 
 // ===== Danh sách đơn thuê: tìm kiếm + lọc trạng thái / quá hạn + phân trang =====
@@ -325,7 +348,7 @@ exports.handover = async (req, res) => {
   if (!rental) { req.flash('error', 'Không tìm thấy đơn.'); return res.redirect('/rentals'); }
   // Phải thanh toán cọc xong mới được giao đồ
   if (rental.Status !== 'Đã cọc') {
-    req.flash('error', 'Khách chưa thanh toán cọc — không thể giao đồ.');
+    req.flash('error', rental.Status === 'Chờ cọc' ? `Đơn #${rental.RentalID} chưa cọc — bấm "Xác nhận đã cọc" khi đã nhận tiền rồi mới giao đồ.` : 'Đơn này không ở trạng thái chờ giao đồ.');
     return res.redirect('/rentals');
   }
   // Giao sớm hơn ngày nhận sẽ chiếm lịch của những ngày chưa được đặt
@@ -335,9 +358,35 @@ exports.handover = async (req, res) => {
   }
   rental.Status = 'Đang thuê';
   await rental.save();
+  await notify(rental, { level: 'success', title: `Đã nhận đồ — đơn #${rental.RentalID}`,
+    message: `Bạn đã nhận đồ. Hạn trả: ${viDate(rental.EndDate)}. Không vừa size? Mang đến cửa hàng trong ngày nhận hoặc ngày hôm sau để đổi miễn phí.` });
   req.flash('success', `Đã giao đồ cho đơn #${rental.RentalID}.`);
-  res.redirect('/rentals');
+  res.redirect(safeBack(req, '/rentals'));
 };
+
+// ===== Nhân viên: Xác nhận đã nhận cọc (Chờ cọc -> Đã cọc) =====
+exports.confirmDeposit = async (req, res) => {
+  const rental = await Rental.findByPk(req.params.id);
+  if (!rental) { req.flash('error', 'Không tìm thấy đơn.'); return res.redirect('/rentals'); }
+  if (rental.Status !== 'Chờ cọc') {
+    req.flash('error', `Đơn #${rental.RentalID} đang "${rental.Status}", không cần xác nhận cọc.`);
+    return res.redirect(safeBack(req, '/rentals'));
+  }
+  rental.Status = 'Đã cọc';
+  rental.PaymentStatus = 'Đã cọc';
+  rental.DepositPaidAt = new Date();
+  await rental.save();
+  await notify(rental, { level: 'success', title: `Đã nhận cọc — đơn #${rental.RentalID}`,
+    message: `Cửa hàng đã nhận ${vnd(rental.Deposit)} tiền cọc (${rental.PaymentMethod}). Đơn đã được giữ chỗ, nhận đồ ngày ${viDate(rental.StartDate)}.` });
+  req.flash('success', `Đã xác nhận cọc ${vnd(rental.Deposit)} cho đơn #${rental.RentalID}.`);
+  res.redirect(safeBack(req, '/rentals'));
+};
+
+// Quay lại trang đơn đang xem (danh sách hoặc chi tiết đơn)
+function safeBack(req, fallback) {
+  const b = String(req.body.back || '');
+  return /^\/rentals(\/\d+)?(\?|$)/.test(b) ? b : fallback;
+}
 
 // ===== Nhân viên: Form nhận đồ trả =====
 exports.returnForm = async (req, res) => {
@@ -402,6 +451,9 @@ exports.receiveReturn = async (req, res) => {
   rental.RefundAmount = num(rental.Deposit) - lateFee - damageFee; // có thể âm (khách đền thêm)
   rental.Status = 'Hoàn tất';                                      // hoàn tất => các bộ trống lại
   await rental.save();
+  await notify(rental, { level: 'success', title: `Đơn #${rental.RentalID} hoàn tất`,
+    message: `Cửa hàng đã nhận lại đồ. ${Number(rental.RefundAmount) >= 0 ? `Hoàn cọc ${vnd(rental.RefundAmount)}` : `Bạn cần đền thêm ${vnd(-rental.RefundAmount)}`}` +
+      `${lateFee + damageFee ? ` (đã trừ phí ${vnd(lateFee + damageFee)})` : ''}. Cảm ơn bạn — hãy đánh giá mẫu đã thuê nhé!` });
 
   req.flash('success', `Đã nhận trả đơn #${rental.RentalID}. Phí trễ ${lateFee.toLocaleString('vi-VN')} đ · Hư hỏng ${damageFee.toLocaleString('vi-VN')} đ · Hoàn cọc ${Number(rental.RefundAmount).toLocaleString('vi-VN')} đ.`);
   res.redirect('/rentals');

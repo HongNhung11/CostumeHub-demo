@@ -1,5 +1,6 @@
 const { Product, User, Coupon } = require('../models');
 const { standardChart } = require('../utils/sizeChart');
+const { guessDetails } = require('../utils/details');
 
 /* ============================================================
    DỮ LIỆU MẪU — Shop trang phục NỮ: Áo dài · Váy tiệc · Phụ kiện
@@ -122,7 +123,7 @@ async function seed() {
 
   const count = await Product.count();
   if (count === 0) {
-    const list = buildProducts();
+    const list = buildProducts().map(p => ({ ...p, ...guessDetails(p) }));   // + thông tin chi tiết gợi ý
     await Product.bulkCreate(list);
     console.log(`🧥 Đã nạp ${list.length} sản phẩm nữ (áo dài + váy tiệc + phụ kiện).`);
   }

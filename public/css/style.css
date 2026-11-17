@@ -22,7 +22,7 @@ body{
   background:var(--cream);
   color:var(--ink);
   font-family:'Be Vietnam Pro',system-ui,Arial,sans-serif;
-  font-size:15px;
+  font-size:17px;
 }
 h1,h2,h3,h4,h5,.font-serif{ font-family:'Playfair Display',Georgia,serif; }
 a{ text-decoration:none; }
@@ -372,3 +372,309 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
   border-radius:6px; padding:1px 6px; background:#fffaf2; font-size:.85rem; }
 .coupon-pick{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 8px; }
 .coupon-pick:hover{ border-color:var(--gold); }
+
+/* ---------- Thông báo ---------- */
+.noti-list .noti-item{ border-bottom:1px solid var(--line); position:relative; }
+.noti-list .noti-item:last-child{ border-bottom:0; }
+.noti-item:hover{ background:var(--cream-2); }
+.noti-item.unread{ background:#fffaf2; }
+.noti-dot{ width:9px; height:9px; border-radius:50%; background:#dc3545; flex-shrink:0; margin-top:6px; }
+
+/* ---------- Khung trang rộng hơn trên màn hình lớn (bớt khoảng trống hai bên) ---------- */
+/* Khung trang tràn màn hình ở mọi cỡ (chỉ chừa lề nhỏ) */
+.container{ max-width:none !important; padding-left:16px; padding-right:16px; }
+@media (min-width: 768px){ .container{ padding-left:24px; padding-right:24px; } }
+@media (min-width: 1200px){ .container{ padding-left:32px; padding-right:32px; } }
+
+/* ---------- Lưới sản phẩm (trang cửa hàng): 5 mẫu / hàng trên màn hình rất rộng ---------- */
+@media (min-width: 1400px){ .col-xxl-20{ flex:0 0 auto; width:20%; } }
+.prod-grid .prod-card .card-body{ padding:.75rem .85rem; }
+.prod-grid .prod-name{ font-weight:600; font-size:1rem; line-height:1.35; min-height:2.7em;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.prod-grid .prod-name:hover{ color:var(--primary) !important; }
+.prod-grid .price-tag{ font-size:1.1rem; }
+
+/* ---------- Cột lọc bên trái ---------- */
+.shop-filters{ position:sticky; top:90px; max-height:calc(100vh - 100px); overflow-y:auto; }
+.filter-box{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+.filter-title{ font-weight:700; margin-bottom:8px; font-size:1rem; }
+.filter-link{ display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:6px; color:var(--ink); }
+.filter-link span{ color:var(--muted); font-size:.85rem; }
+.filter-link:hover{ background:var(--cream-2); color:var(--primary); }
+.filter-link.on{ background:var(--primary); color:#fff; }
+.filter-link.on span{ color:#f3dfe2; }
+.filter-sub{ margin-left:14px; border-left:2px solid var(--line); padding-left:6px; }
+.filter-sub .filter-link{ font-size:.92rem; padding:4px 8px; }
+.filter-chip{ border:1px solid var(--line); border-radius:6px; padding:4px 10px; font-size:.9rem; color:var(--ink); background:#fff; }
+.filter-chip:hover{ border-color:var(--primary); color:var(--primary); }
+.filter-chip.on{ background:var(--primary); border-color:var(--primary); color:#fff; }
+.active-chip{ border:1px solid var(--primary); color:var(--primary); border-radius:20px; padding:3px 12px; font-size:.9rem; background:#fff; }
+.active-chip:hover{ background:var(--primary); color:#fff; }
+#sortSel{ min-width:190px; }
+@media (max-width: 991px){ .shop-filters{ position:static; max-height:none; overflow:visible; } }
+
+/* ---------- Đăng nhập / đăng ký: 2 cột, rộng thoáng ---------- */
+.auth-card{ overflow:hidden; border:0; box-shadow:var(--shadow); }
+.auth-side{ position:relative; min-height:100%; color:#fff; padding:2.5rem;
+  background:linear-gradient(160deg, rgba(44,36,32,.78), rgba(138,46,59,.55)), var(--auth-img) center 25%/cover; display:flex; flex-direction:column; justify-content:flex-end; }
+.auth-side h2{ color:#fff; }
+.auth-side li{ margin-bottom:.4rem; }
+.auth-form{ padding:2.5rem 3rem; }
+@media (max-width: 767px){ .auth-form{ padding:1.75rem 1.25rem; } }
+
+/* ---------- Menu "Danh mục" (rê chuột: mở bảng, rê vào nhóm: mở menu con bên phải) ---------- */
+.cat-menu{ position:relative; }
+.cat-panel{ display:none; position:absolute; top:100%; left:0; z-index:1050; min-width:230px; padding:6px 0;
+  background:#fff; border-radius:8px; box-shadow:0 12px 30px rgba(44,36,32,.15); }
+.cat-menu:hover .cat-panel, .cat-menu:focus-within .cat-panel{ display:block; }
+.cat-row{ position:relative; }
+.cat-link{ display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 20px; font-size:1rem; color:var(--ink); white-space:nowrap; }
+.cat-link:hover, .cat-row:hover > .cat-link{ background:var(--primary); color:#fff; }
+.cat-flyout{ display:none; position:absolute; top:-6px; left:100%; min-width:220px; padding:6px 0; background:#fff;
+  border-radius:8px; box-shadow:0 12px 30px rgba(44,36,32,.15); }
+.cat-row.has-sub:hover > .cat-flyout{ display:block; }
+/* Màn hình nhỏ: menu nằm trong thanh menu thu gọn, hiện menu con thụt vào */
+@media (max-width: 1199px){
+  .cat-panel{ position:static; box-shadow:none; padding:0 0 6px 12px; }
+  .cat-flyout{ display:block; position:static; box-shadow:none; padding:0 0 0 14px; }
+  .cat-link{ padding:6px 8px; }
+  /* Thu gọn: bấm "Danh mục" mới mở; bấm nhóm (Trang phục / Phụ kiện) mới xổ mục con */
+  .cat-menu:not(.open) .cat-panel{ display:none !important; }
+  .cat-row:not(.open) > .cat-flyout{ display:none !important; }
+  .cat-link .bi-chevron-right{ transition:transform .2s; }
+  .cat-row.open > .cat-link .bi-chevron-right{ transform:rotate(90deg); }
+  .cat-link:hover, .cat-row:hover > .cat-link{ background:transparent; color:var(--primary); }
+}
+.acc-name{ display:inline-block; max-width:140px; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom; }
+
+/* ---------- Cỡ chữ lớn hơn (theo kiểu web thời trang: menu chữ in hoa, chữ phụ không quá nhỏ) ---------- */
+.small, small{ font-size:.9em; }
+.topbar{ font-size:14px !important; }
+.ch-nav .navbar-brand{ font-size:1.85rem !important; }
+.ch-nav .nav-link{ text-transform:uppercase; font-size:15px; font-weight:600 !important; letter-spacing:.6px; }
+.ch-nav .btn-sm{ font-size:15px; padding:.4rem .9rem; }
+.chip{ font-size:.8rem; }
+.table{ font-size:.97rem; }
+.table thead th{ font-size:.86rem; }
+.form-label{ font-size:.95rem; }
+.form-control-sm, .form-select-sm, .btn-sm{ font-size:.92rem; }
+.dropdown-item{ font-size:1rem; padding:.5rem 1rem; }
+.cat-link{ font-size:1.02rem !important; }
+.section-eyebrow{ font-size:.85rem; }
+.trust-item h6{ font-size:1.05rem; }
+.hs-mini small{ font-size:.92rem; }
+.chip-float{ font-size:.9rem; }
+
+/* Thẻ sản phẩm kiểu Hizu: tên + Giá thuê + Giá cọc */
+.prod-grid .prod-name{ font-size:1.05rem; }
+.prod-prices{ font-size:.95rem; line-height:1.55; }
+.prod-prices .lbl{ color:var(--muted); }
+.prod-prices .rent{ color:var(--primary); font-weight:700; font-size:1.08rem; }
+
+/* Hỏi đáp dưới sản phẩm */
+.product-faq .accordion-button{ font-weight:600; font-size:1.02rem; }
+.product-faq .accordion-button:not(.collapsed){ background:var(--cream-2); color:var(--primary); box-shadow:none; }
+.product-faq .accordion-body{ color:#5d5048; }
+
+/* ============================================================
+   CỠ CHỮ TOÀN TRANG: tăng gốc rem để chữ, nút, ô nhập đều to hơn (Bootstrap tính theo rem)
+   ============================================================ */
+html{ font-size:16px; }
+@media (min-width: 992px){ html{ font-size:17px; } }
+@media (min-width: 1400px){ html{ font-size:18px; } }
+body{ font-size:1rem; }
+
+/* ---------- Thẻ sản phẩm kiểu Hizu: ảnh lớn, chữ thoáng, không viền ---------- */
+.prod-grid .prod-card{ border:0; background:transparent; box-shadow:none; }
+.prod-grid .prod-card:hover{ transform:none; box-shadow:none; }
+.prod-grid .prod-thumb{ border-radius:6px; }
+.prod-grid .prod-card .card-body{ padding:.7rem .1rem 0; }
+.prod-grid .prod-name{ font-weight:500; font-size:1.05rem; }
+.quick-btn{ position:absolute; left:50%; bottom:12px; transform:translate(-50%, 8px); opacity:0; transition:.25s; z-index:4;
+  background:#fff; color:var(--ink); border-radius:999px; padding:.35rem 1rem; font-size:.9rem; font-weight:600; box-shadow:var(--shadow-sm); white-space:nowrap; }
+.prod-thumb:hover .quick-btn{ opacity:1; transform:translate(-50%, 0); }
+@media (hover: none){ .quick-btn{ display:none; } }
+
+/* ---------- Khung xem nhanh ---------- */
+.quick-content{ border:0; border-radius:4px; }
+.quick-content .modal-body{ padding:1.6rem; }
+.quick-close{ position:absolute; top:14px; right:14px; z-index:5; font-size:1.1rem; }
+.qv-main-wrap{ aspect-ratio:2/3; background:var(--cream-2); overflow:hidden; }
+.qv-main{ width:100%; height:100%; object-fit:cover; }
+.qv-thumb{ width:58px; height:76px; padding:0; border:2px solid transparent; background:none; }
+.qv-thumb img{ width:100%; height:100%; object-fit:cover; }
+.qv-thumb.active{ border-color:var(--primary); }
+.qv-title{ font-family:'Be Vietnam Pro',sans-serif; font-size:1.55rem; font-weight:500; margin:0 2.2rem .4rem 0; line-height:1.3; }
+.qv-meta{ color:#555; }
+.qv-meta .sep{ color:var(--primary); margin:0 .5rem; }
+.qv-row{ display:flex; align-items:center; gap:1rem; margin-bottom:1rem; }
+.qv-lbl{ width:140px; flex-shrink:0; font-weight:600; }
+.qv-color-name{ font-weight:400; color:#2e86c1; font-size:.92rem; }
+.qv-price{ font-size:1.5rem; font-weight:700; }
+.qv-price small{ font-size:.9rem; font-weight:400; color:var(--muted); }
+.qv-val{ font-weight:600; }
+.qv-opt{ position:relative; min-width:64px; text-align:center; padding:.45rem .9rem; border:1px solid #ccc; border-radius:2px; cursor:pointer; background:#fff; }
+.btn-check:checked + .qv-opt, .btn-check:checked + .pd-opt{ border-color:var(--ink); }
+.btn-check:checked + .qv-opt::after, .btn-check:checked + .pd-opt::after{ content:"✓"; position:absolute; top:-1px; right:-1px; width:18px; height:18px;
+  background:var(--ink); color:#fff; font-size:11px; line-height:18px; text-align:center; clip-path:polygon(0 0,100% 0,100% 100%); padding-left:5px; }
+.qv-opt.opt-off, .pd-opt.opt-off{ opacity:.4; text-decoration:line-through; cursor:not-allowed; }
+.qv-add{ background:#e3000f; color:#fff; border-radius:3px; padding:.8rem; font-size:1.05rem; letter-spacing:.5px; }
+.qv-add:hover{ background:#c4000d; color:#fff; }
+.qv-share{ width:38px; height:38px; border-radius:50%; border:0; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:1.1rem; }
+.qv-share.fb{ background:#1877f2; } .qv-share.link{ background:#29b6c8; }
+.qv-share.heart{ background:#fff; border:1px solid #dc3545; color:#dc3545; } .qv-share.heart.on{ background:#dc3545; color:#fff; }
+.qv-detail{ display:inline-block; margin-top:.5rem; color:var(--ink); text-decoration:underline; }
+
+/* ---------- Số lượng − / + ---------- */
+.qty-box{ display:inline-flex; border:1px solid #ddd; }
+.qty-box button{ width:40px; border:0; background:#f3f3f3; font-size:1.2rem; }
+.qty-box input{ width:56px; border:0; text-align:center; font-weight:600; -moz-appearance:textfield; }
+.qty-box input::-webkit-inner-spin-button{ -webkit-appearance:none; }
+
+/* ---------- Trang chi tiết sản phẩm ---------- */
+.pd-breadcrumb{ color:var(--muted); }
+.pd-breadcrumb a{ color:var(--muted); } .pd-breadcrumb a:hover{ color:var(--primary); }
+.pd-breadcrumb i{ font-size:.75rem; margin:0 .35rem; }
+.pd-gallery{ display:flex; gap:12px; position:sticky; top:90px; }
+.pd-thumbs{ display:flex; flex-direction:column; gap:10px; width:84px; flex-shrink:0; max-height:80vh; overflow-y:auto; }
+.pd-thumbs .gal-thumb{ width:84px; height:112px; border-radius:0; }
+.pd-main{ position:relative; flex:1; aspect-ratio:3/4; background:var(--cream-2); overflow:hidden; }
+.pd-main img{ width:100%; height:100%; object-fit:cover; }
+.pd-title{ font-family:'Be Vietnam Pro',sans-serif; font-size:2rem; font-weight:600; line-height:1.3; margin-bottom:.5rem; }
+.pd-meta{ display:flex; flex-wrap:wrap; gap:.3rem 0; color:#555; }
+.pd-meta span + span::before{ content:"|"; color:var(--primary); margin:0 .6rem; }
+.pd-rating{ margin:.5rem 0 1rem; }
+.pd-price-box{ background:var(--cream-2); border-radius:8px; padding:1rem 1.2rem; margin-bottom:1rem; }
+.pd-price-row{ display:flex; justify-content:space-between; align-items:baseline; padding:.25rem 0; }
+.pd-price-row > span:first-child{ color:#555; }
+.pd-rent{ color:var(--primary); font-size:1.7rem; }
+.pd-rent small{ font-size:.9rem; color:var(--muted); font-weight:400; }
+.pd-highlights{ list-style:none; padding:0; margin:0 0 1rem; display:grid; grid-template-columns:1fr 1fr; gap:.35rem 1rem; }
+.pd-highlights span{ color:var(--muted); }
+.pd-variant{ font-weight:600; margin-bottom:.8rem; }
+.pd-opt-label{ font-weight:600; margin-bottom:.45rem; }
+.pd-opt-label strong{ color:var(--primary); font-weight:600; }
+.pd-size-link{ font-weight:400; font-size:.92rem; margin-left:.6rem; }
+.pd-opt{ position:relative; min-width:64px; text-align:center; padding:.5rem 1rem; border:1px solid #ccc; border-radius:2px; cursor:pointer; background:#fff; }
+.pd-btn{ border-radius:4px !important; padding:.8rem 1rem; text-transform:uppercase; letter-spacing:.4px; }
+.pd-dates{ border:1px dashed var(--line); border-radius:8px; padding:.9rem 1rem; }
+.pd-share{ display:flex; align-items:center; gap:.5rem; margin:1.2rem 0; flex-wrap:wrap; }
+.pd-share-btn{ width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:#fff; display:inline-flex; align-items:center; justify-content:center; color:var(--ink); }
+.pd-box{ border:1px solid var(--line); border-radius:8px; padding:1rem 1.2rem; margin-bottom:1rem; background:#fff; }
+.pd-box-title{ font-weight:700; margin-bottom:.6rem; } .pd-box-title i{ color:var(--gold); }
+.pd-promo{ padding:.3rem 0; }
+.pd-policy i{ color:var(--primary); margin-right:.4rem; }
+.pd-tabs .nav-tabs .nav-link{ color:var(--ink); font-weight:600; font-size:1.05rem; padding:.8rem 1.4rem; text-transform:uppercase; letter-spacing:.4px; }
+.pd-tabs .nav-tabs .nav-link.active{ color:var(--primary); border-bottom:3px solid var(--primary); }
+.pd-tabs .tab-content{ background:#fff; border:1px solid var(--line); border-top:0; padding:1.5rem; }
+.pd-desc{ white-space:pre-line; line-height:1.75; }
+.pd-spec-title{ font-weight:700; margin:1.2rem 0 .6rem; }
+.pd-spec th{ width:220px; color:#555; font-weight:500; background:var(--cream-2) !important; }
+.pd-guide li{ margin-bottom:.4rem; }
+.pd-section-title{ font-family:'Be Vietnam Pro',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:.5px; text-align:center; margin-bottom:1.2rem; }
+@media (max-width: 991px){ .pd-gallery{ position:static; flex-direction:column-reverse; } .pd-thumbs{ flex-direction:row; width:auto; } .pd-thumbs .gal-thumb{ width:64px; height:84px; } }
+.pd-size-link{ display:inline-flex; align-items:center; gap:.3rem; border:1px solid var(--line); border-radius:999px; padding:.1rem .7rem; color:var(--primary); background:#fff; }
+.pd-size-link:hover{ border-color:var(--primary); }
+#sizeChartModal .size-chart th, #sizeChartModal .size-chart td{ padding:.5rem; }
+
+/* ---------- Trang chi tiết kiểu Rentzy: hàng nhãn trái / giá trị phải ---------- */
+.pd-breadcrumb{ background:#f1eee9; margin-left:-32px; margin-right:-32px; padding:.8rem 32px; margin-top:-1.5rem; }
+.pd-row{ display:flex; align-items:flex-start; gap:1rem; padding:.7rem 0; }
+.pd-row-lbl{ width:150px; flex-shrink:0; color:#666; padding-top:.45rem; }
+.pd-row-val{ flex:1; min-width:0; }
+.pd-color-name{ color:#2e86c1; font-size:.9rem; }
+.pd-row .pd-size-link{ margin:.35rem 0 0; font-size:.85rem; }
+.pd-opt{ border-color:#e3a594; color:#d0705b; min-width:56px; }
+.btn-check:checked + .pd-opt{ border-color:#d0705b; background:#fff4f0; }
+.btn-check:checked + .pd-opt::after{ background:#d0705b; }
+.pd-coupon{ max-width:420px; border-color:#9fd3dc; }
+.pd-coupon-empty{ display:inline-block; border:1px solid #9fd3dc; padding:.4rem .9rem; }
+.pd-btn{ border-radius:2px !important; padding:.75rem 1.6rem; font-size:1.05rem; text-transform:none; letter-spacing:0; }
+.pd-btn-add{ background:#f0967b; color:#fff; border:0; }
+.pd-btn-add:hover{ background:#e47e61; color:#fff; }
+.pd-btn-buy{ background:#111; color:#fff; border:0; }
+.pd-btn-buy:hover{ background:#333; color:#fff; }
+
+/* Phần dưới: 2 khung trắng trên nền xám */
+.pd-lower{ background:#f1eee9; margin-left:-32px; margin-right:-32px; padding:2.5rem 32px; }
+.pd-card{ background:#fff; padding:1.6rem 1.8rem; }
+.pd-card-title{ font-family:'Be Vietnam Pro',sans-serif; font-weight:700; text-transform:uppercase; font-size:1.35rem; margin-bottom:1.2rem; padding-bottom:.9rem; border-bottom:1px solid #e6e6e6; }
+.pd-card p, .pd-card li{ line-height:1.75; }
+.pd-spec-list > div{ display:flex; justify-content:space-between; gap:1rem; padding:.7rem 0; border-bottom:1px solid #e6e6e6; }
+.pd-spec-list > div > span:first-child{ color:#888; }
+.pd-spec-list > div > span:last-child{ text-align:right; }
+.pd-section-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; }
+.pd-section-head h3{ font-family:'Be Vietnam Pro',sans-serif; font-weight:500; font-size:2rem; margin:0; }
+.pd-section-head a{ color:var(--ink); font-size:1.05rem; }
+
+/* Cột lọc: mũi tên mở / đóng Phụ kiện */
+.filter-caret{ transition:transform .2s; font-size:.85rem; }
+.filter-link.collapsed .filter-caret{ transform:rotate(-90deg); }
+@media (max-width: 1199px){ .pd-breadcrumb, .pd-lower{ margin-left:-24px; margin-right:-24px; padding-left:24px; padding-right:24px; } }
+@media (max-width: 767px){ .pd-breadcrumb, .pd-lower{ margin-left:-16px; margin-right:-16px; padding-left:16px; padding-right:16px; } }
+.filter-toggle{ display:flex; justify-content:space-between; align-items:center; color:var(--ink); margin-bottom:0; }
+.filter-toggle.collapsed .filter-caret{ transform:rotate(-90deg); }
+/* Hỏi đáp dưới sản phẩm: cùng kiểu chữ với các khung Mô tả / Thông tin chi tiết */
+#product-faq > h4{ font-family:'Be Vietnam Pro',sans-serif; font-weight:700; text-transform:uppercase; font-size:1.35rem; }
+#product-faq > h4 i{ display:none; }
+.product-faq .accordion-button{ font-family:'Be Vietnam Pro',sans-serif; }
+
+/* Nút "Xem nhanh" ở GIỮA ảnh (rê chuột mới hiện; màn hình cảm ứng thì luôn hiện) */
+.prod-media{ position:relative; }
+.prod-media .quick-btn{ top:50%; bottom:auto; left:50%; transform:translate(-50%, -40%); border:0; cursor:pointer; }
+.prod-media:hover .quick-btn{ opacity:1; transform:translate(-50%, -50%); }
+.prod-media .quick-btn:hover{ background:var(--primary); color:#fff; }
+@media (hover: none){ .prod-media .quick-btn{ display:inline-block; opacity:.92; transform:translate(-50%, -50%); top:auto; bottom:10px; } }
+
+/* Nút "Xem nhanh": góc trên trái ảnh, luôn hiện (thay cho nhãn loại sản phẩm) */
+.prod-media .quick-btn, .prod-media:hover .quick-btn{ top:10px; left:10px; bottom:auto; transform:none; opacity:1;
+  padding:.25rem .75rem; font-size:.82rem; background:rgba(255,255,255,.92); }
+.prod-media .quick-btn:hover{ background:var(--primary); color:#fff; }
+@media (hover: none){ .prod-media .quick-btn{ top:10px; bottom:auto; transform:none; } }
+
+/* Nút xem nhanh: chỉ có con mắt, rê chuột vào thì chữ "Xem nhanh" trượt ra */
+.prod-media .quick-btn{ display:inline-flex; align-items:center; padding:.35rem .5rem; }
+.quick-btn .qb-text{ max-width:0; overflow:hidden; white-space:nowrap; opacity:0; transition:max-width .25s, opacity .2s, margin .25s; }
+.quick-btn:hover .qb-text, .quick-btn:focus-visible .qb-text{ max-width:90px; opacity:1; margin-left:.35rem; }
+
+/* Nhãn HOT (góc trên trái, kiểu ruy băng) — nút xem nhanh dịch xuống dưới nhãn */
+.hot-badge{ position:absolute; top:0; left:12px; z-index:4; background:#f0967b; color:#fff; font-weight:700; font-size:.82rem;
+  padding:.35rem .55rem .55rem; clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%); letter-spacing:.5px; }
+.prod-card.is-hot .prod-media .quick-btn{ top:46px; }
+
+/* Thanh tìm kiếm + sắp xếp */
+.shop-toolbar{ display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+.shop-search{ flex:1; min-width:260px; }
+.shop-search .form-control{ padding:.6rem .9rem; }
+.shop-sort .form-select{ min-width:200px; padding:.6rem 2.2rem .6rem .9rem; }
+
+/* ===== MÀN HÌNH NHỎ / VỪA ===== */
+/* Menu: chữ không bao giờ xuống dòng; dưới 1200px gom vào nút ☰ */
+.ch-nav .nav-link, .ch-nav .btn, .topbar span{ white-space:nowrap; }
+@media (max-width: 1199px){
+  .ch-nav .navbar-collapse{ padding:.5rem 0 1rem; }
+  .ch-nav .navbar-nav{ margin:0 !important; }
+  .ch-nav .nav-link{ padding:.6rem 0; }
+  .ch-nav .nav-link::after{ display:none; }
+  .ch-nav .navbar-collapse > .d-flex{ flex-wrap:wrap; padding-top:.5rem; border-top:1px solid var(--line); }
+}
+@media (max-width: 575px){
+  .topbar{ font-size:12.5px !important; }
+  .ch-nav .navbar-brand{ font-size:1.5rem !important; }
+}
+/* Trang chủ: hero gọn hơn khi hẹp */
+@media (max-width: 991px){
+  .hero-split h1{ font-size:clamp(2rem, 7vw, 2.8rem); }
+  .hs-mini{ gap:1rem; flex-wrap:wrap; }
+}
+/* Trang sản phẩm: lưới & thanh công cụ */
+@media (max-width: 767px){
+  .shop-toolbar{ flex-direction:column; align-items:stretch; }
+  .shop-sort .form-select{ min-width:0; flex:1; }
+  .shop-search .btn{ padding-left:.9rem !important; padding-right:.9rem !important; }
+  .pd-row{ flex-direction:column; gap:.3rem; }
+  .pd-row-lbl{ width:auto; padding-top:0; }
+  .pd-title{ font-size:1.5rem; }
+  .pd-section-head h3{ font-size:1.4rem; }
+  .qv-row{ flex-wrap:wrap; } .qv-lbl{ width:110px; }
+}
