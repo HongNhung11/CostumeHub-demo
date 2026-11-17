@@ -26,13 +26,14 @@ exports.index = async (req, res) => {
   const year = yearList.includes(Number(req.query.year)) ? Number(req.query.year) : thisYear;
 
   // Doanh thu từng tháng của năm đã chọn
-  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, rent: 0, late: 0, damage: 0, cancel: 0, orders: 0, total: 0 }));
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, rent: 0, discount: 0, late: 0, damage: 0, cancel: 0, orders: 0, total: 0 }));
   for (const r of rentals) {
     const d = revenueDate(r);
     if (!d || Number(d.slice(0, 4)) !== year) continue;
     const m = months[Number(d.slice(5, 7)) - 1];
     if (r.Status === 'Hoàn tất') {
-      m.rent += num(r.RentFee); m.late += num(r.LateFee); m.damage += num(r.DamageFee); m.orders++;
+      m.rent += num(r.RentFee) - num(r.Discount); m.discount += num(r.Discount);   // tiền thuê thực thu (đã trừ mã giảm giá)
+      m.late += num(r.LateFee); m.damage += num(r.DamageFee); m.orders++;
     } else {
       m.cancel += num(r.CancelFee);
     }

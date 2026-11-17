@@ -1,0 +1,89 @@
+<%
+  const o = (k, d = '') => (old && old[k] !== undefined ? old[k] : d);
+  const isAmount = o('DiscountType') === 'amount';
+%>
+<h3 class="font-serif mb-3"><i class="bi bi-ticket-perforated" style="color:var(--gold)"></i> Mã giảm giá</h3>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card p-3">
+      <h6 class="font-serif mb-3">Tạo mã mới</h6>
+      <form method="POST" action="/admin/coupons" id="couponForm">
+        <label class="form-label small text-muted mb-1">Mã <span class="text-danger">*</span></label>
+        <input name="Code" class="form-control mb-2 text-uppercase" required maxlength="30" pattern="[A-Za-z0-9_\-]{3,30}" placeholder="VD: CHAOBANMOI" value="<%= o('Code') %>">
+        <label class="form-label small text-muted mb-1">Mô tả cho khách</label>
+        <input name="Description" class="form-control mb-2" maxlength="200" placeholder="VD: Giảm 10% cho đơn đầu tiên" value="<%= o('Description') %>">
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small text-muted mb-1">Kiểu giảm</label>
+            <select name="DiscountType" id="dType" class="form-select">
+              <option value="percent" <%= isAmount ? '' : 'selected' %>>Theo %</option>
+              <option value="amount" <%= isAmount ? 'selected' : '' %>>Số tiền</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-muted mb-1" id="valLabel"><%= isAmount ? 'Số tiền (đ)' : 'Phần trăm (%)' %> <span class="text-danger">*</span></label>
+            <input name="Value" type="number" class="form-control" required min="1" value="<%= o('Value') %>">
+          </div>
+        </div>
+        <div class="mb-2" id="maxBox" style="<%= isAmount ? 'display:none' : '' %>">
+          <label class="form-label small text-muted mb-1">Giảm tối đa (đ)</label>
+          <input name="MaxDiscount" type="number" class="form-control" min="0" step="1000" placeholder="Trống = không giới hạn" value="<%= o('MaxDiscount') %>">
+        </div>
+        <label class="form-label small text-muted mb-1">Tiền thuê tối thiểu (đ)</label>
+        <input name="MinOrder" type="number" class="form-control mb-2" min="0" step="1000" placeholder="0 = mọi đơn" value="<%= o('MinOrder') %>">
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="form-label small text-muted mb-1">Từ ngày</label><input name="StartDate" type="date" class="form-control" value="<%= o('StartDate') %>"></div>
+          <div class="col-6"><label class="form-label small text-muted mb-1">Đến ngày</label><input name="EndDate" type="date" class="form-control" value="<%= o('EndDate') %>"></div>
+        </div>
+        <label class="form-label small text-muted mb-1">Tổng số lượt dùng</label>
+        <input name="UsageLimit" type="number" class="form-control mb-2" min="1" placeholder="Trống = không giới hạn" value="<%= o('UsageLimit') %>">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="FirstOrderOnly" value="1" id="firstOnly" <%= o('FirstOrderOnly') === '1' ? 'checked' : '' %>>
+          <label class="form-check-label small" for="firstOnly">Chỉ cho <strong>đơn đầu tiên</strong> của khách</label>
+        </div>
+        <button class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Tạo mã</button>
+        <p class="small text-muted mt-2 mb-0">Mã chỉ giảm <strong>tiền thuê</strong> (không giảm cọc). Mỗi khách dùng mỗi mã 1 lần; đơn bị hủy được trả lại lượt.</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light"><tr><th>Mã</th><th>Ưu đãi</th><th class="text-center">Đã dùng</th><th>Trạng thái</th><th></th></tr></thead>
+          <tbody>
+            <% if (!coupons.length) { %><tr><td colspan="5" class="text-center text-muted py-4">Chưa có mã giảm giá.</td></tr><% } %>
+            <% coupons.forEach(c => { %>
+              <tr class="<%= c.isActive ? '' : 'text-muted' %>">
+                <td><span class="coupon-code"><%= c.Code %></span><% if (c.Description) { %><div class="small text-muted"><%= c.Description %></div><% } %></td>
+                <td class="small"><%= c.summary %><% if (c.StartDate) { %><div class="text-muted">Từ <%= c.StartDate.split('-').reverse().join('/') %></div><% } %></td>
+                <td class="text-center"><%= c.used %><%= c.UsageLimit ? ' / ' + c.UsageLimit : '' %></td>
+                <td><span class="badge <%= c.isActive ? 'bg-success' : 'bg-secondary' %>"><%= c.isActive ? 'Đang bật' : 'Đã tắt' %></span></td>
+                <td class="text-end text-nowrap">
+                  <form method="POST" action="/admin/coupons/<%= c.CouponID %>/toggle" class="d-inline">
+                    <button class="btn btn-sm btn-light"><%= c.isActive ? 'Tắt' : 'Bật' %></button>
+                  </form>
+                  <form method="POST" action="/admin/coupons/<%= c.CouponID %>/delete" class="d-inline" onsubmit="return confirm('Xóa mã <%= c.Code %>?')">
+                    <button class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    const t = document.getElementById('dType'), box = document.getElementById('maxBox'), lb = document.getElementById('valLabel');
+    t.addEventListener('change', () => {
+      const amt = t.value === 'amount';
+      box.style.display = amt ? 'none' : '';
+      lb.innerHTML = (amt ? 'Số tiền (đ)' : 'Phần trăm (%)') + ' <span class="text-danger">*</span>';
+    });
+  })();
+</script>

@@ -38,7 +38,16 @@
         <ul class="navbar-nav mx-auto">
           <li class="nav-item"><a class="nav-link <%= path==='/' ? 'active' : '' %>" href="/">Trang chủ</a></li>
           <li class="nav-item"><a class="nav-link <%= path==='/products' ? 'active' : '' %>" href="/products">Sản phẩm</a></li>
-          <li class="nav-item"><a class="nav-link <%= path==='/noi-quy' ? 'active' : '' %>" href="/noi-quy">Nội quy</a></li>
+          <% const helpPages = ['/cach-thue', '/hoi-dap', '/doi-size', '/noi-quy']; %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle <%= helpPages.includes(path) ? 'active' : '' %>" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Hỗ trợ</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="/cach-thue"><i class="bi bi-signpost-split me-2"></i>Cách thức thuê</a></li>
+              <li><a class="dropdown-item" href="/hoi-dap"><i class="bi bi-question-circle me-2"></i>Câu hỏi thường gặp</a></li>
+              <li><a class="dropdown-item" href="/doi-size"><i class="bi bi-arrow-left-right me-2"></i>Chính sách đổi size</a></li>
+              <li><a class="dropdown-item" href="/noi-quy"><i class="bi bi-journal-text me-2"></i>Nội quy &amp; bảng phí</a></li>
+            </ul>
+          </li>
           <li class="nav-item"><a class="nav-link <%= path==='/contact' ? 'active' : '' %>" href="/contact">Liên hệ</a></li>
           <% if (currentUser) { %>
             <li class="nav-item"><a class="nav-link <%= path.startsWith('/rentals') ? 'active' : '' %>" href="/rentals"><i class="bi bi-receipt"></i> Đơn thuê</a></li>
@@ -48,10 +57,14 @@
           <% } %>
           <% if (currentUser && currentUser.role === 'admin') { %>
             <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/stats') ? 'active' : '' %>" href="/admin/stats"><i class="bi bi-bar-chart-line"></i> Thống kê</a></li>
+            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/coupons') ? 'active' : '' %>" href="/admin/coupons"><i class="bi bi-ticket-perforated"></i> Mã giảm giá</a></li>
             <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/users') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people"></i> Tài khoản</a></li>
           <% } %>
         </ul>
         <div class="d-flex gap-2 align-items-center">
+          <% if (currentUser) { %>
+            <a href="/favorites" class="btn btn-light btn-sm <%= path.startsWith('/favorites') ? 'active' : '' %>" title="Yêu thích"><i class="bi bi-heart"></i><span class="d-lg-none"> Yêu thích</span></a>
+          <% } %>
           <a href="/cart" class="btn btn-light btn-sm position-relative <%= path.startsWith('/cart') ? 'active' : '' %>" title="Giỏ thuê">
             <i class="bi bi-bag"></i> Giỏ thuê
             <% if (cartCount) { %><span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"><%= cartCount %></span><% } %>
@@ -84,7 +97,16 @@
           <p class="small mb-2">Hệ thống quản lý & cho thuê trang phục nữ cao cấp — áo dài, váy tiệc – đầm dạ hội và phụ kiện. Tích hợp AI hỗ trợ xác minh & tìm kiếm thông minh.</p>
           <div class="fs-5"><i class="bi bi-facebook me-2"></i><i class="bi bi-instagram me-2"></i><i class="bi bi-tiktok me-2"></i></div>
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-md-2">
+          <h6 class="mb-3">Hỗ trợ khách hàng</h6>
+          <ul class="list-unstyled small">
+            <li class="mb-1"><a href="/cach-thue">Cách thức thuê</a></li>
+            <li class="mb-1"><a href="/hoi-dap">Câu hỏi thường gặp</a></li>
+            <li class="mb-1"><a href="/doi-size">Chính sách đổi size</a></li>
+            <li class="mb-1"><a href="/noi-quy">Nội quy &amp; bảng phí</a></li>
+          </ul>
+        </div>
+        <div class="col-6 col-md-2">
           <h6 class="mb-3">Danh mục</h6>
           <ul class="list-unstyled small">
             <li class="mb-1"><a href="/products?type=Áo dài">Áo dài</a></li>
@@ -92,7 +114,7 @@
             <li class="mb-1"><a href="/products?type=Phụ kiện">Phụ kiện</a></li>
           </ul>
         </div>
-        <div class="col-md-5">
+        <div class="col-md-4">
           <h6 class="mb-3">Liên hệ</h6>
           <p class="small mb-1"><i class="bi bi-geo-alt me-2"></i>Cửa hàng CostumeHub</p>
           <p class="small mb-1"><i class="bi bi-telephone me-2"></i>0123 456 789</p>

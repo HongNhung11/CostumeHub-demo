@@ -93,6 +93,28 @@
               <div class="invalid-feedback">Chọn ảnh trang phục.</div>
               <% if (product.PathImage) { %><img src="<%= product.PathImage %>" class="mt-2 rounded" style="height:60px"><% } %>
             </div>
+            <!-- Ảnh phụ: nhiều góc chụp (mặt sau, chi tiết, khi mặc...) -->
+            <div class="col-12">
+              <label class="form-label">Ảnh phụ <span class="small text-muted fw-normal">— không bắt buộc, tối đa <%= MAX_GALLERY %> ảnh (mặt sau, chi tiết vải, ảnh mặc thật...)</span></label>
+              <input type="file" name="gallery" accept="image/*" class="form-control" multiple id="galleryInput">
+              <div class="form-text" id="galleryHint">Giữ Ctrl để chọn nhiều ảnh cùng lúc.</div>
+              <% if (gallery.length) { %>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <% gallery.forEach(g => { %>
+                    <label class="gallery-edit">
+                      <img src="<%= g.Path %>" alt="" onerror="this.style.opacity=.3">
+                      <span class="small"><input type="checkbox" name="removeImages[]" value="<%= g.ImageID %>" class="form-check-input me-1">Xóa</span>
+                    </label>
+                  <% }) %>
+                </div>
+              <% } %>
+            </div>
+            <!-- Bảng số đo theo size: tự tạo theo danh sách size ở trên -->
+            <div class="col-12">
+              <label class="form-label">Bảng số đo theo size (cm) <span class="small text-muted fw-normal">— không bắt buộc, phụ kiện có thể bỏ trống</span></label>
+              <div id="chartGrid" class="table-responsive"></div>
+              <div class="form-text">Ghi 1 số (VD 82) hoặc khoảng (VD 80-84). Khách xem bảng này ở trang chi tiết để chọn size. <a href="#" id="fillStd">Điền số đo tham khảo cho S/M/L/XL</a></div>
+            </div>
             <div class="col-12">
               <label class="form-label">Mô tả <span class="text-danger">*</span></label>
               <textarea name="Description" rows="3" class="form-control" required maxlength="2000"><%= v('Description') %></textarea>
@@ -145,6 +167,54 @@
   colorEl.addEventListener('input', render);
   render();
   window.__variantTotal = total;
+})();
+
+// Bảng số đo theo size: 1 dòng / size, giữ số đã nhập khi sửa danh sách size
+(function () {
+  const sizeEl = document.getElementById('sizeList'), box = document.getElementById('chartGrid');
+  const FIELDS = <%- JSON.stringify(CHART_FIELDS).replace(/</g, '\\u003c') %>;
+  const NAMES = { bust: 'scBust[]', waist: 'scWaist[]', hip: 'scHip[]', height: 'scHeight[]' };
+  const STD = { XS: ['76-80','58-62','82-86','145-152'], S: ['80-84','62-66','86-90','150-158'], M: ['84-88','66-70','90-94','155-162'],
+                L: ['88-92','70-74','94-98','158-165'], XL: ['92-96','74-78','98-102','160-168'], XXL: ['96-100','78-82','102-106','160-170'] };
+  const data = <%- JSON.stringify(chart || {}).replace(/</g, '\\u003c') %>;
+  const list = (s) => [...new Set(s.split(/[,;]/).map(x => x.trim()).filter(Boolean))];
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function render() {
+    const sizes = list(sizeEl.value);
+    if (!sizes.length) { box.innerHTML = '<div class="small text-muted border rounded p-2">Nhập size ở trên để tạo bảng số đo.</div>'; return; }
+    let h = '<table class="table table-sm table-bordered align-middle mb-0 small"><thead><tr><th>Size</th>' +
+      FIELDS.map(f => `<th>${f.label}</th>`).join('') + '</tr></thead><tbody>';
+    for (const s of sizes) {
+      const row = data[s] || {};
+      h += `<tr><th>${esc(s)}<input type="hidden" name="scSize[]" value="${esc(s)}"></th>` +
+        FIELDS.map(f => `<td><input name="${NAMES[f.key]}" class="form-control form-control-sm" maxlength="9" placeholder="VD 80-84" value="${esc(row[f.key] || '')}" data-s="${esc(s)}" data-f="${f.key}"></td>`).join('') + '</tr>';
+    }
+    box.innerHTML = h + '</tbody></table>';
+  }
+  box.addEventListener('input', (e) => { const t = e.target; if (t.dataset.s) (data[t.dataset.s] ||= {})[t.dataset.f] = t.value; });
+  document.getElementById('fillStd').addEventListener('click', (e) => {
+    e.preventDefault();
+    let n = 0;
+    for (const s of list(sizeEl.value)) {
+      const std = STD[s.toUpperCase()];
+      if (!std) continue;
+      data[s] = data[s] || {};
+      FIELDS.forEach((f, i) => { if (!data[s][f.key]) data[s][f.key] = std[i]; });
+      n++;
+    }
+    render();
+    if (!n) alert('Chỉ điền tự động được cho size chữ (XS, S, M, L, XL, XXL).');
+  });
+  sizeEl.addEventListener('input', render);
+  render();
+
+  // Báo trước nếu chọn quá số ảnh phụ
+  const gi = document.getElementById('galleryInput'), hint = document.getElementById('galleryHint');
+  gi.addEventListener('change', () => {
+    const n = gi.files.length, max = <%= MAX_GALLERY %>;
+    hint.className = 'form-text' + (n > max ? ' text-danger' : '');
+    hint.textContent = n > max ? `Bạn chọn ${n} ảnh — tối đa ${max} ảnh phụ.` : n ? `Đã chọn ${n} ảnh phụ.` : 'Giữ Ctrl để chọn nhiều ảnh cùng lúc.';
+  });
 })();
 
 // Kiểm tra phía trình duyệt trước khi gửi (máy chủ vẫn kiểm tra lại)

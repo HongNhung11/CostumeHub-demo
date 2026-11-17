@@ -6,6 +6,9 @@ const { normalize } = require('../utils/text');
 const { DAMAGE_RULES, lossAmount } = require('../utils/fees');
 const { productAvailability, checkDates } = require('../utils/availability');
 const { loadCart, needByVariant, lineKey } = require('./cartController');
+const { applyCoupon } = require('../utils/coupons');
+const { ProductVariant } = require('../models');
+const { addDays } = require('../utils/dates');
 
 const path = require('path');
 const { privateDir, uploadDir } = require('../middlewares/upload');
@@ -78,6 +81,15 @@ exports.create = async (req, res) => {
         deposit += num(l.product.DepositValue) * l.qty;
         totalQty += l.qty;
       }
+      // Mã giảm giá (không bắt buộc): chỉ trừ vào tiền thuê, kiểm tra lại trong transaction
+      const rentFee = pricePerDay * rentDays;
+      let couponCode = null, discount = 0;
+      if (String(req.body.CouponCode || '').trim()) {
+        const cp = await applyCoupon(req.body.CouponCode, req.session.user.id, rentFee, { transaction: t });
+        if (cp.error) { const e = new Error(cp.error + ' Bạn có thể xóa mã để đặt không dùng mã.'); e.userFacing = true; throw e; }
+        couponCode = cp.coupon.Code; discount = cp.discount;
+      }
+
       const r = await Rental.create({
         ProductID: lines[0].productId,
         UserID: req.session.user ? req.session.user.id : null,
@@ -87,7 +99,9 @@ exports.create = async (req, res) => {
         DeliveryAddress: DeliveryMethod === 'Giao tận nơi' ? DeliveryAddress.trim() : null,
         StartDate, EndDate, RentDays: rentDays, Quantity: totalQty,
         PricePerDay: pricePerDay,
-        RentFee: pricePerDay * rentDays,
+        RentFee: rentFee,
+        CouponCode: couponCode,
+        Discount: discount,
         Deposit: deposit,
         PaymentMethod: ['Tiền mặt', 'Chuyển khoản', 'Ví điện tử'].includes(req.body.method) ? req.body.method : 'Tiền mặt',
         PaymentStatus: 'Đã cọc',
@@ -106,7 +120,8 @@ exports.create = async (req, res) => {
     });
 
     req.session.cart = [];
-    req.flash('success', `Đặt thuê thành công ${rental.Quantity} món! Đã cọc ${num(rental.Deposit).toLocaleString('vi-VN')} đ (${rental.PaymentMethod}). Đơn được giữ chỗ.`);
+    req.flash('success', `Đặt thuê thành công ${rental.Quantity} món! Đã cọc ${num(rental.Deposit).toLocaleString('vi-VN')} đ (${rental.PaymentMethod}). Đơn được giữ chỗ.` +
+      (rental.CouponCode ? ` Mã ${rental.CouponCode} giảm ${num(rental.Discount).toLocaleString('vi-VN')} đ tiền thuê.` : ''));
     res.redirect(`/rentals/${rental.RentalID}`);
   } catch (e) {
     return fail(e.userFacing ? e.message : 'Lỗi đặt thuê: ' + e.message);
@@ -121,7 +136,97 @@ exports.show = async (req, res) => {
   rental.alert = alertOf(rental);
   let damageDetails = [];
   try { damageDetails = JSON.parse(rental.DamageDetails || '[]'); } catch (_) { damageDetails = []; }
-  res.render('rentals/show', { title: `Đơn thuê #${rental.RentalID}`, rental, damageDetails });
+  // Đổi size: các size × màu khác của từng món, kèm số bộ còn trống trong thời gian thuê của đơn
+  const swap = swapRule(req, rental);
+  let swapOptions = {};
+  if (swap.ok) {
+    const products = rental.items.filter(it => it.Product).map(it => it.Product);
+    const { start, end } = swapRange(rental);
+    const avail = await productAvailability(products, start, end);
+    for (const it of rental.items) {
+      if (!it.Product) continue;
+      swapOptions[it.ItemID] = avail[it.ProductID].variants
+        .filter(v => v.total > 0 && !(v.Size === it.Size && v.Color === it.Color))
+        .map(v => ({ Size: v.Size, Color: v.Color, free: v.free }));
+    }
+  }
+  // Khách đã thuê xong: nhắc đánh giá các mẫu chưa đánh giá
+  let reviewed = new Set();
+  if (rental.Status === 'Hoàn tất' && rental.UserID && rental.UserID === req.session.user.id) {
+    const { Review } = require('../models');
+    const rows = await Review.findAll({ where: { UserID: rental.UserID }, attributes: ['ProductID'] });
+    reviewed = new Set(rows.map(r => r.ProductID));
+  }
+  res.render('rentals/show', { title: `Đơn thuê #${rental.RentalID}`, rental, damageDetails, swap, swapOptions, reviewed, isOwner: rental.UserID === req.session.user.id });
+};
+
+// ===== CHÍNH SÁCH ĐỔI SIZE =====
+// - Đơn "Đã cọc" (chưa nhận đồ): khách (chủ đơn) hoặc nhân viên đổi size / màu MIỄN PHÍ, nếu size mới còn trống.
+// - Đơn "Đang thuê": chỉ NHÂN VIÊN đổi, trong ngày nhận đồ hoặc ngày hôm sau (khách thử không vừa, mang ra shop đổi).
+// - Chỉ đổi sang size × màu khác của CÙNG mẫu (giá thuê, cọc không đổi). Mẫu khác thì hủy món / đặt đơn mới.
+const SWAP_DAYS_AFTER_PICKUP = 1;
+function swapRule(req, rental) {
+  const u = req.session.user, staff = isStaff(u);
+  if (rental.Status === 'Đã cọc') return { ok: staff || rental.UserID === u.id };
+  if (rental.Status === 'Đang thuê') {
+    const last = addDays(rental.StartDate, SWAP_DAYS_AFTER_PICKUP);
+    if (todayStr() > last) return { ok: false, reason: `Đã quá thời hạn đổi size (đến hết ngày ${viDate(last)}).` };
+    return staff ? { ok: true } : { ok: false, reason: `Mang đồ đến cửa hàng trước hết ngày ${viDate(last)} để nhân viên đổi size giúp bạn.` };
+  }
+  return { ok: false };
+}
+exports.SWAP_DAYS_AFTER_PICKUP = SWAP_DAYS_AFTER_PICKUP;
+// Khoảng ngày cần còn trống cho size mới: từ hôm nay (nếu đã nhận đồ) đến ngày trả
+function swapRange(rental) {
+  const today = todayStr();
+  return { start: rental.StartDate > today ? rental.StartDate : today, end: rental.EndDate < today ? today : rental.EndDate };
+}
+
+exports.changeSize = async (req, res) => {
+  const rental = await Rental.findByPk(req.params.id, withItems);
+  if (!rental) { req.flash('error', 'Không tìm thấy đơn.'); return res.redirect('/rentals'); }
+  if (!canAccess(req, rental)) return denied(req, res);
+  const backTo = `/rentals/${rental.RentalID}`;
+  const swap = swapRule(req, rental);
+  if (!swap.ok) { req.flash('error', swap.reason || 'Đơn ở trạng thái này không đổi size được.'); return res.redirect(backTo); }
+
+  const it = rental.items.find(i => i.ItemID === parseInt(req.body.ItemID));
+  if (!it || !it.ProductID) { req.flash('error', 'Không tìm thấy món cần đổi trong đơn.'); return res.redirect(backTo); }
+  const [size, color] = String(req.body.Target || '').split('|');
+  const n = parseInt(req.body.Qty) || it.Quantity;
+  if (!size || !color) { req.flash('error', 'Vui lòng chọn size / màu muốn đổi sang.'); return res.redirect(backTo); }
+  if (size === it.Size && color === it.Color) { req.flash('error', 'Size / màu mới trùng với size đang thuê.'); return res.redirect(backTo); }
+  if (!(n >= 1 && n <= it.Quantity)) { req.flash('error', `Số bộ đổi phải từ 1 đến ${it.Quantity}.`); return res.redirect(backTo); }
+
+  const from = `${it.Size} · ${it.Color}`;   // ghi lại size cũ trước khi đổi (để ghi chú đơn)
+  try {
+    await sequelize.transaction(async (t) => {
+      const v = await ProductVariant.findOne({ where: { ProductID: it.ProductID, Size: size, Color: color }, transaction: t });
+      if (!v || v.Quantity <= 0) throw Object.assign(new Error(`Mẫu này không có size ${size} màu ${color}.`), { userFacing: true });
+      const { start, end } = swapRange(rental);
+      const a = (await productAvailability([it.Product], start, end, { transaction: t }))[it.ProductID];
+      const free = (a.variants.find(x => x.Size === size && x.Color === color) || { free: 0 }).free;
+      if (free < n) throw Object.assign(new Error(`Size ${size} – ${color} chỉ còn ${free} ${it.Product.Unit} trống từ ${viDate(start)} đến ${viDate(end)}, không đổi được ${n}.`), { userFacing: true });
+
+      const target = rental.items.find(x => x.ItemID !== it.ItemID && x.ProductID === it.ProductID && x.Size === size && x.Color === color);
+      if (n === it.Quantity && !target) {
+        await it.update({ Size: size, Color: color }, { transaction: t });
+      } else {
+        if (target) await target.update({ Quantity: target.Quantity + n }, { transaction: t });
+        else await RentalItem.create({ ...it.toJSON(), ItemID: undefined, Size: size, Color: color, Quantity: n }, { transaction: t });
+        if (n === it.Quantity) await it.destroy({ transaction: t });
+        else await it.update({ Quantity: it.Quantity - n }, { transaction: t });
+      }
+      const who = isStaff(req.session.user) ? 'nhân viên' : 'khách';
+      const line = `[${viDate(todayStr())}] Đổi size (${who}): "${it.ProductName}" ${n} bộ ${from} → ${size} · ${color}.`;
+      await rental.update({ Note: [rental.Note, line].filter(Boolean).join('\n') }, { transaction: t });
+    });
+  } catch (e) {
+    req.flash('error', e.userFacing ? e.message : 'Lỗi đổi size: ' + e.message);
+    return res.redirect(backTo);
+  }
+  req.flash('success', `Đã đổi "${it.ProductName}" sang size ${size} – ${color}. Giá thuê và tiền cọc không thay đổi.`);
+  res.redirect(backTo);
 };
 
 // ===== Ảnh CCCD (riêng tư): chỉ chủ đơn / nhân viên =====

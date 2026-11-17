@@ -1,0 +1,66 @@
+<%
+  // 5 bước thuê đồ — mỗi bước 1 hình minh họa (icon) + mô tả + link tới đúng chỗ trên web
+  const steps = [
+    { icon: 'bi-search-heart', title: 'Chọn mẫu', text: 'Xem áo dài, váy tiệc, phụ kiện. Lọc theo loại, tìm nhanh bằng từ khóa (gõ không dấu cũng được). Thả tim để lưu mẫu thích.', link: '/products', cta: 'Xem trang phục' },
+    { icon: 'bi-calendar2-range', title: 'Chọn ngày & size', text: 'Chọn ngày nhận – ngày trả để biết mẫu nào còn trống. Xem bảng số đo (ngực – eo – mông) để chọn size đúng, rồi chọn màu và số lượng.', link: '/products', cta: 'Kiểm tra lịch trống' },
+    { icon: 'bi-bag-check', title: 'Đặt thuê & cọc', text: 'Cho vào giỏ thuê, nhập SĐT, CCCD và mã giảm giá (nếu có), đồng ý nội quy rồi đặt cọc. Đơn được giữ chỗ ngay.', link: '/cart', cta: 'Mở giỏ thuê' },
+    { icon: 'bi-truck', title: 'Nhận đồ & thử', text: 'Nhận đồ tại cửa hàng (8:00 – 21:00) hoặc giao tận nơi. Thử ngay khi nhận — không vừa thì được đổi size miễn phí.', link: '/doi-size', cta: 'Chính sách đổi size' },
+    { icon: 'bi-arrow-repeat', title: 'Trả đồ & nhận lại cọc', text: 'Trả đúng hạn, nhân viên kiểm tra đồ và hoàn cọc sau khi trừ phí (nếu có). Đừng quên đánh giá kèm ảnh để giúp khách sau!', link: '/noi-quy', cta: 'Bảng trừ phí' },
+  ];
+%>
+<nav class="small text-muted mb-3"><a href="/" class="text-muted">Trang chủ</a> / <span>Cách thức thuê</span></nav>
+<div class="text-center mb-4">
+  <div class="section-eyebrow">Hướng dẫn</div>
+  <h2 class="font-serif mb-1">Thuê đồ tại CostumeHub chỉ với 5 bước</h2>
+  <p class="text-muted mb-0">Không cần mua — mặc đẹp cho mỗi dịp với chi phí nhỏ.</p>
+</div>
+
+<div class="how-steps mb-5">
+  <% steps.forEach((s, i) => { %>
+    <div class="how-step card p-3 text-center">
+      <div class="how-icon"><i class="bi <%= s.icon %>"></i><span class="how-no"><%= i + 1 %></span></div>
+      <h6 class="font-serif mt-3 mb-2"><%= s.title %></h6>
+      <p class="small text-muted mb-2"><%= s.text %></p>
+      <a href="<%= s.link %>" class="small mt-auto"><%= s.cta %> <i class="bi bi-arrow-right"></i></a>
+    </div>
+  <% }) %>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="card p-3 h-100">
+    <h6 class="font-serif"><i class="bi bi-cash-coin" style="color:var(--gold)"></i> Chi phí gồm những gì?</h6>
+    <ul class="small text-muted mb-0">
+      <li><strong>Tiền thuê</strong> = giá/ngày × số ngày × số bộ (trừ mã giảm giá nếu có).</li>
+      <li><strong>Tiền cọc</strong> giữ lại đến khi trả đồ, hoàn lại sau khi trừ phí (nếu có).</li>
+      <li>Phí trễ hạn, vệ sinh, hư hỏng tính theo <a href="/noi-quy">bảng nội quy</a>.</li>
+    </ul>
+  </div></div>
+  <div class="col-md-4"><div class="card p-3 h-100">
+    <h6 class="font-serif"><i class="bi bi-person-vcard" style="color:var(--gold)"></i> Cần chuẩn bị</h6>
+    <ul class="small text-muted mb-0">
+      <li>Số điện thoại di động (10 số).</li>
+      <li>Số CCCD 12 số và ảnh chụp CCCD để xác minh.</li>
+      <li>Số đo vòng ngực – eo – mông để chọn size (<a href="#" data-bs-toggle="modal" data-bs-target="#measureGuide">cách đo</a>).</li>
+    </ul>
+  </div></div>
+  <div class="col-md-4"><div class="card p-3 h-100">
+    <h6 class="font-serif"><i class="bi bi-ticket-perforated" style="color:var(--gold)"></i> Ưu đãi</h6>
+    <ul class="small text-muted mb-0">
+      <li>Khách mới: nhập mã ở giỏ thuê để được giảm cho <strong>đơn đầu tiên</strong>.</li>
+      <li>Các mã đang áp dụng hiện ngay trong giỏ thuê, bấm để dùng.</li>
+      <li>Mã chỉ giảm tiền thuê, không giảm tiền cọc.</li>
+    </ul>
+  </div></div>
+</div>
+
+<div class="text-center">
+  <a href="/products" class="btn btn-gold btn-lg me-2"><i class="bi bi-bag"></i> Bắt đầu chọn đồ</a>
+  <a href="/hoi-dap" class="btn btn-outline-primary btn-lg"><i class="bi bi-question-circle"></i> Câu hỏi thường gặp</a>
+</div>
+
+<div class="modal fade" id="measureGuide" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title font-serif">Cách đo số đo cơ thể</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body small"><%- include('../partials/measure-guide') %></div>
+  </div></div>
+</div>

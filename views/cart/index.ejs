@@ -154,6 +154,27 @@
         </div>
         <div class="d-flex justify-content-between small py-1"><span>Số ngày thuê</span><span id="sumDays">1</span></div>
         <div class="d-flex justify-content-between small py-1"><span>Tiền thuê</span><span id="sumRent">0 đ</span></div>
+        <div class="d-flex justify-content-between small py-1 text-success d-none" id="discRow"><span>Giảm giá (<span id="discCode"></span>)</span><span id="sumDisc">0 đ</span></div>
+
+        <!-- Mã giảm giá: kiểm tra trước bằng API, máy chủ kiểm tra lại khi đặt -->
+        <div class="py-2">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-ticket-perforated"></i></span>
+            <input name="CouponCode" id="CouponCode" class="form-control text-uppercase" maxlength="30" placeholder="Mã giảm giá" value="<%= o('CouponCode') %>" autocomplete="off">
+            <button type="button" class="btn btn-outline-primary" id="btnCoupon">Áp dụng</button>
+          </div>
+          <div class="small mt-1" id="couponMsg"></div>
+          <% if (coupons.length) { %>
+            <div class="small text-muted mt-2">Mã đang có:</div>
+            <div class="d-flex flex-column gap-1 mt-1">
+              <% coupons.forEach(c => { %>
+                <button type="button" class="coupon-pick text-start" data-code="<%= c.code %>" title="<%= c.summary %>">
+                  <span class="coupon-code"><%= c.code %></span> <span class="small text-muted"><%= c.text %></span>
+                </button>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
         <div class="d-flex justify-content-between small py-1"><span>Tiền cọc (hoàn lại)</span><span id="sumDeposit">0 đ</span></div>
         <hr class="my-2">
         <div class="d-flex justify-content-between fw-bold mb-3"><span>Tổng tạm tính</span><span class="price-tag" id="sumTotal">0 đ</span></div>
@@ -179,13 +200,35 @@
         MAXD=<%= MAX_RENT_DAYS %>;
   const vnd=n=>n.toLocaleString('vi-VN')+' đ';
   const days=()=>{ const d=Math.round((new Date(e.value)-new Date(s.value))/86400000); return d>=1?d:0; };
+  let disc=0;   // số tiền giảm của mã đang áp dụng (tính lại khi đổi ngày)
   function calc(){
     const d=days();
     document.getElementById('sumDays').textContent=d;
     document.getElementById('sumRent').textContent=vnd(price*d);
     document.getElementById('sumDeposit').textContent=vnd(dep);
-    document.getElementById('sumTotal').textContent=vnd(price*d+dep);
+    document.getElementById('discRow').classList.toggle('d-none',!disc);
+    document.getElementById('sumDisc').textContent='- '+vnd(disc);
+    document.getElementById('sumTotal').textContent=vnd(price*d-disc+dep);
   }
+
+  // Mã giảm giá
+  const cIn=document.getElementById('CouponCode'), cMsg=document.getElementById('couponMsg');
+  async function applyCode(){
+    const code=cIn.value.trim().toUpperCase(); cIn.value=code;
+    disc=0; document.getElementById('discCode').textContent=code;
+    if(!code){ cMsg.textContent=''; calc(); return; }
+    try{
+      const r=await (await fetch(`/cart/coupon?code=${encodeURIComponent(code)}&start=${s.value}&end=${e.value}`)).json();
+      if(r.ok){ disc=r.discount; cMsg.className='small mt-1 text-success'; cMsg.innerHTML=`<i class="bi bi-check-circle"></i> Đã áp dụng ${r.code}: giảm ${vnd(r.discount)} tiền thuê.`; }
+      else { cMsg.className='small mt-1 text-danger'; cMsg.innerHTML=`<i class="bi bi-exclamation-circle"></i> ${r.error}`; }
+    }catch(_){ cMsg.textContent=''; }
+    calc();
+  }
+  document.getElementById('btnCoupon').addEventListener('click',applyCode);
+  cIn.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); applyCode(); } });
+  cIn.addEventListener('input',()=>{ if(disc){ disc=0; cMsg.textContent='Bấm "Áp dụng" để kiểm tra mã.'; cMsg.className='small mt-1 text-muted'; calc(); } });
+  document.querySelectorAll('.coupon-pick').forEach(b=>b.addEventListener('click',()=>{ cIn.value=b.dataset.code; applyCode(); }));
+  if(cIn.value) applyCode();
 
   // Kiểm tra còn trống theo ngày (chống trùng lịch)
   const box=document.getElementById('availBox');
@@ -209,7 +252,7 @@
         : '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Có món không đủ bộ trống — vui lòng đổi ngày hoặc giảm số lượng.</span>';
     }catch(_){ availOk=true; box.textContent=''; }
   }
-  [s,e].forEach(el=>el.addEventListener('change',()=>{ calc(); checkDates(); checkAvail(); }));
+  [s,e].forEach(el=>el.addEventListener('change',()=>{ calc(); checkDates(); checkAvail(); if(cIn.value) applyCode(); }));
   calc(); checkAvail();
 
   // Hiện/ẩn ô địa chỉ theo hình thức nhận

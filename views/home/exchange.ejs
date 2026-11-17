@@ -1,0 +1,57 @@
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <nav class="small text-muted mb-3"><a href="/" class="text-muted">Trang chủ</a> / <span>Chính sách đổi size</span></nav>
+    <h2 class="font-serif mb-1">Chính sách đổi size khi không vừa</h2>
+    <p class="text-muted">Mặc không vừa thì cứ đổi — <strong>miễn phí</strong>, chỉ cần size mới còn trống trong thời gian bạn thuê.</p>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="card p-3 h-100 border-success-subtle">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="how-icon sm"><i class="bi bi-phone"></i></span>
+            <h6 class="font-serif mb-0">Trước ngày nhận đồ</h6>
+          </div>
+          <ul class="small text-muted mb-0">
+            <li>Đơn ở trạng thái <strong>Đã cọc</strong>: vào <a href="/rentals">Đơn thuê</a> → mở đơn → bấm <strong>Đổi size</strong> ở món muốn đổi.</li>
+            <li>Tự đổi trên web bất kỳ lúc nào trước khi nhận đồ, không mất phí.</li>
+            <li>Đổi được sang size hoặc màu khác của <strong>cùng mẫu</strong>; có thể đổi một phần (VD: 1 trong 2 bộ).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="how-icon sm"><i class="bi bi-shop"></i></span>
+            <h6 class="font-serif mb-0">Sau khi nhận đồ</h6>
+          </div>
+          <ul class="small text-muted mb-0">
+            <li>Thử ngay khi nhận. Không vừa: mang đồ đến cửa hàng <strong>trong ngày nhận hoặc <%= SWAP_DAYS %> ngày sau đó</strong>, nhân viên đổi giúp bạn.</li>
+            <li>Đồ mang đổi phải sạch, nguyên vẹn như lúc nhận và chưa mặc đi sự kiện.</li>
+            <li>Giao tận nơi: gọi hotline trong thời hạn trên, cửa hàng hỗ trợ giao size mới 1 lần.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3 p-md-4 mb-4">
+      <h6 class="font-serif"><i class="bi bi-list-check" style="color:var(--gold)"></i> Điều kiện &amp; lưu ý</h6>
+      <ul class="small text-muted mb-0">
+        <li><strong>Giá thuê và tiền cọc giữ nguyên</strong> vì cùng một mẫu. Muốn đổi sang mẫu khác: hủy đơn (theo <a href="/noi-quy">chính sách hủy</a>) và đặt đơn mới.</li>
+        <li>Size mới phải còn trống trong khoảng ngày thuê của bạn — hệ thống chỉ hiện các size còn bộ.</li>
+        <li>Mỗi lần đổi được ghi vào ghi chú của đơn để bạn và cửa hàng cùng theo dõi.</li>
+        <li>Quá thời hạn đổi, hoặc đã mặc đi sự kiện: không đổi size; phí phát sinh (nếu có) tính theo <a href="/noi-quy">bảng nội quy</a>.</li>
+      </ul>
+    </div>
+
+    <div class="card p-3 p-md-4 mb-4">
+      <h6 class="font-serif"><i class="bi bi-rulers" style="color:var(--gold)"></i> Chọn đúng size ngay từ đầu</h6>
+      <p class="small text-muted">Mỗi mẫu có <strong>bảng số đo</strong> riêng ở trang chi tiết. Đo cơ thể theo hướng dẫn rồi so với bảng:</p>
+      <div class="small"><%- include('../partials/measure-guide') %></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/rentals" class="btn btn-primary"><i class="bi bi-receipt"></i> Đơn thuê của tôi</a>
+      <a href="/hoi-dap" class="btn btn-outline-primary"><i class="bi bi-question-circle"></i> Câu hỏi thường gặp</a>
+    </div>
+  </div>
+</div>

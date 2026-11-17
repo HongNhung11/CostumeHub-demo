@@ -1,4 +1,5 @@
-const { Product, User } = require('../models');
+const { Product, User, Coupon } = require('../models');
+const { standardChart } = require('../utils/sizeChart');
 
 /* ============================================================
    DỮ LIỆU MẪU — Shop trang phục NỮ: Áo dài · Váy tiệc · Phụ kiện
@@ -90,6 +91,7 @@ function buildProducts() {
       ProductValue: Math.round(price * 12 / 50000) * 50000,   // giá trị đền bù khi mất / hư nặng
       Status: o.status,
       Description: o.desc,
+      SizeChart: o.type === 'Phụ kiện' ? null : standardChart(o.size),   // số đo tham khảo theo size
     });
   };
 
@@ -123,6 +125,17 @@ async function seed() {
     const list = buildProducts();
     await Product.bulkCreate(list);
     console.log(`🧥 Đã nạp ${list.length} sản phẩm nữ (áo dài + váy tiệc + phụ kiện).`);
+  }
+
+  // Mã giảm giá mẫu (chỉ tạo khi chưa có mã nào)
+  if (await Coupon.count() === 0) {
+    const y = new Date().getFullYear();
+    await Coupon.bulkCreate([
+      { Code: 'CHAOBANMOI', Description: 'Giảm 10% tiền thuê cho đơn đầu tiên', DiscountType: 'percent', Value: 10, MaxDiscount: 100000, FirstOrderOnly: true },
+      { Code: 'THUE3NGAY', Description: 'Giảm 50.000 đ cho đơn có tiền thuê từ 500.000 đ', DiscountType: 'amount', Value: 50000, MinOrder: 500000 },
+      { Code: 'MUACUOI' + y, Description: `Mùa cưới ${y}: giảm 15% (tối đa 150.000 đ)`, DiscountType: 'percent', Value: 15, MaxDiscount: 150000, MinOrder: 300000, EndDate: `${y}-12-31`, UsageLimit: 50 },
+    ]);
+    console.log('🏷️  Đã tạo 3 mã giảm giá mẫu: CHAOBANMOI, THUE3NGAY, MUACUOI' + y + '.');
   }
 }
 

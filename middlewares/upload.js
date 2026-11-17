@@ -28,6 +28,34 @@ const uploadImage = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
 });
 
+// Thêm / sửa sản phẩm: 1 ảnh chính ("image") + tối đa 6 ảnh phụ ("gallery")
+const MAX_GALLERY = 6;
+const productUploader = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => cb(null, randomName('tp', file)),
+  }),
+  fileFilter: imageFilter,
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 + MAX_GALLERY },
+}).fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: MAX_GALLERY }]);
+// Gom lại: req.file = ảnh chính, req.galleryFiles = các ảnh phụ
+const uploadProductImages = (req, res, next) => productUploader(req, res, (err) => {
+  if (err) return next(err);
+  req.file = (req.files && req.files.image && req.files.image[0]) || undefined;
+  req.galleryFiles = (req.files && req.files.gallery) || [];
+  next();
+});
+
+// Ảnh đánh giá của khách: công khai, tối đa 3 ảnh
+const uploadReviewImages = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => cb(null, randomName('rv', file)),
+  }),
+  fileFilter: imageFilter,
+  limits: { fileSize: 5 * 1024 * 1024, files: 3 },
+}).array('images', 3);
+
 const uploadIDCard = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, privateDir),
@@ -49,4 +77,4 @@ const uploadMemory = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
 
-module.exports = { uploadImage, uploadIDCard, uploadMemory, privateDir, uploadDir };
+module.exports = { uploadImage, uploadProductImages, uploadReviewImages, MAX_GALLERY, uploadIDCard, uploadMemory, privateDir, uploadDir };

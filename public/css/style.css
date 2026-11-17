@@ -325,3 +325,50 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
 /* Bảng số lượng theo size × màu trong form sản phẩm */
 .variant-grid input{ width:72px; }
 .variant-grid th, .variant-grid td{ white-space:nowrap; }
+
+/* ---------- Nhiều ảnh / sản phẩm ---------- */
+.gal-nav{ position:absolute; top:50%; transform:translateY(-50%); z-index:5; border:0; width:36px; height:36px; border-radius:50%;
+  background:rgba(255,255,255,.85); color:var(--ink); box-shadow:var(--shadow-sm); }
+.gal-prev{ left:10px; } .gal-next{ right:10px; }
+.gal-count{ position:absolute; bottom:10px; right:10px; z-index:5; }
+.gal-thumb{ width:64px; height:80px; padding:0; border:2px solid transparent; border-radius:8px; overflow:hidden; background:var(--cream-2); }
+.gal-thumb img{ width:100%; height:100%; object-fit:cover; }
+.gal-thumb.active{ border-color:var(--primary); }
+.gallery-edit{ display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; }
+.gallery-edit img{ width:64px; height:80px; object-fit:cover; border-radius:6px; border:1px solid var(--line); }
+
+/* ---------- Yêu thích ---------- */
+.fav-form{ position:absolute; top:8px; right:8px; z-index:5; margin:0; }
+.fav-btn{ width:34px; height:34px; border-radius:50%; border:0; background:rgba(255,255,255,.9); color:var(--primary);
+  box-shadow:var(--shadow-sm); transition:transform .15s; }
+.fav-btn:hover{ transform:scale(1.1); }
+.fav-btn.on{ color:#dc3545; }
+
+/* ---------- Đánh giá ---------- */
+.stars{ color:#f0ad4e; white-space:nowrap; }
+.star-input{ display:inline-flex; flex-direction:row-reverse; gap:4px; font-size:1.5rem; }
+.star-input input{ position:absolute; opacity:0; pointer-events:none; }
+.star-input label{ color:#d9d0c3; cursor:pointer; }
+.star-input label:hover, .star-input label:hover ~ label,
+.star-input input:checked ~ label{ color:#f0ad4e; }
+.review-photo img{ width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+
+/* ---------- Bảng số đo ---------- */
+.size-chart th, .size-chart td{ padding:.3rem .4rem; }
+
+/* ---------- Cách thức thuê ---------- */
+.how-steps{ display:grid; grid-template-columns:repeat(5, 1fr); gap:16px; }
+@media (max-width: 991px){ .how-steps{ grid-template-columns:repeat(2, 1fr); } }
+@media (max-width: 575px){ .how-steps{ grid-template-columns:1fr; } }
+.how-step{ display:flex; flex-direction:column; align-items:center; }
+.how-icon{ position:relative; width:72px; height:72px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg, var(--cream-2), #fff); border:2px solid var(--gold); color:var(--primary); font-size:1.9rem; }
+.how-icon.sm{ width:40px; height:40px; font-size:1.1rem; border-width:1px; flex-shrink:0; }
+.how-no{ position:absolute; top:-6px; right:-6px; width:26px; height:26px; border-radius:50%; background:var(--primary); color:#fff;
+  font-size:.8rem; font-weight:700; display:flex; align-items:center; justify-content:center; }
+
+/* ---------- Mã giảm giá ---------- */
+.coupon-code{ font-family:ui-monospace,Consolas,monospace; font-weight:700; color:var(--primary); border:1px dashed var(--gold);
+  border-radius:6px; padding:1px 6px; background:#fffaf2; font-size:.85rem; }
+.coupon-pick{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 8px; }
+.coupon-pick:hover{ border-color:var(--gold); }

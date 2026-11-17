@@ -12,20 +12,57 @@
 
 <div class="row g-4">
   <div class="col-md-6">
-    <div class="prod-thumb card" style="aspect-ratio:4/5;border:1px solid var(--line)">
-      <% if (product.PathImage) { %>
-        <img src="<%= product.PathImage %>" alt="<%= product.ProductName %>" onerror="this.style.display='none'">
+    <div class="prod-thumb card position-relative" style="aspect-ratio:4/5;border:1px solid var(--line)">
+      <% if (images.length) { %>
+        <img src="<%= images[0] %>" alt="<%= product.ProductName %>" id="mainImg" onerror="this.style.display='none'">
+        <% if (images.length > 1) { %>
+          <button type="button" class="gal-nav gal-prev" data-step="-1" aria-label="Ảnh trước"><i class="bi bi-chevron-left"></i></button>
+          <button type="button" class="gal-nav gal-next" data-step="1" aria-label="Ảnh sau"><i class="bi bi-chevron-right"></i></button>
+          <span class="gal-count badge bg-dark bg-opacity-75" id="galCount">1/<%= images.length %></span>
+        <% } %>
       <% } else { %>
         <div class="d-flex align-items-center justify-content-center h-100"><i class="bi bi-image text-muted" style="font-size:3rem"></i></div>
       <% } %>
     </div>
+    <% if (images.length > 1) { %>
+      <div class="d-flex flex-wrap gap-2 mt-2" id="galThumbs">
+        <% images.forEach((src, i) => { %>
+          <button type="button" class="gal-thumb <%= i === 0 ? 'active' : '' %>" data-i="<%= i %>"><img src="<%= src %>" alt="Ảnh <%= i + 1 %>" onerror="this.style.opacity=.3"></button>
+        <% }) %>
+      </div>
+      <script>
+      (function () {
+        const imgs = <%- JSON.stringify(images).replace(/</g, '\\u003c') %>;
+        const main = document.getElementById('mainImg'), cnt = document.getElementById('galCount');
+        const thumbs = [...document.querySelectorAll('.gal-thumb')];
+        let cur = 0;
+        const go = (i) => { cur = (i + imgs.length) % imgs.length; main.src = imgs[cur]; main.style.display = '';
+          cnt.textContent = `${cur + 1}/${imgs.length}`; thumbs.forEach((t, k) => t.classList.toggle('active', k === cur)); };
+        thumbs.forEach(t => t.addEventListener('click', () => go(+t.dataset.i)));
+        document.querySelectorAll('.gal-nav').forEach(b => b.addEventListener('click', () => go(cur + +b.dataset.step)));
+      })();
+      </script>
+    <% } %>
   </div>
 
   <div class="col-md-6">
-    <span class="chip mb-2"><%= product.ProductType %></span>
+    <div class="d-flex justify-content-between align-items-start">
+      <span class="chip mb-2"><%= product.ProductType %></span>
+      <form method="POST" action="/favorites/<%= product.ProductID %>">
+        <input type="hidden" name="back" value="/products/<%= product.ProductID %>">
+        <button class="btn btn-sm <%= isFav ? 'btn-danger' : 'btn-outline-danger' %>" title="<%= isFav ? 'Bỏ yêu thích' : 'Thêm vào yêu thích' %>">
+          <i class="bi <%= isFav ? 'bi-heart-fill' : 'bi-heart' %>"></i> <%= isFav ? 'Đã yêu thích' : 'Yêu thích' %>
+        </button>
+      </form>
+    </div>
     <h1 class="font-serif mb-2" style="font-size:2rem"><%= product.ProductName %></h1>
     <% const cls = product.Status==='Còn trống'?'success':'secondary'; %>
-    <span class="badge bg-<%= cls %> mb-3"><i class="bi bi-circle-fill" style="font-size:.5rem"></i> <%= product.Status %></span>
+    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+      <span class="badge bg-<%= cls %>"><i class="bi bi-circle-fill" style="font-size:.5rem"></i> <%= product.Status %></span>
+      <% if (summary.count) { %>
+        <a href="#reviews" class="small text-dark"><%- include('../partials/stars', { value: summary.avg }) %> <strong><%= summary.avg %></strong> <span class="text-muted">(<%= summary.count %> đánh giá)</span></a>
+      <% } else { %><span class="small text-muted">Chưa có đánh giá</span><% } %>
+    </div>
 
     <div class="card p-3 mb-3" style="background:var(--cream-2);border:none">
       <div class="price-tag" style="font-size:1.8rem"><%= Number(product.Price).toLocaleString('vi-VN') %> đ<small class="text-muted fw-normal" style="font-size:1rem">/ngày</small></div>
@@ -48,6 +85,38 @@
       <tr><td class="text-muted">Số bộ cửa hàng có</td><td><%= product.Quantity %> <%= product.Unit %></td></tr>
       <tr><td class="text-muted align-top">Mô tả</td><td><%= product.Description %></td></tr>
     </table>
+
+    <!-- Bảng số đo theo size -->
+    <% if (chart.length) { %>
+      <div class="card p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-semibold small"><i class="bi bi-rulers" style="color:var(--gold)"></i> Bảng số đo (cm)</div>
+          <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#measureGuide"><i class="bi bi-question-circle"></i> Cách đo</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-1 small text-center size-chart">
+            <thead class="table-light"><tr><th>Size</th><% CHART_FIELDS.forEach(f => { %><th><%= f.label %></th><% }) %></tr></thead>
+            <tbody>
+              <% chart.forEach(r => { %>
+                <tr><th><%= r.size %></th><% CHART_FIELDS.forEach(f => { %><td><%= r[f.key] || '—' %></td><% }) %></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% if (summary.count && (summary.fit['Hơi chật'] || summary.fit['Hơi rộng'] || summary.fit['Vừa'])) { %>
+          <div class="small text-muted">Khách đã thuê nhận xét: <%= summary.fit['Vừa'] %> vừa · <%= summary.fit['Hơi chật'] %> hơi chật · <%= summary.fit['Hơi rộng'] %> hơi rộng.</div>
+        <% } %>
+        <div class="small text-muted">Số đo giữa 2 size: chọn size lớn hơn. Không vừa? Xem <a href="/doi-size">chính sách đổi size</a>.</div>
+      </div>
+      <div class="modal fade" id="measureGuide" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title font-serif">Cách đo số đo cơ thể</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body small">
+            <%- include('../partials/measure-guide') %>
+          </div>
+        </div></div>
+      </div>
+    <% } %>
 
     <!-- Nút đặt thuê -->
     <% if (!canRent) { %>
@@ -187,3 +256,5 @@
     <p class="small text-muted mt-2"><i class="bi bi-shield-check text-success"></i> Cọc hoàn lại khi trả đồ đúng hạn, nguyên vẹn. Xem <a href="/noi-quy">nội quy &amp; bảng trừ phí</a>.</p>
   </div>
 </div>
+
+<%- include('../partials/reviews') %>

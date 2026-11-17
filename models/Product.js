@@ -21,6 +21,7 @@ const Product = sequelize.define('Product', {
   LateFeePerDay: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },  // Phí phạt trễ/ngày
   ProductValue: { type: DataTypes.DECIMAL(12, 0), allowNull: true },   // Giá trị SP (đền bù khi mất / hư nặng); trống = mất cọc
   Status: { type: DataTypes.STRING, defaultValue: 'Còn trống' },      // Tình trạng
+  SizeChart: { type: DataTypes.TEXT, allowNull: true },               // JSON bảng số đo theo size: { "M": { bust, waist, hip, height } }
 }, {
   tableName: 'Products',
   timestamps: true,

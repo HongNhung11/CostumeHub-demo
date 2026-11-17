@@ -32,6 +32,8 @@ const Rental = sequelize.define('Rental', {
   TermsAcceptedAt: { type: DataTypes.DATE },                         // lúc khách tick "đồng ý nội quy"
   CancelFee: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },   // phí hủy
   RefundAmount: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },// tiền hoàn lại
+  CouponCode: { type: DataTypes.STRING },                            // mã giảm giá đã dùng
+  Discount: { type: DataTypes.DECIMAL(12, 0), defaultValue: 0 },    // số tiền giảm (trừ vào tiền thuê)
 
   PaymentMethod: { type: DataTypes.STRING },                        // tiền mặt / chuyển khoản / ví
   PaymentStatus: { type: DataTypes.STRING, defaultValue: 'Chưa thanh toán' },

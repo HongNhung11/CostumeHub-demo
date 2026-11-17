@@ -50,6 +50,43 @@
             <td class="text-end"><%= vnd(it.PricePerDay) %></td>
             <td class="text-end"><%= vnd(Number(it.PricePerDay) * it.Quantity * rental.RentDays) %></td>
           </tr>
+          <% const opts = swapOptions[it.ItemID]; if (swap.ok && opts) { %>
+          <tr class="d-print-none swap-row">
+            <td colspan="4" class="pt-0 border-top-0">
+              <details class="small">
+                <summary class="text-primary"><i class="bi bi-arrow-left-right"></i> Đổi size / màu</summary>
+                <% if (!opts.length) { %>
+                  <div class="text-muted mt-1">Mẫu này không có size / màu khác.</div>
+                <% } else { %>
+                  <form method="POST" action="/rentals/<%= rental.RentalID %>/size" class="d-flex flex-wrap align-items-end gap-2 mt-2">
+                    <input type="hidden" name="ItemID" value="<%= it.ItemID %>">
+                    <div>
+                      <label class="form-label small text-muted mb-0">Đổi sang</label>
+                      <select name="Target" class="form-select form-select-sm" required>
+                        <option value="">-- Chọn size · màu --</option>
+                        <% opts.forEach(v => { %>
+                          <option value="<%= v.Size %>|<%= v.Color %>" <%= v.free < 1 ? 'disabled' : '' %>>Size <%= v.Size %> · <%= v.Color %> — <%= v.free > 0 ? 'còn ' + v.free + ' bộ' : 'hết lịch' %></option>
+                        <% }) %>
+                      </select>
+                    </div>
+                    <% if (it.Quantity > 1) { %>
+                      <div style="width:90px">
+                        <label class="form-label small text-muted mb-0">Số bộ</label>
+                        <input type="number" name="Qty" class="form-control form-control-sm" min="1" max="<%= it.Quantity %>" value="<%= it.Quantity %>">
+                      </div>
+                    <% } %>
+                    <button class="btn btn-sm btn-outline-primary" onclick="return confirm('Đổi size cho món này? Giá thuê và tiền cọc giữ nguyên.')">Đổi size</button>
+                  </form>
+                <% } %>
+              </details>
+            </td>
+          </tr>
+          <% } %>
+          <% if (rental.Status === 'Hoàn tất' && isOwner && it.ProductID && p && !reviewed.has(it.ProductID)) { %>
+          <tr class="d-print-none"><td colspan="4" class="pt-0 border-top-0 small">
+            <a href="/products/<%= it.ProductID %>#reviewBox"><i class="bi bi-star"></i> Đánh giá mẫu này (kèm ảnh)</a>
+          </td></tr>
+          <% } %>
           <% }) %>
         </tbody>
       </table>
@@ -57,7 +94,12 @@
       <!-- Tổng tiền -->
       <div class="row justify-content-end">
         <div class="col-md-6">
+          <% const disc = Number(rental.Discount) || 0, rentPay = Number(rental.RentFee) - disc; %>
           <div class="d-flex justify-content-between py-1"><span>Tiền thuê</span><span><%= vnd(rental.RentFee) %></span></div>
+          <% if (disc) { %>
+            <div class="d-flex justify-content-between py-1 text-success"><span>Giảm giá (mã <strong><%= rental.CouponCode %></strong>)</span><span>- <%= vnd(disc) %></span></div>
+            <div class="d-flex justify-content-between py-1 small"><span>Tiền thuê phải trả</span><span><%= vnd(rentPay) %></span></div>
+          <% } %>
           <div class="d-flex justify-content-between py-1"><span>Tiền cọc</span><span><%= vnd(rental.Deposit) %></span></div>
           <% if (st==='Hoàn tất') { %>
             <div class="d-flex justify-content-between py-1 text-danger"><span>Phí trễ hạn</span><span>- <%= vnd(rental.LateFee) %></span></div>
@@ -77,11 +119,19 @@
             <div class="d-flex justify-content-between py-1 fw-bold"><span>Hoàn lại</span><span class="text-success"><%= vnd(rental.RefundAmount) %></span></div>
           <% } else { %>
             <hr class="my-1">
-            <div class="d-flex justify-content-between py-1 fw-bold"><span>Tổng (thuê + cọc)</span><span class="price-tag"><%= vnd(Number(rental.RentFee)+Number(rental.Deposit)) %></span></div>
+            <div class="d-flex justify-content-between py-1 fw-bold"><span>Tổng (thuê + cọc)</span><span class="price-tag"><%= vnd(rentPay + Number(rental.Deposit)) %></span></div>
             <div class="d-flex justify-content-between small text-muted"><span>Thanh toán</span><span><%= rental.PaymentStatus %><%= rental.PaymentMethod ? ' · '+rental.PaymentMethod : '' %></span></div>
           <% } %>
         </div>
       </div>
+      <% if (swap.reason && ['Đã cọc', 'Đang thuê'].includes(rental.Status)) { %>
+        <div class="small text-muted mt-2 d-print-none"><i class="bi bi-arrow-left-right"></i> Đổi size: <%= swap.reason %> <a href="/doi-size">Chính sách đổi size</a></div>
+      <% } else if (swap.ok) { %>
+        <div class="small text-muted mt-2 d-print-none"><i class="bi bi-arrow-left-right"></i> Không vừa size? Bấm "Đổi size / màu" dưới từng món — miễn phí, theo <a href="/doi-size">chính sách đổi size</a>.</div>
+      <% } %>
+      <% if (rental.Note) { %>
+        <div class="small mt-2 p-2 rounded" style="background:var(--cream-2);white-space:pre-line"><strong>Ghi chú:</strong> <%= rental.Note %></div>
+      <% } %>
       <p class="small text-muted mt-3 mb-0">
         <i class="bi bi-journal-check"></i>
         <% if (rental.TermsAcceptedAt) { %>Khách đã đồng ý <a href="/noi-quy">nội quy thuê đồ &amp; bảng trừ phí</a> lúc <%= new Date(rental.TermsAcceptedAt).toLocaleString('vi-VN') %>.<% } else { %>Áp dụng <a href="/noi-quy">nội quy thuê đồ &amp; bảng trừ phí</a>.<% } %>

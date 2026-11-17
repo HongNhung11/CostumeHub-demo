@@ -10,6 +10,13 @@ router.use(requireAdmin);
 router.get('/stats', require('../controllers/statsController').index);
 
 // Quản lý tài khoản
+// Mã giảm giá
+const coupons = require('../controllers/couponController');
+router.get('/coupons', coupons.index);
+router.post('/coupons', coupons.create);
+router.post('/coupons/:id/toggle', coupons.toggle);
+router.post('/coupons/:id/delete', coupons.remove);
+
 router.get('/users', users.index);
 router.post('/users', users.create);
 router.post('/users/:id/role', users.changeRole);

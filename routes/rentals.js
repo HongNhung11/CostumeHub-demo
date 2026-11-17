@@ -19,5 +19,7 @@ router.post('/:id/return', requireStaff, c.receiveReturn);
 router.get('/:id', requireLogin, c.show);
 router.get('/:id/cccd', requireLogin, c.idCardImage);
 router.post('/:id/cancel', requireLogin, c.cancel);
+// Đổi size / màu của 1 món (chính sách đổi size — kiểm tra quyền và thời hạn trong controller)
+router.post('/:id/size', requireLogin, c.changeSize);
 
 module.exports = router;

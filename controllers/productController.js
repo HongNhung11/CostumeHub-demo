@@ -3,14 +3,16 @@ const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
-const { sequelize, Product, ProductVariant } = require('../models');
+const { sequelize, Product, ProductVariant, ProductImage, Review, Favorite, User, Rental, RentalItem } = require('../models');
 const { searchProducts } = require('../utils/search');
 const { peakFutureUsage, productsInRentals, productAvailability, rentDatesFrom, MAX_RENT_DAYS } = require('../utils/availability');
 const { splitQuantity, formatVariants, parseVariants, sizesOf, colorsOf, variantGrid, saveVariants } = require('../utils/variants');
 const { splitList } = require('../utils/text');
 const { viDate, daysBetween } = require('../utils/dates');
 const { PRODUCT_TYPES, PRODUCT_STATUSES, normalizeStatus } = require('../utils/constants');
-const { uploadDir } = require('../middlewares/upload');
+const { uploadDir, MAX_GALLERY } = require('../middlewares/upload');
+const { FIELDS: CHART_FIELDS, parseChart, chartRows, readChartForm } = require('../utils/sizeChart');
+const { ratingMap, reviewSummary } = require('../utils/reviews');
 
 // Sắp xếp: sản phẩm tạo GẦN NHẤT lên đầu
 const NEWEST_FIRST = [['CreateDate', 'DESC'], ['ProductID', 'DESC']];
@@ -43,7 +45,7 @@ function backToList(req, fallback = '/products/manage') {
   return fallback;
 }
 
-const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES, errors: [], grid: [], ...extra });
+const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES, errors: [], grid: [], gallery: [], chart: {}, CHART_FIELDS, MAX_GALLERY, ...extra });
 
 // ===== CỬA HÀNG: lưới thẻ sản phẩm + lọc danh mục + tìm kiếm + phân trang =====
 exports.index = async (req, res) => {
@@ -103,9 +105,13 @@ exports.index = async (req, res) => {
   grouped.forEach(g => { counts[g.ProductType] = Number(g.cnt); });
   const totalAll = await Product.count({ where: ON_SALE });
 
+  // Sao đánh giá trung bình + mẫu khách đã thả tim
+  const ratings = await ratingMap(rows.map(p => p.ProductID));
+  const favSet = await favoriteSet(req, rows.map(p => p.ProductID));
+
   res.render('products/index', {
     title: 'Trang phục & Phụ kiện',
-    products: rows, counts, totalAll, type, q, page, totalPages, count,
+    products: rows, counts, totalAll, type, q, page, totalPages, count, ratings, favSet,
     COSTUME_TYPES, ACCESSORY_TYPES,
     dates, tags, onlyFree, size, sizeOptions, viDate, rentDays: dates ? daysBetween(dates.start, dates.end) : 0, MAX_RENT_DAYS,
   });
@@ -151,9 +157,34 @@ exports.show = async (req, res) => {
     inCart: cart.filter(l => l.productId === product.ProductID && l.size === v.Size && l.color === v.Color).reduce((s, l) => s + l.qty, 0),
   }));
   const inCart = stock.reduce((s, v) => s + v.inCart, 0);
+
+  // Ảnh: ảnh chính + ảnh phụ
+  const extra = await ProductImage.findAll({ where: { ProductID: product.ProductID }, order: [['SortOrder', 'ASC'], ['ImageID', 'ASC']] });
+  const images = [product.PathImage, ...extra.map(i => i.Path)].filter(Boolean);
+
+  // Đánh giá: khách không thấy đánh giá bị ẩn; nhân viên thấy hết để kiểm duyệt
+  const u = req.session.user;
+  const staff = !!u && (u.role === 'admin' || u.role === 'nhanvien');
+  const reviews = await Review.findAll({
+    where: { ProductID: product.ProductID, ...(staff ? {} : { isHidden: false }) },
+    include: [{ model: User, attributes: ['fullName', 'username'] }],
+    order: [['createdAt', 'DESC']],
+  });
+  const summary = reviewSummary(reviews.filter(r => !r.isHidden));
+  const withPhotos = req.query.photo === '1';
+  // Khách được đánh giá khi: đã có đơn "Hoàn tất" chứa mẫu này và chưa đánh giá mẫu này
+  let canReview = null, myReview = null;
+  if (u) {
+    myReview = await Review.findOne({ where: { ProductID: product.ProductID, UserID: u.id } });
+    if (!myReview) canReview = await lastCompletedItem(u.id, product.ProductID);
+  }
+  const isFav = u ? !!(await Favorite.findOne({ where: { UserID: u.id, ProductID: product.ProductID } })) : false;
+
   res.render('products/show', {
-    title: 'Chi tiết sản phẩm', product, dates, avail, stock, inCart, viDate, MAX_RENT_DAYS,
+    title: product.ProductName, product, dates, avail, stock, inCart, viDate, MAX_RENT_DAYS,
     sizes: sizesOf(product), colors: colorsOf(product),
+    images, chart: chartRows(product), CHART_FIELDS,
+    reviews: withPhotos ? reviews.filter(r => r.imageList().length) : reviews, withPhotos, summary, canReview, myReview, isFav, staff,
   });
 };
 
@@ -172,20 +203,23 @@ exports.createForm = (req, res) => {
 exports.create = async (req, res) => {
   const back = safeBack(req.body.back);
   const { combos, errors: gridErrors } = readVariantForm(req.body);
-  const errors = [...validateProduct(req.body, { hasImage: !!req.file, withGrid: true }), ...gridErrors];
+  const { chart, json: chartJson, errors: chartErrors } = readChartForm(req.body, splitList(normalizedLists(req.body).Size));
+  const errors = [...validateProduct(req.body, { hasImage: !!req.file, withGrid: true }), ...gridErrors, ...chartErrors];
   if (errors.length) {
-    removeUpload(req.file);
+    removeUploads(req);
     return res.status(400).render('products/form', formView({
-      title: 'Thêm trang phục', product: req.body, grid: combos, action: '/products', method: 'POST', back, errors,
+      title: 'Thêm trang phục', product: req.body, grid: combos, chart, action: '/products', method: 'POST', back, errors,
     }));
   }
   try {
     const data = pickBody(req.body);
     data.PathImage = '/uploads/' + req.file.filename;
     Object.assign(data, normalizedLists(req.body));
+    data.SizeChart = chartJson;
     const created = await sequelize.transaction(async (t) => {
       const p = await Product.create({ ...data, Quantity: 0 }, { transaction: t });
       await saveVariants(p, combos, { transaction: t });
+      await addGallery(p.ProductID, req.galleryFiles, 0, t);
       return p;
     });
     req.flash('success', `Đã thêm "${created.ProductName}" — sản phẩm mới hiển thị ở đầu danh sách.`);
@@ -193,7 +227,7 @@ exports.create = async (req, res) => {
     const listPath = back.split('?')[0];
     res.redirect(listPath === '/products/manage' ? `/products/manage?new=${created.ProductID}` : listPath);
   } catch (e) {
-    removeUpload(req.file);
+    removeUploads(req);
     req.flash('error', 'Lỗi khi thêm: ' + e.message);
     res.redirect('/products/new');
   }
@@ -204,8 +238,9 @@ exports.editForm = async (req, res) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
   const variants = await ProductVariant.findAll({ where: { ProductID: product.ProductID } });
+  const gallery = await ProductImage.findAll({ where: { ProductID: product.ProductID }, order: [['SortOrder', 'ASC'], ['ImageID', 'ASC']] });
   res.render('products/form', formView({
-    title: 'Cập nhật trang phục', product, grid: variantGrid(product, variants),
+    title: 'Cập nhật trang phục', product, grid: variantGrid(product, variants), gallery, chart: parseChart(product.SizeChart),
     action: `/products/${product.ProductID}?_method=PUT`, method: 'POST',
     back: backToList(req),
   }));
@@ -218,7 +253,13 @@ exports.update = async (req, res) => {
     const product = await Product.findByPk(req.params.id);
     if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
     const { combos, errors: gridErrors } = readVariantForm(req.body);
-    const errors = [...validateProduct(req.body, { hasImage: !!req.file || !!product.PathImage, withGrid: true }), ...gridErrors];
+    const { chart, json: chartJson, errors: chartErrors } = readChartForm(req.body, splitList(normalizedLists(req.body).Size));
+    const errors = [...validateProduct(req.body, { hasImage: !!req.file || !!product.PathImage, withGrid: true }), ...gridErrors, ...chartErrors];
+    // Ảnh phụ: bỏ những ảnh được tick "Xóa", thêm ảnh mới — tổng không quá MAX_GALLERY
+    const gallery = await ProductImage.findAll({ where: { ProductID: product.ProductID }, order: [['SortOrder', 'ASC'], ['ImageID', 'ASC']] });
+    const removeIds = new Set(toArray(req.body.removeImages));
+    const keep = gallery.filter(g => !removeIds.has(g.ImageID));
+    if (keep.length + req.galleryFiles.length > MAX_GALLERY) errors.push(`Tối đa ${MAX_GALLERY} ảnh phụ (đang giữ ${keep.length}, chọn thêm ${req.galleryFiles.length}).`);
     // Không cho giảm số bộ của một size × màu xuống dưới số bộ khách đang giữ cùng lúc (kể cả bỏ size / màu đó đi)
     if (!errors.length) {
       const peaks = await peakFutureUsage(product.ProductID);
@@ -230,10 +271,10 @@ exports.update = async (req, res) => {
       }
     }
     if (errors.length) {
-      removeUpload(req.file);
+      removeUploads(req);
       return res.status(400).render('products/form', formView({
         title: 'Cập nhật trang phục',
-        product: { ...req.body, ProductID: product.ProductID, PathImage: product.PathImage }, grid: combos,
+        product: { ...req.body, ProductID: product.ProductID, PathImage: product.PathImage }, grid: combos, gallery, chart,
         action: `/products/${product.ProductID}?_method=PUT`, method: 'POST', back, errors,
       }));
     }
@@ -241,16 +282,22 @@ exports.update = async (req, res) => {
     delete data.PathImage;                    // ảnh chỉ đổi khi upload file mới
     delete data.Quantity;                     // tổng số bộ tính từ bảng size × màu
     Object.assign(data, normalizedLists(req.body));
+    data.SizeChart = chartJson;
     const oldImage = product.PathImage;
     if (req.file) data.PathImage = '/uploads/' + req.file.filename;
+    const removed = gallery.filter(g => removeIds.has(g.ImageID));
     await sequelize.transaction(async (t) => {
       await product.update(data, { transaction: t });
       await saveVariants(product, combos, { transaction: t });
+      if (removed.length) await ProductImage.destroy({ where: { ImageID: { [Op.in]: removed.map(g => g.ImageID) } }, transaction: t });
+      await addGallery(product.ProductID, req.galleryFiles, keep.reduce((m, g) => Math.max(m, g.SortOrder + 1), 0), t);
     });
     if (req.file) await removeImageIfUnused(oldImage);   // đổi ảnh -> xóa ảnh cũ nếu không SP nào dùng
+    for (const g of removed) await removeImageIfUnused(g.Path);
     req.flash('success', 'Đã cập nhật trang phục.');
     res.redirect(back);                       // 7: quay về trang danh sách
   } catch (e) {
+    removeUploads(req);
     req.flash('error', 'Lỗi khi cập nhật: ' + e.message);
     res.redirect(`/products/${req.params.id}/edit`);
   }
@@ -277,9 +324,12 @@ exports.destroy = async (req, res) => {
   } else {
     const p = await Product.findByPk(id);
     if (p) {
+      const extra = await ProductImage.findAll({ where: { ProductID: id } });
       await ProductVariant.destroy({ where: { ProductID: id } });
+      await ProductImage.destroy({ where: { ProductID: id } });
+      await Favorite.destroy({ where: { ProductID: id } });
       await p.destroy();
-      await removeImageIfUnused(p.PathImage);
+      for (const img of [p.PathImage, ...extra.map(g => g.Path)]) await removeImageIfUnused(img);
       req.flash('success', 'Đã xóa 1 trang phục.');
     }
   }
@@ -296,8 +346,11 @@ exports.destroyMany = async (req, res) => {
   const used = await productsInRentals(ids);
   const ok = ids.filter(id => !used.active.has(id) && !used.history.has(id));
   if (ok.length) {
-    const images = (await Product.findAll({ attributes: ['PathImage'], where: { ProductID: { [Op.in]: ok } } })).map(p => p.PathImage);
+    const images = (await Product.findAll({ attributes: ['PathImage'], where: { ProductID: { [Op.in]: ok } } })).map(p => p.PathImage)
+      .concat((await ProductImage.findAll({ where: { ProductID: { [Op.in]: ok } } })).map(g => g.Path));
     await ProductVariant.destroy({ where: { ProductID: { [Op.in]: ok } } });
+    await ProductImage.destroy({ where: { ProductID: { [Op.in]: ok } } });
+    await Favorite.destroy({ where: { ProductID: { [Op.in]: ok } } });
     const n = await Product.destroy({ where: { ProductID: { [Op.in]: ok } } });
     for (const img of new Set(images)) await removeImageIfUnused(img);
     if (n) req.flash('success', `Đã xóa ${n} trang phục được chọn.`);
@@ -313,17 +366,19 @@ exports.copyMany = async (req, res) => {
     req.flash('error', 'Chưa chọn bản ghi nào để sao chép.');
     return res.redirect(backToList(req));
   }
-  const list = await Product.findAll({ where: { ProductID: { [Op.in]: ids } }, include: [{ model: ProductVariant, as: 'variants' }] });
+  const list = await Product.findAll({ where: { ProductID: { [Op.in]: ids } }, include: [{ model: ProductVariant, as: 'variants' }, { model: ProductImage, as: 'images' }] });
   for (const p of list) {
     const clone = p.toJSON();
     delete clone.ProductID;
     delete clone.CreateDate;
     delete clone.UpdateDate;
     delete clone.variants;
+    delete clone.images;
     clone.ProductName = clone.ProductName + ' (Copy)';
     await sequelize.transaction(async (t) => {
       const c = await Product.create(clone, { transaction: t });
       await saveVariants(c, p.variants.map(v => ({ Size: v.Size, Color: v.Color, Quantity: v.Quantity })), { transaction: t });
+      if (p.images.length) await ProductImage.bulkCreate(p.images.map(g => ({ ProductID: c.ProductID, Path: g.Path, SortOrder: g.SortOrder })), { transaction: t });
     });
   }
   req.flash('success', `Đã sao chép ${list.length} bản ghi.`);
@@ -406,7 +461,9 @@ exports.importData = async (req, res) => {
         const combos = detail.length
           ? splitList(lists.Size).flatMap(Size => splitList(lists.Color).map(Color => ({ Size, Color, Quantity: (detail.find(v => v.Size === Size && v.Color === Color) || {}).Quantity || 0 })))
           : splitQuantity(Number(row.Quantity), splitList(lists.Size), splitList(lists.Color));
-        valid.push({ data: { ...pickBody(row), ...lists }, combos });
+        // Bảng số đo (cột SizeChart dạng JSON) — sai định dạng thì bỏ qua, không chặn dòng
+        const chart = parseChart(typeof row.SizeChart === 'string' ? row.SizeChart : JSON.stringify(row.SizeChart || {}));
+        valid.push({ data: { ...pickBody(row), ...lists, SizeChart: Object.keys(chart).length ? JSON.stringify(chart) : null }, combos });
       }
     });
 
@@ -524,6 +581,33 @@ function safeBack(v) {
 function removeUpload(file) {
   if (file && file.path) fs.unlink(file.path, () => {});
 }
+// Form lỗi -> xóa mọi ảnh vừa upload (ảnh chính + ảnh phụ)
+function removeUploads(req) {
+  removeUpload(req.file);
+  (req.galleryFiles || []).forEach(removeUpload);
+}
+// Lưu các ảnh phụ vừa upload
+async function addGallery(productId, files, startOrder, transaction) {
+  if (!files || !files.length) return;
+  await ProductImage.bulkCreate(files.map((f, i) => ({ ProductID: productId, Path: '/uploads/' + f.filename, SortOrder: startOrder + i })), { transaction });
+}
+// Món gần nhất trong đơn "Hoàn tất" của khách có mẫu này (cho phép đánh giá + ghi size đã mặc)
+async function lastCompletedItem(userId, productId) {
+  return RentalItem.findOne({
+    where: { ProductID: productId },
+    include: [{ model: Rental, where: { UserID: userId, Status: 'Hoàn tất' }, attributes: ['RentalID', 'ReturnDate'] }],
+    order: [[Rental, 'RentalID', 'DESC']],
+  });
+}
+exports.lastCompletedItem = lastCompletedItem;
+// Tập ProductID mà khách đang đăng nhập đã thả tim
+async function favoriteSet(req, ids) {
+  const u = req.session.user;
+  if (!u || !ids.length) return new Set();
+  const rows = await Favorite.findAll({ where: { UserID: u.id, ProductID: { [Op.in]: ids } }, attributes: ['ProductID'] });
+  return new Set(rows.map(r => r.ProductID));
+}
+exports.favoriteSet = favoriteSet;
 
 const SAFE_IMAGE_PATH = /^(\/(img|uploads)\/[\w\-./]+|https?:\/\/[^\s"'<>]+)$/i;
 
@@ -531,5 +615,6 @@ const SAFE_IMAGE_PATH = /^(\/(img|uploads)\/[\w\-./]+|https?:\/\/[^\s"'<>]+)$/i;
 async function removeImageIfUnused(img) {
   if (!img || !img.startsWith('/uploads/')) return;          // ảnh mẫu /img/... thì giữ
   if (await Product.count({ where: { PathImage: img } })) return;
+  if (await ProductImage.count({ where: { Path: img } })) return;
   fs.unlink(path.join(uploadDir, path.basename(img)), () => {});
 }

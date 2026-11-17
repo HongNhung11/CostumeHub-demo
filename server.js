@@ -56,6 +56,7 @@ app.use((req, res, next) => {
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
   res.locals.path = req.path;
+  res.locals.reqUrl = req.originalUrl;   // để form (VD thả tim) quay lại đúng trang đang xem
   res.locals.cartCount = (req.session.cart || []).reduce((s, l) => s + l.qty, 0);
   next();
 });
@@ -70,7 +71,8 @@ const multer = require('multer');
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const userError =
-    err instanceof multer.MulterError ? (err.code === 'LIMIT_FILE_SIZE' ? 'File quá lớn (tối đa 5MB với ảnh, 10MB với file import).' : 'File tải lên không hợp lệ.')
+    err instanceof multer.MulterError ? (err.code === 'LIMIT_FILE_SIZE' ? 'File quá lớn (tối đa 5MB với ảnh, 10MB với file import).'
+      : ['LIMIT_FILE_COUNT', 'LIMIT_UNEXPECTED_FILE'].includes(err.code) ? 'Chọn quá nhiều ảnh (sản phẩm: tối đa 6 ảnh phụ · đánh giá: tối đa 3 ảnh).' : 'File tải lên không hợp lệ.')
     : err.code === 'INVALID_FILE_TYPE' ? err.message
     : null;
 
@@ -132,10 +134,21 @@ async function migrateSchema() {
     await User.update({ isActive: true }, { where: {}, hooks: false });
   }
   // Các cột mới khác (đều cho phép trống)
-  const NEW_COLUMNS = { Products: [Product, ['ProductValue']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt']] };
+  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount']] };
+  const added = [];
   for (const [table, [model, cols]] of Object.entries(NEW_COLUMNS)) {
     const desc = await qi.describeTable(table);
-    for (const c of cols) if (!desc[c]) await qi.addColumn(table, c, { type: model.rawAttributes[c].type, allowNull: true });
+    for (const c of cols) if (!desc[c]) { await qi.addColumn(table, c, { type: model.rawAttributes[c].type, allowNull: true }); added.push(c); }
+  }
+  // Vừa thêm cột bảng số đo -> điền số đo tham khảo cho áo dài / váy tiệc có size chữ (S, M, L...); nhân viên sửa lại sau
+  if (added.includes('SizeChart')) {
+    const { standardChart } = require('./utils/sizeChart');
+    let n = 0;
+    for (const p of await Product.findAll({ where: { ProductType: ['Áo dài', 'Váy tiệc'] } })) {
+      const chart = standardChart(p.Size);
+      if (chart) { await p.update({ SizeChart: chart }, { silent: true }); n++; }
+    }
+    if (n) console.log(`📏 Đã thêm bảng số đo tham khảo cho ${n} sản phẩm.`);
   }
   // Trạng thái SP cũ: "Đang cho thuê" -> "Còn trống", "Chờ xử lý" -> "Ngừng cho thuê"
   for (const [oldS, newS] of Object.entries(LEGACY_STATUS)) {

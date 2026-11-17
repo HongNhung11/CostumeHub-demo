@@ -88,7 +88,10 @@ exports.view = async (req, res) => {
   // Ngày khách đã chọn khi xem lịch trống ở cửa hàng / trang chi tiết -> tự điền
   const saved = req.session.rentDates;
   const rentDates = saved && !checkDates(saved.start, saved.end) ? saved : null;
-  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS, lineKey });
+  // Mã giảm giá đang áp dụng (gợi ý cho khách bấm chọn)
+  const { activeCoupons, summary } = require('../utils/coupons');
+  const coupons = (await activeCoupons()).map(c => ({ code: c.Code, text: c.Description || summary(c), summary: summary(c) }));
+  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons });
 };
 
 // ===== Đổi số lượng 1 dòng =====
@@ -128,4 +131,20 @@ exports.availability = async (req, res) => {
   }
   const ok = Object.values(result).every(r => r.need <= r.available);
   res.json({ ok, lines: result });
+};
+
+// ===== API: kiểm tra mã giảm giá (khách bấm "Áp dụng" ở giỏ thuê) =====
+// Tiền thuê = tổng giá/ngày của giỏ × số ngày đang chọn. Khi đặt, máy chủ kiểm tra lại lần nữa.
+exports.coupon = async (req, res) => {
+  const { applyCoupon } = require('../utils/coupons');
+  const { daysBetween } = require('../utils/dates');
+  const { start, end, code } = req.query;
+  const err = checkDates(start, end);
+  if (err) return res.json({ ok: false, error: err });
+  const { lines } = await loadCart(req);
+  if (!lines.length) return res.json({ ok: false, error: 'Giỏ thuê đang trống.' });
+  const rentFee = lines.reduce((s, l) => s + Number(l.product.Price) * l.qty, 0) * daysBetween(start, end);
+  const r = await applyCoupon(code, req.session.user ? req.session.user.id : null, rentFee);
+  if (r.error) return res.json({ ok: false, error: r.error });
+  res.json({ ok: true, code: r.coupon.Code, discount: r.discount, rentFee, description: r.coupon.Description || '' });
 };

@@ -1,0 +1,104 @@
+<!-- ===== ĐÁNH GIÁ (trang chi tiết sản phẩm) ===== -->
+<section id="reviews" class="mt-5">
+  <h4 class="font-serif mb-3"><i class="bi bi-chat-heart" style="color:var(--gold)"></i> Đánh giá từ khách đã thuê</h4>
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="card p-3">
+        <% if (summary.count) { %>
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="display-6 fw-bold" style="color:var(--primary)"><%= summary.avg %></div>
+            <div><%- include('stars', { value: summary.avg }) %><div class="small text-muted"><%= summary.count %> đánh giá · <%= summary.photos %> có ảnh</div></div>
+          </div>
+          <% for (let s = 5; s >= 1; s--) { const pct = Math.round(summary.dist[s] / summary.count * 100); %>
+            <div class="d-flex align-items-center gap-2 small">
+              <span style="width:28px"><%= s %> <i class="bi bi-star-fill text-warning"></i></span>
+              <div class="progress flex-grow-1" style="height:6px"><div class="progress-bar bg-warning" style="width:<%= pct %>%"></div></div>
+              <span class="text-muted" style="width:24px"><%= summary.dist[s] %></span>
+            </div>
+          <% } %>
+        <% } else { %>
+          <p class="small text-muted mb-0">Chưa có đánh giá. Khách đã thuê và trả mẫu này sẽ được mời đánh giá.</p>
+        <% } %>
+      </div>
+
+      <!-- Form đánh giá: chỉ khách đã thuê xong mẫu này -->
+      <% if (currentUser) { %>
+        <% if (canReview || myReview) { const r = myReview; %>
+          <div class="card p-3 mt-3" id="reviewBox">
+            <div class="fw-semibold mb-2"><%= r ? 'Sửa đánh giá của bạn' : 'Viết đánh giá' %></div>
+            <% if (!r && canReview) { %><div class="small text-muted mb-2">Bạn đã thuê size <strong><%= [canReview.Size, canReview.Color].filter(Boolean).join(' · ') %></strong> (đơn #<%= canReview.Rental.RentalID %>).</div><% } %>
+            <form method="POST" action="/products/<%= product.ProductID %>/reviews" enctype="multipart/form-data">
+              <div class="star-input mb-2" role="radiogroup" aria-label="Số sao">
+                <% for (let s = 5; s >= 1; s--) { %>
+                  <input type="radio" name="Rating" value="<%= s %>" id="rs<%= s %>" <%= r && r.Rating === s ? 'checked' : '' %> required>
+                  <label for="rs<%= s %>" title="<%= s %> sao"><i class="bi bi-star-fill"></i></label>
+                <% } %>
+              </div>
+              <label class="form-label small text-muted mb-1">Độ vừa vặn</label>
+              <select name="FitNote" class="form-select form-select-sm mb-2">
+                <option value="">— Không chọn —</option>
+                <% ['Vừa', 'Hơi chật', 'Hơi rộng'].forEach(f => { %><option <%= r && r.FitNote === f ? 'selected' : '' %>><%= f %></option><% }) %>
+              </select>
+              <textarea name="Comment" class="form-control form-control-sm mb-2" rows="3" minlength="10" maxlength="1000" required placeholder="Chất vải, màu so với ảnh, size có chuẩn không... (ít nhất 10 ký tự)"><%= r ? r.Comment : '' %></textarea>
+              <% if (r && r.imageList().length) { %>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                  <% r.imageList().forEach(src => { %>
+                    <label class="gallery-edit"><img src="<%= src %>" alt=""><span class="small"><input type="checkbox" name="removeImages[]" value="<%= src %>" class="form-check-input me-1">Xóa</span></label>
+                  <% }) %>
+                </div>
+              <% } %>
+              <input type="file" name="images" accept="image/*" multiple class="form-control form-control-sm mb-1">
+              <div class="form-text mb-2">Tối đa 3 ảnh lúc bạn mặc thật — giúp khách sau chọn dễ hơn.</div>
+              <button class="btn btn-primary btn-sm"><i class="bi bi-send"></i> <%= r ? 'Lưu thay đổi' : 'Gửi đánh giá' %></button>
+            </form>
+          </div>
+        <% } else if (!staff) { %>
+          <p class="small text-muted mt-3">Bạn có thể đánh giá sau khi đã thuê và trả mẫu này.</p>
+        <% } %>
+      <% } else { %>
+        <p class="small text-muted mt-3"><a href="/login">Đăng nhập</a> để đánh giá sau khi thuê.</p>
+      <% } %>
+    </div>
+
+    <div class="col-md-8">
+      <% if (summary.count) { %>
+        <div class="d-flex gap-2 mb-3">
+          <a href="/products/<%= product.ProductID %>#reviews" class="btn btn-sm <%= withPhotos ? 'btn-light' : 'btn-primary' %>">Tất cả (<%= summary.count %>)</a>
+          <a href="/products/<%= product.ProductID %>?photo=1#reviews" class="btn btn-sm <%= withPhotos ? 'btn-primary' : 'btn-light' %>"><i class="bi bi-camera"></i> Có ảnh (<%= summary.photos %>)</a>
+        </div>
+      <% } %>
+      <% if (withPhotos && !reviews.length) { %><p class="text-muted small">Chưa có đánh giá kèm ảnh.</p><% } %>
+      <% reviews.forEach(rv => { const name = rv.User ? (rv.User.fullName || rv.User.username) : 'Khách'; %>
+        <div class="card p-3 mb-3 <%= rv.isHidden ? 'opacity-50' : '' %>">
+          <div class="d-flex justify-content-between flex-wrap gap-2">
+            <div>
+              <%# Che bớt tên khách (riêng tư) %>
+              <strong><%= name.length > 2 ? name[0] + '***' + name.slice(-1) : name %></strong>
+              <span class="ms-1"><%- include('stars', { value: rv.Rating }) %></span>
+              <% if (rv.isHidden) { %><span class="badge bg-secondary ms-1">Đã ẩn</span><% } %>
+              <div class="small text-muted">
+                <%= new Date(rv.createdAt).toLocaleDateString('vi-VN') %>
+                <% if (rv.SizeWorn) { %> · Đã thuê: <%= rv.SizeWorn %><% } %>
+                <% if (rv.FitNote) { %> · <span class="<%= rv.FitNote === 'Vừa' ? 'text-success' : 'text-warning-emphasis' %>"><%= rv.FitNote %></span><% } %>
+              </div>
+            </div>
+            <div class="d-flex gap-1">
+              <% if (staff) { %>
+                <form method="POST" action="/reviews/<%= rv.ReviewID %>/hide"><button class="btn btn-sm btn-light" title="<%= rv.isHidden ? 'Hiện lại' : 'Ẩn đánh giá' %>"><i class="bi <%= rv.isHidden ? 'bi-eye' : 'bi-eye-slash' %>"></i></button></form>
+              <% } %>
+              <% if (currentUser && (staff || rv.UserID === currentUser.id)) { %>
+                <form method="POST" action="/reviews/<%= rv.ReviewID %>/delete" onsubmit="return confirm('Xóa đánh giá này?')"><button class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button></form>
+              <% } %>
+            </div>
+          </div>
+          <p class="mb-2 mt-2" style="white-space:pre-line"><%= rv.Comment %></p>
+          <% if (rv.imageList().length) { %>
+            <div class="d-flex flex-wrap gap-2">
+              <% rv.imageList().forEach(src => { %><a href="<%= src %>" target="_blank" rel="noopener" class="review-photo"><img src="<%= src %>" alt="Ảnh khách chụp" onerror="this.parentNode.style.display='none'"></a><% }) %>
+            </div>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</section>

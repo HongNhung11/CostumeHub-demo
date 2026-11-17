@@ -9,6 +9,10 @@ const rentalRoutes = require('./rentals');
 router.get('/', home.home);
 router.get('/contact', home.contact);
 router.get('/noi-quy', (req, res) => res.render('home/rules', { title: 'Nội quy thuê đồ' }));
+// Trang hỗ trợ khách: cách thức thuê, hỏi đáp, chính sách đổi size
+router.get('/cach-thue', (req, res) => res.render('home/how', { title: 'Cách thức thuê đồ' }));
+router.get('/hoi-dap', (req, res) => res.render('home/faq', { title: 'Câu hỏi thường gặp' }));
+router.get('/doi-size', (req, res) => res.render('home/exchange', { title: 'Chính sách đổi size', SWAP_DAYS: require('../controllers/rentalController').SWAP_DAYS_AFTER_PICKUP }));
 router.post('/contact', home.contactSubmit);
 
 // Auth
@@ -30,7 +34,22 @@ router.use('/products', productRoutes);
   router.post('/account/password', requireLogin, account.changePassword);
 }
 
-// Khu vực quản trị (chỉ admin): thống kê, quản lý tài khoản
+// Yêu thích + đánh giá sản phẩm (cần đăng nhập)
+{
+  const { requireLogin, requireStaff } = require('../middlewares/auth');
+  const fav = require('../controllers/favoriteController');
+  const rv = require('../controllers/reviewController');
+  const { uploadReviewImages } = require('../middlewares/upload');
+  router.get('/favorites', requireLogin, fav.index);
+  router.post('/favorites/:id', requireLogin, fav.toggle);
+  // Khách chưa đăng nhập bấm tim -> đăng nhập xong quay về trang sản phẩm
+  router.get('/favorites/:id', (req, res) => res.redirect(`/products/${parseInt(req.params.id) || ''}`));
+  router.post('/products/:id/reviews', requireLogin, uploadReviewImages, rv.save);
+  router.post('/reviews/:rid/delete', requireLogin, rv.remove);
+  router.post('/reviews/:rid/hide', requireStaff, rv.toggleHide);
+}
+
+// Khu vực quản trị (chỉ admin): thống kê, mã giảm giá, quản lý tài khoản
 router.use('/admin', require('./admin'));
 
 // Giỏ thuê (nhiều món / 1 đơn)

@@ -47,9 +47,9 @@ Lần chạy đầu tiên tự tạo bảng và nạp dữ liệu mẫu. CSDL c�
 
 | Vai trò | Tài khoản | Mật khẩu | Làm được gì |
 |---|---|---|---|
-| Admin | `admin` | `admin123` | Mọi quyền của nhân viên + **xóa / import** sản phẩm, **Thống kê**, **Quản lý tài khoản** |
-| Nhân viên | `nhanvien` | `123456` | Quản lý sản phẩm (thêm, sửa, sao chép, export), xem mọi đơn, giao đồ, nhận trả, hủy đơn |
-| Khách | `khachhang` | `123456` | Thêm vào giỏ, đặt thuê, xem / hủy **đơn của mình**, sửa thông tin, đổi mật khẩu |
+| Admin | `admin` | `admin123` | Mọi quyền của nhân viên + **xóa / import** sản phẩm, **Thống kê**, **Mã giảm giá**, **Quản lý tài khoản** |
+| Nhân viên | `nhanvien` | `123456` | Quản lý sản phẩm (thêm, sửa, sao chép, export), xem mọi đơn, giao đồ, nhận trả, đổi size, hủy đơn, ẩn / xóa đánh giá |
+| Khách | `khachhang` | `123456` | Thêm vào giỏ, dùng mã giảm giá, đặt thuê, xem / hủy / đổi size **đơn của mình**, yêu thích, đánh giá có ảnh, sửa thông tin |
 
 Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên / admin do admin tạo ở trang **Tài khoản**.
 
@@ -80,6 +80,14 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 - Hủy đơn: ≥ 3 ngày trước ngày nhận hoàn 100% cọc · 1–2 ngày giữ 50% · trong ngày mất cọc.
 - **Nội quy & bảng trừ phí** `/noi-quy` (mức phí sửa ở `utils/fees.js`): khách phải tick **"đồng ý nội quy"** mới đặt được; hóa đơn ghi lại thời điểm đồng ý.
 
+- **Nhiều ảnh / sản phẩm**: ảnh chính + tối đa 6 ảnh phụ (mặt sau, chi tiết, ảnh mặc thật); trang chi tiết có thư viện ảnh bấm chuyển.
+- **Bảng số đo theo size** (vòng ngực, eo, mông, chiều cao gợi ý): nhân viên nhập theo từng size (không bắt buộc, có nút điền số đo tham khảo S–XL); khách xem ở trang chi tiết kèm hướng dẫn cách đo.
+- **Mã giảm giá**: nhập ở giỏ thuê (hoặc bấm chọn mã đang có), chỉ giảm **tiền thuê** (không giảm cọc). Mã theo % (có mức giảm tối đa) hoặc số tiền; điều kiện tiền thuê tối thiểu, ngày áp dụng, tổng lượt dùng, chỉ đơn đầu tiên. Mỗi khách dùng mỗi mã 1 lần; hủy đơn thì trả lại lượt. Dữ liệu mẫu: `CHAOBANMOI`, `THUE3NGAY`, `MUACUOI<năm>`.
+- **Đổi size khi không vừa** `/doi-size`: đơn *Đã cọc* → khách tự đổi size / màu (cùng mẫu) ngay trên trang đơn; đơn *Đang thuê* → nhân viên đổi giúp trong ngày nhận hoặc ngày hôm sau. Đổi được một phần số bộ, size mới phải còn trống; giá và cọc giữ nguyên; mỗi lần đổi ghi vào ghi chú đơn.
+- **Yêu thích** `/favorites`: thả tim trên thẻ sản phẩm / trang chi tiết, xem lại danh sách đã lưu.
+- **Đánh giá có ảnh**: chỉ khách đã thuê xong (đơn hoàn tất) mới đánh giá, 1 đánh giá / mẫu, 1–5 sao, nhận xét độ vừa (vừa / hơi chật / hơi rộng), tối đa 3 ảnh; tự ghi size đã thuê. Trang chi tiết có điểm trung bình, phân bố sao, lọc "có ảnh"; thẻ cửa hàng hiện số sao. Nhân viên ẩn / xóa đánh giá không phù hợp.
+- **Trang hỗ trợ**: `/cach-thue` (5 bước có hình minh họa), `/hoi-dap` (FAQ có ô tìm kiếm không dấu), `/doi-size`, `/noi-quy`.
+
 ### Xử lý đơn (nhân viên) — `/rentals`
 - Trạng thái: **Đã cọc → Đang thuê → Hoàn tất** (hoặc **Đã hủy**).
 - **Giao đồ** (từ ngày nhận trở đi), **Nhận trả**: ngày trả thực tế từ ngày nhận đến hôm nay; nhân viên chọn số bộ bị bẩn / hư / mất **theo bảng nội quy** cho từng món, hệ thống tự tính phí trễ + phí vệ sinh/hư hỏng → hoàn cọc (âm = khách đền thêm). Hóa đơn liệt kê từng khoản trừ.
@@ -88,7 +96,8 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 - **Tìm kiếm** theo mã đơn, tên khách, SĐT, tên trang phục; **lọc** theo trạng thái / quá hạn; phân trang 15 đơn/trang.
 
 ### Quản trị (admin)
-- **Thống kê** `/admin/stats`: doanh thu theo tháng (tiền thuê + phí trễ + phí hư hỏng + phí hủy, không tính cọc), đơn theo trạng thái, đơn đang hoạt động & cọc đang giữ, top 10 mẫu thuê nhiều nhất.
+- **Mã giảm giá** `/admin/coupons`: tạo mã, bật / tắt, xem số lượt đã dùng; mã đã dùng không xóa được (giữ đúng hóa đơn cũ).
+- **Thống kê** `/admin/stats`: doanh thu theo tháng (tiền thuê đã trừ mã giảm giá + phí trễ + phí hư hỏng + phí hủy, không tính cọc), đơn theo trạng thái, đơn đang hoạt động & cọc đang giữ, top 10 mẫu thuê nhiều nhất.
 - **Tài khoản** `/admin/users`: tạo tài khoản nhân viên / admin, đổi vai trò, khóa / mở khóa (bị đăng xuất ngay), đặt lại mật khẩu. Luôn còn ít nhất 1 admin.
 
 ### Mọi người dùng
@@ -101,11 +110,11 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 ```
 ├── server.js                 # Khởi động, nâng cấp CSDL cũ, xử lý lỗi chung
 ├── config/database.js        # Sequelize (postgres / sqlite theo .env)
-├── models/                   # Product, User, Rental (đơn), RentalItem (món trong đơn)
-├── controllers/              # product, cart, rental, auth, account, user (admin), stats, home
+├── models/                   # Product, ProductVariant, ProductImage, User, Rental, RentalItem, Review, Favorite, Coupon
+├── controllers/              # product, cart, rental, review, favorite, coupon, auth, account, user (admin), stats, home
 ├── routes/                   # index, products, cart, rentals, admin
-├── middlewares/              # auth (requireLogin / Staff / Admin), upload (Multer: chỉ nhận ảnh)
-├── utils/                    # availability (lịch theo ngày), search, text, dates, account, constants
+├── middlewares/              # auth (requireLogin / Staff / Admin), upload (Multer: ảnh SP + ảnh phụ, ảnh đánh giá, CCCD)
+├── utils/                    # availability (lịch theo ngày), variants, sizeChart, coupons, reviews, fees, search, text, dates
 ├── views/                    # EJS + Bootstrap
 ├── public/                   # CSS, JS, ảnh mẫu, uploads/ (ảnh trang phục)
 ├── private_uploads/          # ảnh CCCD (không công khai, tạo khi chạy)
