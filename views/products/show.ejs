@@ -82,19 +82,47 @@
         <% if (!currentUser) { %><div class="small text-muted mt-2">Bạn có thể thêm vào giỏ trước, đăng nhập khi đặt thuê.</div><% } %>
       </form>
 
-      <!-- Lịch thuê: các ngày đã kín trong 60 ngày tới -->
-      <div class="small mb-2">
-        <i class="bi bi-calendar3"></i> <strong>Lịch 60 ngày tới:</strong>
-        <% if (!bookedOut.length) { %>
-          <span class="text-success">còn trống tất cả các ngày.</span>
+      <!-- Kiểm tra lịch trống: chỉ báo đã kín / còn trống khi khách chọn ngày -->
+      <%
+        const pad2 = n => String(n).padStart(2, '0');
+        const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+      %>
+      <form method="GET" action="/products/<%= product.ProductID %>" class="card p-3 mb-2 small">
+        <div class="fw-semibold mb-2"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Kiểm tra lịch trống</div>
+        <div class="d-flex flex-wrap align-items-end gap-2">
+          <div>
+            <label class="form-label text-muted mb-0" for="cStart">Ngày nhận</label>
+            <input type="date" name="start" id="cStart" class="form-control form-control-sm" min="<%= ymd(new Date()) %>" value="<%= dates ? dates.start : '' %>" required>
+          </div>
+          <div>
+            <label class="form-label text-muted mb-0" for="cEnd">Ngày trả</label>
+            <input type="date" name="end" id="cEnd" class="form-control form-control-sm" min="<%= ymd(new Date(Date.now() + 864e5)) %>" value="<%= dates ? dates.end : '' %>" required>
+          </div>
+          <button class="btn btn-outline-primary btn-sm">Kiểm tra</button>
+        </div>
+        <% if (dates && availNow !== null) { %>
+          <div class="mt-2 <%= availNow > 0 ? 'text-success' : 'text-danger' %>">
+            <% if (availNow > 0) { %>
+              <i class="bi bi-check-circle-fill"></i> Còn <strong><%= availNow %> <%= product.Unit %></strong> trống từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>.
+            <% } else { %>
+              <i class="bi bi-x-circle-fill"></i> Mẫu này <strong>đã có khách thuê</strong> từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>. Vui lòng chọn ngày khác hoặc mẫu khác.
+            <% } %>
+          </div>
         <% } else { %>
-          đã kín vào
-          <% bookedOut.forEach(r => { %>
-            <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle"><%= r.from === r.to ? viDate(r.from) : viDate(r.from) + ' – ' + viDate(r.to) %></span>
-          <% }) %>
-          <div class="text-muted">Ngày khác vẫn đặt được; khi chọn ngày ở giỏ thuê hệ thống sẽ báo số bộ còn trống.</div>
+          <div class="mt-2 text-muted">Chọn ngày nhận – ngày trả để biết mẫu này còn trống không.</div>
         <% } %>
-      </div>
+      </form>
+      <script>
+        (function () {
+          const s = document.getElementById('cStart'), e = document.getElementById('cEnd');
+          const add = (v, n) => { const d = new Date(v); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+          s.addEventListener('change', () => {
+            if (!s.value) return;
+            e.min = add(s.value, 1); e.max = add(s.value, <%= MAX_RENT_DAYS %>);
+            if (!e.value || e.value <= s.value || e.value > e.max) e.value = add(s.value, 1);
+          });
+        })();
+      </script>
       <script>
         document.getElementById('addCartForm').addEventListener('submit', function (e) {
           let ok = true;

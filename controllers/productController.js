@@ -5,8 +5,8 @@ const XLSX = require('xlsx');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
 const { Product } = require('../models');
 const { searchProducts } = require('../utils/search');
-const { bookedOutRanges, peakFutureUsage, productsInRentals } = require('../utils/availability');
-const { viDate } = require('../utils/dates');
+const { peakFutureUsage, productsInRentals, availableMap, rentDatesFrom, MAX_RENT_DAYS } = require('../utils/availability');
+const { viDate, daysBetween } = require('../utils/dates');
 const { PRODUCT_TYPES, PRODUCT_STATUSES, normalizeStatus } = require('../utils/constants');
 const { uploadDir } = require('../middlewares/upload');
 
@@ -57,6 +57,17 @@ exports.index = async (req, res) => {
   // (tìm không phân biệt dấu/hoa thường, ưu tiên khớp Tên/Loại/Màu)
   let list = await Product.findAll({ where, order: NEWEST_FIRST });
   if (q) list = searchProducts(list, q);
+
+  // Chỉ khi khách CHỌN NGÀY THUÊ mới tính và hiện số bộ còn trống / đã kín lịch
+  const { dates, error: dateError } = rentDatesFrom(req);
+  let avail = null;
+  const onlyFree = !!dates && req.query.free === '1';
+  if (dates) {
+    avail = await availableMap(list, dates.start, dates.end);
+    if (onlyFree) list = list.filter(p => avail[p.ProductID] > 0);
+  }
+  if (dateError) res.locals.error = [dateError];
+
   const count = list.length;
   const totalPages = Math.max(1, Math.ceil(count / limit));
   const rows = list.slice((page - 1) * limit, page * limit);
@@ -74,6 +85,7 @@ exports.index = async (req, res) => {
     title: 'Trang phục & Phụ kiện',
     products: rows, counts, totalAll, type, q, page, totalPages, count,
     COSTUME_TYPES, ACCESSORY_TYPES,
+    dates, avail, onlyFree, viDate, rentDays: dates ? daysBetween(dates.start, dates.end) : 0, MAX_RENT_DAYS,
   });
 };
 
@@ -101,10 +113,14 @@ exports.manage = async (req, res) => {
 exports.show = async (req, res) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
-  // Lịch các ngày đã kín (hết bộ trống) trong 60 ngày tới
-  const bookedOut = product.Status === 'Còn trống' ? await bookedOutRanges(product, 60) : [];
+  // Không hiện lịch đã thuê khi xem bình thường; khách chọn ngày thì mới báo còn trống / đã kín
+  const { dates, error: dateError } = rentDatesFrom(req);
+  if (dateError) res.locals.error = [dateError];
+  const availNow = dates && product.Status === 'Còn trống'
+    ? (await availableMap([product], dates.start, dates.end))[product.ProductID]
+    : null;
   const inCart = (req.session.cart || []).filter(l => l.productId === product.ProductID).reduce((s, l) => s + l.qty, 0);
-  res.render('products/show', { title: 'Chi tiết sản phẩm', product, bookedOut, inCart, viDate });
+  res.render('products/show', { title: 'Chi tiết sản phẩm', product, dates, availNow, inCart, viDate, MAX_RENT_DAYS });
 };
 
 // Link cũ /products/:id/book -> giờ chọn size/màu ở trang chi tiết rồi đặt qua giỏ thuê

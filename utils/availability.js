@@ -108,4 +108,24 @@ function checkDates(start, end) {
   return null;
 }
 
-module.exports = { ACTIVE, MAX_RENT_DAYS, availableMap, bookedOutRanges, checkDates, peakFutureUsage, productsInRentals };
+// Khoảng ngày thuê khách đang chọn để xem lịch trống (nhớ trong phiên làm việc).
+// - ?start=...&end=...  -> kiểm tra hợp lệ rồi ghi nhớ
+// - ?clear=1            -> bỏ chọn ngày
+// - không có gì         -> dùng ngày đã nhớ (nếu ngày nhận chưa qua)
+// Không chọn ngày thì KHÔNG hiện gì về việc đã có người thuê.
+function rentDatesFrom(req) {
+  if (req.query.clear) { delete req.session.rentDates; return { dates: null, error: null }; }
+  const { start, end } = req.query;
+  if (start || end) {
+    const error = checkDates(start, end);
+    if (error) return { dates: null, error };
+    req.session.rentDates = { start, end };
+    return { dates: req.session.rentDates, error: null };
+  }
+  const saved = req.session.rentDates;
+  if (saved && !checkDates(saved.start, saved.end)) return { dates: saved, error: null };
+  delete req.session.rentDates;
+  return { dates: null, error: null };
+}
+
+module.exports = { ACTIVE, MAX_RENT_DAYS, availableMap, bookedOutRanges, checkDates, peakFutureUsage, productsInRentals, rentDatesFrom };

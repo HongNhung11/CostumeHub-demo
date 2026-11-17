@@ -315,3 +315,7 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
 /* Bảng nội quy trừ phí */
 .fee-table thead th{ background:var(--cream-2)!important; }
 .fee-table td{ border-color:var(--line); }
+
+/* Mẫu đã kín lịch trong khoảng ngày khách chọn */
+.prod-card.is-booked .prod-thumb img{ filter:grayscale(.85); opacity:.6; }
+.prod-card.is-booked .price-tag{ color:var(--muted); }

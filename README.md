@@ -70,7 +70,8 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 11. **Phím tắt**: `Alt+N` Thêm · `Alt+F` Tìm · `Alt+S` Lưu · `Alt+A` Chọn tất cả · `Alt+D` Xóa mục chọn.
 
 ### Thuê đồ (khách)
-- Trang chi tiết: chọn **size, màu, số lượng** → **Thêm vào giỏ** / **Thuê ngay**; xem các ngày đã kín lịch trong 60 ngày tới.
+- Trang chi tiết: chọn **size, màu, số lượng** → **Thêm vào giỏ** / **Thuê ngay**.
+- **Xem lịch trống theo ngày khách chọn**: xem bình thường thì không hiện mẫu nào đã có người thuê; khách chọn *ngày nhận – ngày trả* (ở cửa hàng hoặc trang chi tiết) thì mới hiện **"Còn N bộ"** / **"Đã kín lịch"**, có tùy chọn *chỉ hiện mẫu còn trống*. Ngày đã chọn được nhớ và tự điền vào giỏ thuê.
 - **Giỏ thuê** nhiều món, đặt 1 lần thành 1 đơn. Khách chưa đăng nhập vẫn thêm vào giỏ được, đăng nhập khi đặt.
 - **Chống trùng lịch**: số lượng sản phẩm là tổng số bộ; số bộ còn trống tính theo ngày thuê. Đơn giữ đồ từ ngày nhận đến hết ngày trả. Tối đa 30 ngày / đơn.
 - Quy định: **SĐT** 10 số đầu 03/05/07/08/09, **CCCD** 12 số (mã tỉnh 001–096), ảnh CCCD (chỉ chủ đơn và nhân viên xem được).

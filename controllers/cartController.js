@@ -74,7 +74,10 @@ exports.view = async (req, res) => {
   if (removedCount) res.locals.error = [`${removedCount} món trong giỏ không còn cho thuê nên đã được bỏ ra.`];
   const old = req.session.checkoutOld || {};
   delete req.session.checkoutOld;
-  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, MAX_RENT_DAYS });
+  // Ngày khách đã chọn khi xem lịch trống ở cửa hàng / trang chi tiết -> tự điền
+  const saved = req.session.rentDates;
+  const rentDates = saved && !checkDates(saved.start, saved.end) ? saved : null;
+  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS });
 };
 
 // ===== Đổi số lượng 1 dòng =====
@@ -103,6 +106,7 @@ exports.availability = async (req, res) => {
   const { start, end } = req.query;
   const err = checkDates(start, end);
   if (err) return res.json({ ok: false, error: err, products: {} });
+  req.session.rentDates = { start, end };   // nhớ ngày khách đang chọn
   const { lines, products } = await loadCart(req);
   const avail = await availableMap(products, start, end);
   const need = needByProduct(lines);
