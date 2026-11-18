@@ -20,6 +20,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layout');
 app.locals.FEES = require('./utils/fees');   // bảng nội quy trừ phí, dùng trong mọi view
+app.locals.colorHex = require('./utils/colors').colorHex;   // chấm màu cạnh tên màu
+Object.assign(app.locals, require('./utils/pricing'));   // saleOf / priceOf / salePercent: giá sale trong mọi view
 app.locals.unreadCount = 0;                  // số thông báo chưa đọc (ghi đè cho từng người ở middleware bên dưới)
 app.locals.CAT_GROUPS = require('./utils/categories').menuGroups();   // danh mục con trên menu "Danh mục"
 
@@ -157,7 +159,7 @@ async function migrateSchema() {
     await User.update({ isActive: true }, { where: {}, hooks: false });
   }
   // Các cột mới khác (đều cho phép trống)
-  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt']] };
+  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds', 'SalePrice', 'SaleEnd']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt']] };
   const added = [];
   for (const [table, [model, cols]] of Object.entries(NEW_COLUMNS)) {
     const desc = await qi.describeTable(table);

@@ -10,6 +10,7 @@
   const vnd = n => Number(n || 0).toLocaleString('vi-VN') + '₫';
   const typeLink = '/products?type=' + encodeURIComponent(product.ProductType || '');
 %>
+<div class="pd-wrap">
 <nav class="pd-breadcrumb mb-4"><a href="/">Trang chủ</a> <i class="bi bi-chevron-right"></i> <a href="/products">Sản phẩm</a> <i class="bi bi-chevron-right"></i> <a href="<%= typeLink %>"><%= product.ProductType %></a> <i class="bi bi-chevron-right"></i> <strong><%= product.ProductName %></strong></nav>
 
 <div class="row g-4 g-xl-5">
@@ -55,100 +56,93 @@
   <!-- ===== THÔNG TIN + ĐẶT THUÊ ===== -->
   <div class="col-lg-6">
     <div class="pd-info">
+      <a href="<%= typeLink %>" class="pd-type-chip"><%= product.ProductType %></a>
       <h1 class="pd-title"><%= product.ProductName %></h1>
-      <div class="pd-meta">
-        <span>Mã sản phẩm: <strong>#<%= product.ProductID %></strong></span>
-        <span>Tình trạng: <strong class="<%= canRent ? 'text-success' : 'text-secondary' %>"><%= canRent ? 'Còn hàng' : product.Status %></strong></span>
-        <span>Loại: <a href="<%= typeLink %>"><strong><%= product.ProductType %></strong></a></span>
-      </div>
-      <div class="pd-rating">
-        <% if (summary.count) { %>
-          <a href="#reviews" class="text-dark"><%- include('../partials/stars', { value: summary.avg }) %> <strong><%= summary.avg %></strong> <span class="text-muted">(<%= summary.count %> đánh giá)</span></a>
-        <% } else { %><span class="text-muted">Chưa có đánh giá</span><% } %>
-      </div>
 
-      <div class="pd-price-box">
-        <div class="pd-price-row"><span>Giá thuê</span><strong class="pd-rent"><%= vnd(product.Price) %> <small>/ ngày</small></strong></div>
-        <div class="pd-price-row"><span>Giá cọc</span><strong><%= vnd(product.DepositValue) %></strong></div>
-        <div class="pd-price-row"><span>Phí trả trễ</span><span><%= vnd(product.LateFeePerDay) %> / ngày</span></div>
-        <% if (Number(product.ProductValue) > 0) { %><div class="pd-price-row"><span>Giá trị sản phẩm</span><span><%= vnd(product.ProductValue) %> <small class="text-muted">(đền khi mất / hư nặng)</small></span></div><% } %>
+      <!-- Giá + đánh giá cùng 1 hàng -->
+      <div class="pd-price-line">
+        <div class="pd-price-main"><%= vnd(priceOf(product)) %><span>/ ngày</span>
+          <% if (saleOf(product) !== null) { %><s class="pd-old-price"><%= vnd(product.Price) %></s><span class="pd-sale-chip">-<%= salePercent(product) %>%</span><% } %></div>
+        <a href="#reviews" class="pd-stars"><%- include('../partials/stars', { value: summary.count ? summary.avg : 0 }) %>
+          <span><%= summary.count ? summary.avg + '/5 (' + summary.count + ' đánh giá)' : 'Chưa có đánh giá' %></span></a>
       </div>
-
-      <% const quick = DETAIL_FIELDS.filter(f => ['Material', 'Style', 'Length', 'Occasion'].includes(f.key) && product[f.key]); %>
-      <% if (quick.length) { %>
-        <ul class="pd-highlights">
-          <% quick.forEach(f => { %><li><span><%= f.label %>:</span> <%= product[f.key] %></li><% }) %>
-        </ul>
+      <% if (saleOf(product) !== null) { %>
+        <div class="pd-sale-note"><i class="bi bi-lightning-charge-fill"></i> Đang khuyến mãi<%= product.SaleEnd ? ' đến hết ngày ' + viDate(String(product.SaleEnd).slice(0, 10)) : '' %></div>
       <% } %>
+      <div class="pd-facts">
+        <div class="pd-fact">
+          <i class="bi bi-shield-check"></i>
+          <div><span>Tiền cọc</span><strong><%= vnd(product.DepositValue) %></strong><small>Hoàn lại khi trả đồ</small></div>
+        </div>
+        <div class="pd-fact">
+          <i class="bi bi-clock-history"></i>
+          <div><span>Phí trả trễ</span><strong><%= vnd(product.LateFeePerDay) %></strong><small>Mỗi ngày trễ</small></div>
+        </div>
+        <% if (Number(product.ProductValue) > 0) { %>
+        <div class="pd-fact">
+          <i class="bi bi-gem"></i>
+          <div><span>Giá trị sản phẩm</span><strong><%= vnd(product.ProductValue) %></strong><small>Đền khi mất / hư nặng</small></div>
+        </div>
+        <% } %>
+      </div>
+      <hr class="pd-hr">
 
       <% if (!canRent) { %>
         <div class="alert alert-warning">Sản phẩm hiện <strong><%= product.Status %></strong>, chưa thể đặt thuê. Vui lòng chọn mẫu khác.</div>
       <% } else { %>
-        <!-- Chọn size / màu / ngày / số lượng rồi thêm vào giỏ thuê -->
+        <!-- Chọn màu / size / số lượng rồi thêm vào giỏ thuê -->
         <form method="POST" action="/cart/add" id="addCartForm" novalidate>
           <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
-          <div class="pd-variant" id="variantLine"><%= onlySize && onlyColor ? `${onlySize} / ${onlyColor} - ${vnd(product.Price)}` : 'Chọn kích thước và màu sắc' %></div>
 
-          <div class="pd-row">
-            <div class="pd-row-lbl">Kích thước<% if (chart.length) { %><br><a href="#" class="pd-size-link" data-bs-toggle="modal" data-bs-target="#sizeChartModal"><i class="bi bi-rulers"></i> Bảng số đo</a><% } %></div>
-            <div class="pd-row-val">
-              <div class="d-flex flex-wrap gap-2 opt-group" data-opt="Size">
-                <% sizes.forEach((sz, i) => { const total = sizeTotal(sz), free = sizeFree(sz); const off = !total || free <= 0; %>
-                  <input type="radio" class="btn-check" name="Size" id="size<%= i %>" value="<%= sz %>" <%= off ? 'disabled' : '' %> <%= (onlySize && !off) ? 'checked' : '' %>>
-                  <label class="pd-opt <%= off ? 'opt-off' : '' %>" for="size<%= i %>" title="<%= !total ? 'Shop không có size này' : off ? 'Đã có khách thuê trong ngày bạn chọn' : '' %>">
-                    <%= sz %><% if (dates && total && free <= 0) { %> <small>· hết lịch</small><% } %>
-                  </label>
-                <% }) %>
-              </div>
-              <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn kích thước.</div>
-              <span id="sizeName" hidden><%= onlySize || '' %></span>
+          <div class="pd-group">
+            <div class="pd-group-label">Màu sắc: <strong id="colorName"><%= onlyColor || '' %></strong></div>
+            <div class="d-flex flex-wrap gap-2 opt-group" data-opt="Color">
+              <% colors.forEach((c, i) => { const off = !colorTotal(c); %>
+                <input type="radio" class="btn-check" name="Color" id="color<%= i %>" value="<%= c %>" <%= off ? 'disabled' : '' %> <%= (onlyColor && !off) ? 'checked' : '' %>>
+                <label class="pd-opt color-pill <%= off ? 'opt-off' : '' %>" for="color<%= i %>"><span class="color-dot" style="background:<%= colorHex(c) %>"></span><%= c %></label>
+              <% }) %>
             </div>
+            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn màu sắc.</div>
           </div>
 
-          <div class="pd-row">
-            <div class="pd-row-lbl">Màu sắc<div class="pd-color-name" id="colorName"><%= onlyColor || '' %></div></div>
-            <div class="pd-row-val">
-              <div class="d-flex flex-wrap gap-2 opt-group" data-opt="Color">
-                <% colors.forEach((c, i) => { const off = !colorTotal(c); %>
-                  <input type="radio" class="btn-check" name="Color" id="color<%= i %>" value="<%= c %>" <%= off ? 'disabled' : '' %> <%= (onlyColor && !off) ? 'checked' : '' %>>
-                  <label class="pd-opt <%= off ? 'opt-off' : '' %>" for="color<%= i %>"><%= c %></label>
-                <% }) %>
-              </div>
-              <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn màu sắc.</div>
+          <div class="pd-group">
+            <div class="pd-group-label d-flex justify-content-between align-items-center">
+              <span>Size: <strong id="sizeName"><%= onlySize || '' %></strong></span>
+              <% if (chart.length) { %><a href="#" class="pd-guide-link" data-bs-toggle="modal" data-bs-target="#sizeChartModal"><i class="bi bi-rulers"></i> Bảng hướng dẫn chọn size</a><% } %>
             </div>
+            <div class="d-flex flex-wrap gap-2 opt-group" data-opt="Size">
+              <% sizes.forEach((sz, i) => { const total = sizeTotal(sz), free = sizeFree(sz); const off = !total || free <= 0; %>
+                <input type="radio" class="btn-check" name="Size" id="size<%= i %>" value="<%= sz %>" <%= off ? 'disabled' : '' %> <%= (onlySize && !off) ? 'checked' : '' %>>
+                <label class="pd-opt <%= off ? 'opt-off' : '' %>" for="size<%= i %>" title="<%= !total ? 'Shop không có size này' : off ? 'Đã có khách thuê trong ngày bạn chọn' : '' %>">
+                  <%= sz %><% if (dates && total && free <= 0) { %> <small>· hết lịch</small><% } %>
+                </label>
+              <% }) %>
+            </div>
+            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn size.</div>
           </div>
 
-          <div class="pd-row">
-            <div class="pd-row-lbl">Số lượng</div>
-            <div class="pd-row-val d-flex align-items-center gap-3 flex-wrap">
-              <div class="qty-box">
-                <button type="button" data-d="-1" aria-label="Giảm">−</button>
-                <input type="number" name="Quantity" id="qtyInput" value="1" min="1" step="1" required>
-                <button type="button" data-d="1" aria-label="Tăng">+</button>
-              </div>
-              <span class="small text-muted" id="comboInfo"></span>
+          <div class="pd-stock"><span class="dot"></span> <span id="comboInfo">Còn hàng — chọn ngày bên dưới để xem lịch trống</span></div>
+
+          <div class="pd-buy-row">
+            <div class="qty-box">
+              <button type="button" data-d="-1" aria-label="Giảm">−</button>
+              <input type="number" name="Quantity" id="qtyInput" value="1" min="1" step="1" required>
+              <button type="button" data-d="1" aria-label="Tăng">+</button>
             </div>
+            <button class="btn pd-btn pd-btn-add need-combo flex-grow-1"><i class="bi bi-bag-plus"></i> Thêm vào giỏ</button>
+            <button class="btn pd-btn pd-btn-buy need-combo flex-grow-1" name="buyNow" value="1">Thuê ngay</button>
           </div>
 
           <!-- Mã giảm giá: chọn ở đây thì giỏ thuê tự điền sẵn -->
-          <div class="pd-row">
-            <div class="pd-row-lbl">Mã giảm giá</div>
-            <div class="pd-row-val">
-              <% if (promos.length) { %>
-                <select name="CouponCode" class="form-select pd-coupon">
-                  <option value="">— Chọn mã giảm giá —</option>
-                  <% promos.forEach(c => { %><option value="<%= c.code %>" <%= savedCoupon === c.code ? 'selected' : '' %>><%= c.code %> · <%= c.text %></option><% }) %>
-                </select>
-              <% } else { %>
-                <span class="pd-coupon-empty">Chưa có mã giảm giá</span>
-              <% } %>
+          <% if (promos.length) { %>
+            <div class="pd-coupon-row">
+              <i class="bi bi-ticket-perforated"></i>
+              <select name="CouponCode" class="form-select form-select-sm">
+                <option value="">Chọn mã giảm giá (không bắt buộc)</option>
+                <% promos.forEach(c => { %><option value="<%= c.code %>" <%= savedCoupon === c.code ? 'selected' : '' %>><%= c.code %> · <%= c.text %></option><% }) %>
+              </select>
             </div>
-          </div>
-
-          <div class="d-flex gap-3 mt-3 flex-wrap">
-            <button class="btn pd-btn pd-btn-add need-combo">Thêm vào giỏ hàng <i class="bi bi-plus-lg"></i></button>
-            <button class="btn pd-btn pd-btn-buy need-combo" name="buyNow" value="1">Thuê ngay</button>
-          </div>
+          <% } %>
           <% if (inCart) { %><div class="small text-muted mt-2"><i class="bi bi-bag-check"></i> Giỏ của bạn đã có <%= inCart %> <%= product.Unit %> mẫu này · <a href="/cart">Xem giỏ</a></div><% } %>
           <% if (!currentUser) { %><div class="small text-muted mt-2">Bạn có thể thêm vào giỏ trước, đăng nhập khi đặt thuê.</div><% } %>
         </form>
@@ -217,7 +211,6 @@
       <div class="pd-card">
         <h4 class="pd-card-title">Mô tả sản phẩm</h4>
         <p class="pd-desc"><%= product.Description %></p>
-        <% if (product.Material) { %><p><strong>Chất liệu:</strong> <%= product.Material %></p><% } %>
         <% if (product.CareGuide) { %><p><strong>Quy cách vệ sinh:</strong> <%= product.CareGuide %></p><% } %>
         <p><strong>Thông tin size:</strong> <%= sizes.join(', ') %>.<% if (chart.length) { %> <a href="#" data-bs-toggle="modal" data-bs-target="#sizeChartModal">Xem bảng số đo (cm)</a><% } %></p>
         <% if (chart.length) { %>
@@ -323,7 +316,7 @@
 </div>
 <% } %>
 
-<%- include('../partials/quick-view') %>
+
 
 <script>
 (function () {
@@ -353,7 +346,7 @@
   // Tồn kho theo size × màu: chọn size -> chỉ bật màu còn bộ của size đó (và ngược lại)
   const STOCK = <%- JSON.stringify(stock).replace(/</g, '\\u003c') %>;
   const unit = <%- JSON.stringify(product.Unit).replace(/</g, '\\u003c') %>, hasDates = <%= dates ? 'true' : 'false' %>, STAFF = <%= staff ? 'true' : 'false' %>;
-  const PRICE = '<%= vnd(product.Price) %>';
+  const PRICE = '<%= vnd(priceOf(product)) %>';
   const form = document.getElementById('addCartForm');
   const qty = document.getElementById('qtyInput'), info = document.getElementById('comboInfo');
   const picked = (name) => { const r = form.querySelector(`input[name="${name}"]:checked`); return r ? r.value : null; };
@@ -372,7 +365,6 @@
     const col = picked('Color');
     document.getElementById('sizeName').textContent = size || '';
     document.getElementById('colorName').textContent = col || '';
-    document.getElementById('variantLine').textContent = size && col ? `${size} / ${col} - ${PRICE}` : 'Chọn kích thước và màu sắc';
     const c = size && col ? STOCK.find(v => v.Size === size && v.Color === col) : null;
     if (c) {
       const max = Math.max(0, Math.min(c.Quantity - c.inCart, c.free === null ? Infinity : c.free - c.inCart));
@@ -382,12 +374,12 @@
       <% if (staff) { %>
       info.textContent = `Size ${c.Size} – ${c.Color}: shop có ${c.Quantity} ${unit}` + (hasDates ? `, còn ${c.free} ${unit} trống trong ngày bạn chọn` : '') + (c.inCart ? ` (giỏ đã có ${c.inCart})` : '') + '.';
       <% } else { %>
-      info.textContent = hasDates ? 'Còn trống trong ngày bạn chọn.' + (c.inCart ? ` Giỏ đã có ${c.inCart}.` : '') : (c.inCart ? `Giỏ đã có ${c.inCart} ${unit} size này.` : '');
+      info.textContent = (hasDates ? 'Còn trống trong ngày bạn chọn' : 'Còn hàng') + (c.inCart ? ` · giỏ đã có ${c.inCart} ${unit}` : '');
       <% } %>
       form.querySelectorAll('.need-combo').forEach(b => { b.disabled = max <= 0; });
       if (max <= 0) info.textContent += ' Bạn đã chọn hết số bộ có thể thuê của size này.';
     } else {
-      info.textContent = '';
+      info.textContent = hasDates ? 'Còn hàng trong ngày bạn chọn — chọn màu và size' : 'Còn hàng — chọn ngày bên dưới để xem lịch trống';
       form.querySelectorAll('.need-combo').forEach(b => { b.disabled = false; });
     }
     form.querySelectorAll('.opt-group').forEach(g => { if (g.querySelector('input:checked')) g.nextElementSibling.hidden = true; });
@@ -411,3 +403,4 @@
 })();
 </script>
 <% } %>
+</div><!-- /.pd-wrap -->

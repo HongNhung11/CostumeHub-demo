@@ -16,6 +16,7 @@ const { ratingMap, reviewSummary } = require('../utils/reviews');
 const { CATEGORIES, filterByCategory, menuGroups } = require('../utils/categories');
 const { DETAIL_FIELDS } = require('../utils/details');
 const { hotSet, hotScores } = require('../utils/hot');
+const { saleOf, priceOf, salePercent } = require('../utils/pricing');
 
 // Thứ tự size: XS → S → M → L → XL → XXL (kể cả "S+", "M/L"), rồi Free size, rồi size số / ni / kích thước (theo số tăng dần)
 const LETTER_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
@@ -49,6 +50,7 @@ const SORTS = [
   { key: 'price-desc', label: 'Giá giảm dần' },
   { key: 'popular', label: 'Nổi bật (HOT)' },
   { key: 'rating', label: 'Đánh giá cao' },
+  { key: 'sale', label: 'Giảm giá nhiều nhất' },
 ];
 
 // Sắp xếp: sản phẩm tạo GẦN NHẤT lên đầu
@@ -107,7 +109,9 @@ exports.index = async (req, res) => {
   const color = colorOptions.includes(String(req.query.color || '')) ? String(req.query.color) : '';
   if (color) list = list.filter(p => splitList(p.Color).includes(color));
   const price = PRICE_RANGES.find(r => r.key === req.query.price) ? String(req.query.price) : '';
-  if (price) { const r = PRICE_RANGES.find(x => x.key === price); list = list.filter(p => Number(p.Price) >= r.min && Number(p.Price) < r.max); }
+  if (price) { const r = PRICE_RANGES.find(x => x.key === price); list = list.filter(p => priceOf(p) >= r.min && priceOf(p) < r.max); }
+  const onSale = req.query.sale === '1';
+  if (onSale) list = list.filter(p => saleOf(p) !== null);
 
   // Danh sách size để lọc (lấy từ các mẫu đang hiện, chỉ size shop thực sự có bộ)
   const allVariants = list.length ? await ProductVariant.findAll({ where: { ProductID: { [Op.in]: list.map(p => p.ProductID) }, Quantity: { [Op.gt]: 0 } } }) : [];
@@ -141,8 +145,9 @@ exports.index = async (req, res) => {
 
   // Sắp xếp (mặc định: mới nhất; đang tìm kiếm thì giữ thứ tự theo độ khớp)
   const sort = SORTS.find(s => s.key === req.query.sort) ? String(req.query.sort) : '';
-  if (sort === 'price-asc') list.sort((a, b) => a.Price - b.Price);
-  else if (sort === 'price-desc') list.sort((a, b) => b.Price - a.Price);
+  if (sort === 'price-asc') list.sort((a, b) => priceOf(a) - priceOf(b));
+  else if (sort === 'price-desc') list.sort((a, b) => priceOf(b) - priceOf(a));
+  else if (sort === 'sale') list.sort((a, b) => salePercent(b) - salePercent(a));
   else if (sort === 'rating') {
     const all = await ratingMap(list.map(p => p.ProductID));
     const sc = (p) => (all[p.ProductID] ? all[p.ProductID].avg * 1000 + all[p.ProductID].count : 0);
@@ -175,7 +180,7 @@ exports.index = async (req, res) => {
   res.render('products/index', {
     title: 'Trang phục & Phụ kiện',
     products: rows, counts, totalAll, type, q, page, totalPages, count, ratings, favSet, cat, catLabel: cat ? CATEGORIES[cat].label : '',
-    color, colorOptions, price, PRICE_RANGES, sort, SORTS, CAT_GROUPS: menuGroups(), hot,
+    color, colorOptions, price, PRICE_RANGES, sort, SORTS, CAT_GROUPS: menuGroups(), hot, onSale,
     COSTUME_TYPES, ACCESSORY_TYPES,
     dates, tags, onlyFree, size, sizeOptions, viDate, rentDays: dates ? daysBetween(dates.start, dates.end) : 0, MAX_RENT_DAYS,
   });
@@ -599,6 +604,9 @@ function pickBody(body) {
   const nums = ['Quantity', 'Price', 'DepositValue', 'LateFeePerDay'];
   for (const f of fields) if (body[f] !== undefined && body[f] !== '') d[f] = String(body[f]).trim();
   for (const f of nums) if (body[f] !== undefined && body[f] !== '') d[f] = Number(body[f]) || 0;
+  // Giá khuyến mãi (sale): không bắt buộc; để trống = bỏ sale
+  if (body.SalePrice !== undefined) d.SalePrice = String(body.SalePrice).trim() === '' ? null : Number(body.SalePrice) || null;
+  if (body.SaleEnd !== undefined) d.SaleEnd = /^\d{4}-\d{2}-\d{2}$/.test(String(body.SaleEnd)) ? String(body.SaleEnd) : null;
   // Giá trị SP: không bắt buộc; để trống = xóa giá trị (khi mất đồ sẽ mất cọc)
   if (body.ProductValue !== undefined) d.ProductValue = String(body.ProductValue).trim() === '' ? null : Number(body.ProductValue) || null;
   return d;
@@ -674,6 +682,12 @@ function validateProduct(body, { hasImage, withGrid = false }) {
     if (!(v >= 0)) errors.push(`${label} phải là số nguyên ≥ 0.`);
     else if (v % 1000 !== 0) errors.push(`${label} phải tròn nghìn đồng.`);
   }
+  if (str('SalePrice')) {
+    const v = int('SalePrice'), base = int('Price');
+    if (!(v >= 1000) || v % 1000 !== 0) errors.push('Giá khuyến mãi phải từ 1.000 đ và tròn nghìn (hoặc để trống).');
+    else if (base >= 1000 && v >= base) errors.push('Giá khuyến mãi phải thấp hơn giá thuê gốc.');
+  }
+  if (str('SaleEnd') && !/^\d{4}-\d{2}-\d{2}$/.test(str('SaleEnd'))) errors.push('Ngày kết thúc khuyến mãi không hợp lệ.');
   if (str('ProductValue')) {
     const v = int('ProductValue');
     if (!(v >= 1000) || v % 1000 !== 0) errors.push('Giá trị sản phẩm phải từ 1.000 đ trở lên và tròn nghìn (hoặc để trống).');

@@ -150,7 +150,8 @@ exports.coupon = async (req, res) => {
   if (err) return res.json({ ok: false, error: err });
   const { lines } = await loadCart(req);
   if (!lines.length) return res.json({ ok: false, error: 'Giỏ thuê đang trống.' });
-  const rentFee = lines.reduce((s, l) => s + Number(l.product.Price) * l.qty, 0) * daysBetween(start, end);
+  const { priceOf } = require('../utils/pricing');
+  const rentFee = lines.reduce((s, l) => s + priceOf(l.product) * l.qty, 0) * daysBetween(start, end);
   const r = await applyCoupon(code, req.session.user ? req.session.user.id : null, rentFee);
   if (r.error) return res.json({ ok: false, error: r.error });
   res.json({ ok: true, code: r.coupon.Code, discount: r.discount, rentFee, description: r.coupon.Description || '' });

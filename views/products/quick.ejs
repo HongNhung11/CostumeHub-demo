@@ -42,7 +42,7 @@
         <div class="d-flex flex-wrap gap-2">
           <% colors.forEach((c, i) => { const off = !hasColor(c); %>
             <input type="radio" class="btn-check" name="Color" id="qc<%= i %>" value="<%= c %>" <%= off ? 'disabled' : '' %> <%= onlyColor && !off ? 'checked' : '' %> required>
-            <label class="qv-opt <%= off ? 'opt-off' : '' %>" for="qc<%= i %>"><%= c %></label>
+            <label class="qv-opt color-pill <%= off ? 'opt-off' : '' %>" for="qc<%= i %>"><span class="color-dot" style="background:<%= colorHex(c) %>"></span><%= c %></label>
           <% }) %>
         </div>
       </div>

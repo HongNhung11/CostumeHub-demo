@@ -3,11 +3,12 @@
     <a href="/products/<%= p.ProductID %>" class="prod-thumb d-block">
       <% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" onerror="this.style.display='none'"><% } %>
       <span class="prod-badge chip"><%= p.ProductType %></span>
+      <% if (saleOf(p) !== null) { %><span class="sale-badge sale-badge-right">-<%= salePercent(p) %>%</span><% } %>
       <% if (isNew && Date.now() - new Date(p.CreateDate) < 7 * 864e5) { %><span class="position-absolute top-0 end-0 m-2 badge bg-danger">Mới</span><% } %>
     </a>
     <div class="card-body p-3">
       <h6 class="mb-1" style="min-height:2.4em;font-size:.92rem"><a href="/products/<%= p.ProductID %>" class="text-dark"><%= p.ProductName %></a></h6>
-      <div class="price-tag mb-1"><%= Number(p.Price).toLocaleString('vi-VN') %> đ<small class="text-muted fw-normal">/ngày</small></div>
+      <div class="price-tag mb-1"><%= priceOf(p).toLocaleString('vi-VN') %>₫<small class="text-muted fw-normal">/ngày</small><% if (saleOf(p) !== null) { %> <s class="old-price"><%= Number(p.Price).toLocaleString('vi-VN') %>₫</s><% } %></div>
       <div class="small mb-2" style="min-height:1.3em">
         <% if (rt) { %><i class="bi bi-star-fill text-warning"></i> <%= rt.avg %> <span class="text-muted">(<%= rt.count %> đánh giá)</span><% } %>
       </div>

@@ -28,7 +28,9 @@ const Product = sequelize.define('Product', {
   Occasion: { type: DataTypes.STRING, allowNull: true },             // Phù hợp dịp
   CareGuide: { type: DataTypes.TEXT, allowNull: true },              // Bảo quản
   SizeChart: { type: DataTypes.TEXT, allowNull: true },
-  CartAdds: { type: DataTypes.INTEGER, defaultValue: 0 },              // số lần được thêm vào giỏ (tính nhãn HOT)               // JSON bảng số đo theo size: { "M": { bust, waist, hip, height } }
+  CartAdds: { type: DataTypes.INTEGER, defaultValue: 0 },
+  SalePrice: { type: DataTypes.DECIMAL(12, 0), allowNull: true },    // giá thuê khuyến mãi (sale của cửa hàng); trống = không sale
+  SaleEnd: { type: DataTypes.DATEONLY, allowNull: true },             // ngày kết thúc sale; trống = không hạn              // số lần được thêm vào giỏ (tính nhãn HOT)               // JSON bảng số đo theo size: { "M": { bust, waist, hip, height } }
 }, {
   tableName: 'Products',
   timestamps: true,

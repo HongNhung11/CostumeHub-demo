@@ -4,7 +4,7 @@
   const pv = Number(product.ProductValue) > 0;
   const faqs = [
     ['Thuê mẫu này hết bao nhiêu tiền?',
-     `Giá thuê ${vnd(product.Price)}/ngày cho mỗi ${product.Unit}, cộng tiền cọc ${vnd(product.DepositValue)}/${product.Unit} (hoàn lại khi trả đồ). Có mã giảm giá thì nhập ở giỏ thuê — mã chỉ giảm tiền thuê.`],
+     `Giá thuê ${vnd(priceOf(product))}/ngày${saleOf(product) !== null ? ` (đang giảm ${salePercent(product)}% từ ${vnd(product.Price)})` : ''} cho mỗi ${product.Unit}, cộng tiền cọc ${vnd(product.DepositValue)}/${product.Unit} (hoàn lại khi trả đồ). Có mã giảm giá thì nhập ở giỏ thuê — mã chỉ giảm tiền thuê.`],
     ['Làm sao biết mẫu còn trống đúng ngày tôi cần?',
      'Chọn ngày nhận – ngày trả ở ô "Kiểm tra lịch trống" phía trên: size nào đã có khách thuê sẽ bị làm mờ. Đặt xong, đơn được giữ chỗ 24 giờ để bạn cọc.'],
     ['Tôi nên chọn size nào?',

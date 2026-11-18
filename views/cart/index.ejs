@@ -8,7 +8,7 @@
   const o = (k, d = '') => (old && old[k] !== undefined ? old[k] : d);
   const giao = o('DeliveryMethod') === 'Giao tận nơi';
   let pricePerDay = 0, depositAll = 0, qtyAll = 0;
-  lines.forEach(l => { pricePerDay += Number(l.product.Price) * l.qty; depositAll += Number(l.product.DepositValue) * l.qty; qtyAll += l.qty; });
+  lines.forEach(l => { pricePerDay += priceOf(l.product) * l.qty; depositAll += Number(l.product.DepositValue) * l.qty; qtyAll += l.qty; });
 %>
 <nav class="small text-muted mb-3"><a href="/products" class="text-muted">Sản phẩm</a> / <span>Giỏ thuê</span></nav>
 
@@ -39,7 +39,7 @@
             </div>
           </td>
           <td class="small">Size <strong><%= l.size %></strong> · <%= l.color %></td>
-          <td class="text-end"><%= vnd(p.Price) %></td>
+          <td class="text-end"><%= vnd(priceOf(p)) %><% if (saleOf(p) !== null) { %><div class="small"><s class="text-muted"><%= vnd(p.Price) %></s> <span class="text-danger">-<%= salePercent(p) %>%</span></div><% } %></td>
           <td>
             <form method="POST" action="/cart/<%= l.key %>/update" class="d-flex gap-1">
               <input type="number" name="qty" value="<%= l.qty %>" min="1" max="<%= l.stock %>" class="form-control form-control-sm" style="width:70px">
@@ -148,7 +148,7 @@
           <% lines.forEach(l => { %>
             <div class="d-flex justify-content-between py-1">
               <span><%= l.product.ProductName %> <span class="text-muted">(<%= [l.size, l.color].filter(Boolean).join(' · ') %>) × <%= l.qty %></span></span>
-              <span class="text-nowrap ms-2"><%= vnd(Number(l.product.Price) * l.qty) %>/ngày</span>
+              <span class="text-nowrap ms-2"><%= vnd(priceOf(l.product) * l.qty) %>/ngày</span>
             </div>
           <% }) %>
         </div>

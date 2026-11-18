@@ -107,7 +107,7 @@
             <td data-col="ProductType"><span class="chip"><%= p.ProductType %></span></td>
             <td data-col="Quantity"><%= p.Quantity %></td>
             <td data-col="Unit"><%= p.Unit %></td>
-            <td data-col="Price"><%= Number(p.Price).toLocaleString('vi-VN') %> đ</td>
+            <td data-col="Price"><%= Number(p.Price).toLocaleString('vi-VN') %> đ<% if (saleOf(p) !== null) { %><div class="small text-danger">Sale <%= priceOf(p).toLocaleString('vi-VN') %> đ (-<%= salePercent(p) %>%)</div><% } %></td>
             <td data-col="DepositValue"><%= Number(p.DepositValue).toLocaleString('vi-VN') %> đ</td>
             <td data-col="Status">
               <% const cls = p.Status==='Còn trống'?'success':'secondary'; %>

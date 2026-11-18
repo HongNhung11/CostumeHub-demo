@@ -70,9 +70,10 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 11. **Phím tắt**: `Alt+N` Thêm · `Alt+F` Tìm · `Alt+S` Lưu · `Alt+A` Chọn tất cả · `Alt+D` Xóa mục chọn.
 
 ### Cửa hàng & trang chi tiết (khách)
+- Giao diện tham khảo tinastore: nền kem, điểm nhấn hồng đất; phông **Prata** (tiêu đề) + **Montserrat** (chữ thường); khung trang tối đa 1760px. Màu sắc sản phẩm hiện bằng chấm màu thật (`utils/colors.js`).
 - **Cửa hàng** `/products`: cột lọc bên trái (Danh mục, Ngày thuê, Kích thước, Màu sắc, Giá thuê — Phụ kiện / Kích thước / Màu sắc thu gọn, bấm mới xổ), thanh **tìm kiếm + sắp xếp** cùng 1 hàng (Mới nhất, Cũ nhất, Giá tăng / giảm dần, Nổi bật, Đánh giá cao). Size xếp đúng thứ tự XS → S → M → L → XL.
 - Menu **Danh mục** xổ xuống có mục con (Trang phục › Áo dài, Váy tiệc · Phụ kiện › Dây chuyền, Bông tai, Nhẫn, Vòng tay, Túi xách) — cấu hình ở `utils/categories.js`.
-- Thẻ sản phẩm ghi **Giá thuê / Giá cọc**; nhãn **HOT** cho tối đa 6 mẫu được thuê / thêm vào giỏ nhiều nhất (`utils/hot.js`); nút 👁 **Xem nhanh** mở khung chọn size, màu, thêm vào giỏ; bấm chỗ khác vào trang chi tiết.
+- Thẻ sản phẩm ghi **Giá thuê / Giá cọc**; nhãn **HOT** cho tối đa 6 mẫu được thuê / thêm vào giỏ nhiều nhất (`utils/hot.js`); bấm vào thẻ để vào trang chi tiết.
 - **Không hiện số lượng cho khách** (số mẫu, số bộ tồn kho) — chỉ báo còn trống / hết lịch. Nhân viên vẫn thấy số bộ.
 - **Trang chi tiết**: ảnh nhỏ dọc + ảnh lớn; Giá thuê / cọc / phí trễ; chọn Kích thước (nút *Bảng số đo* mở cửa sổ nhỏ), Màu sắc, Số lượng, **Mã giảm giá** (chọn ở đây thì giỏ thuê tự điền); kiểm tra lịch trống; Mô tả sản phẩm + **Thông tin chi tiết** (chất liệu, kiểu dáng, độ dài, dịp, bảo quản); **Đánh giá**; **Câu hỏi thường gặp** riêng theo mẫu; Sản phẩm tương tự; Sản phẩm đã xem.
 
@@ -91,6 +92,7 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 
 - **Nhiều ảnh / sản phẩm**: ảnh chính + tối đa 6 ảnh phụ (mặt sau, chi tiết, ảnh mặc thật); trang chi tiết có thư viện ảnh bấm chuyển.
 - **Bảng số đo theo size** (vòng ngực, eo, mông, chiều cao gợi ý): nhân viên nhập theo từng size (không bắt buộc, có nút điền số đo tham khảo S–XL); khách xem ở trang chi tiết kèm hướng dẫn cách đo.
+- **Sale của cửa hàng** (khác voucher): mỗi mẫu có *Giá khuyến mãi / ngày* + *Khuyến mãi đến ngày* (form Thêm / Sửa, không bắt buộc). Thẻ và trang chi tiết hiện giá gốc gạch ngang + nhãn giảm %; giỏ thuê và đơn tính theo giá sale; hết hạn tự về giá gốc. Cửa hàng có lọc *Đang giảm giá* và sắp xếp *Giảm giá nhiều nhất* (`utils/pricing.js`).
 - **Mã giảm giá**: nhập ở giỏ thuê (hoặc bấm chọn mã đang có), chỉ giảm **tiền thuê** (không giảm cọc). Mã theo % (có mức giảm tối đa) hoặc số tiền; điều kiện tiền thuê tối thiểu, ngày áp dụng, tổng lượt dùng, chỉ đơn đầu tiên. Mỗi khách dùng mỗi mã 1 lần; hủy đơn thì trả lại lượt. Dữ liệu mẫu: `CHAOBANMOI`, `THUE3NGAY`, `MUACUOI<năm>`.
 - **Đổi size khi không vừa** `/doi-size`: đơn *Đã cọc* → khách tự đổi size / màu (cùng mẫu) ngay trên trang đơn; đơn *Đang thuê* → nhân viên đổi giúp trong ngày nhận hoặc ngày hôm sau. Đổi được một phần số bộ, size mới phải còn trống; giá và cọc giữ nguyên; mỗi lần đổi ghi vào ghi chú đơn.
 - **Yêu thích** `/favorites`: thả tim trên thẻ sản phẩm / trang chi tiết, xem lại danh sách đã lưu.
@@ -123,7 +125,7 @@ Khách tự đăng ký trên web luôn là **Khách**. Tài khoản nhân viên 
 ├── controllers/              # product, cart, rental, review, favorite, coupon, notification, auth, account, user (admin), stats, home
 ├── routes/                   # index, products, cart, rentals, admin
 ├── middlewares/              # auth (requireLogin / Staff / Admin), upload (Multer: ảnh SP + ảnh phụ, ảnh đánh giá, CCCD)
-├── utils/                    # availability (lịch theo ngày), variants, sizeChart, details, categories, hot, coupons, notify, reviews, fees, search, text, dates
+├── utils/                    # availability (lịch theo ngày), variants, sizeChart, details, categories, hot, pricing (sale), colors, coupons, notify, reviews, fees, search, text, dates
 ├── views/                    # EJS + Bootstrap
 ├── public/                   # CSS, JS, ảnh mẫu, uploads/ (ảnh trang phục)
 ├── private_uploads/          # ảnh CCCD (không công khai, tạo khi chạy)

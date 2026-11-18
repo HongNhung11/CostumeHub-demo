@@ -7,6 +7,7 @@ const { DAMAGE_RULES, lossAmount } = require('../utils/fees');
 const { productAvailability, checkDates } = require('../utils/availability');
 const { loadCart, needByVariant, lineKey } = require('./cartController');
 const { applyCoupon } = require('../utils/coupons');
+const { priceOf } = require('../utils/pricing');
 const { ProductVariant } = require('../models');
 const { addDays } = require('../utils/dates');
 const { notify, depositDeadline } = require('../utils/notify');
@@ -81,7 +82,7 @@ exports.create = async (req, res) => {
 
       let pricePerDay = 0, deposit = 0, totalQty = 0;
       for (const l of lines) {
-        pricePerDay += num(l.product.Price) * l.qty;
+        pricePerDay += priceOf(l.product) * l.qty;   // giá sale nếu đang khuyến mãi
         deposit += num(l.product.DepositValue) * l.qty;
         totalQty += l.qty;
       }
@@ -118,7 +119,7 @@ exports.create = async (req, res) => {
       await RentalItem.bulkCreate(lines.map(l => ({
         RentalID: r.RentalID, ProductID: l.productId, ProductName: l.product.ProductName,
         Size: l.size || null, Color: l.color || null, Quantity: l.qty,
-        PricePerDay: num(l.product.Price), DepositPerUnit: num(l.product.DepositValue),
+        PricePerDay: priceOf(l.product), DepositPerUnit: num(l.product.DepositValue),
         LateFeePerDay: num(l.product.LateFeePerDay),
       })), { transaction: t });
       return r;

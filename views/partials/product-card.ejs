@@ -1,5 +1,5 @@
 <%
-  // Thẻ sản phẩm dùng chung (cửa hàng, sản phẩm tương tự). Bấm nút "Xem nhanh" giữa ảnh -> khung xem nhanh; bấm chỗ khác -> trang chi tiết.
+  // Thẻ sản phẩm dùng chung (cửa hàng, sản phẩm tương tự). Bấm vào thẻ -> trang chi tiết.
   // Tham số: p, hot (nhãn HOT), rt (đánh giá), fav (đã thả tim), tag (nhãn lịch thuê), back (trang quay lại sau khi thả tim)
   const _hot = typeof hot !== 'undefined' && hot; const _rt = typeof rt !== 'undefined' ? rt : null, _tag = typeof tag !== 'undefined' ? tag : null, _fav = typeof fav !== 'undefined' && fav;
 %>
@@ -7,11 +7,10 @@
   <div class="prod-media">
   <a href="/products/<%= p.ProductID %>" class="prod-thumb d-block">
     <% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" loading="lazy" onerror="this.style.display='none'"><% } %>
+    <% if (saleOf(p) !== null) { %><span class="sale-badge">-<%= salePercent(p) %>%</span><% } %>
     <% if (_hot) { %><span class="hot-badge" title="Được thuê / thêm vào giỏ nhiều"><i class="bi bi-fire"></i> HOT</span><% } %>
     <% if (_tag) { %><span class="position-absolute bottom-0 start-0 m-2 badge bg-dark"><i class="bi bi-calendar-x"></i> <%= _tag %></span><% } %>
   </a>
-  <!-- Nút XEM NHANH ở góc trên trái ảnh (chỗ nhãn loại cũ); bấm chỗ khác trên thẻ -> trang chi tiết -->
-  <button type="button" class="quick-btn" data-quick="<%= p.ProductID %>" data-href="/products/<%= p.ProductID %>" title="Xem nhanh" aria-label="Xem nhanh"><i class="bi bi-eye"></i><span class="qb-text">Xem nhanh</span></button>
   </div>
   <form method="POST" action="/favorites/<%= p.ProductID %>" class="fav-form">
     <input type="hidden" name="back" value="<%= back %>">
@@ -20,7 +19,8 @@
   <div class="card-body d-flex flex-column">
     <a href="/products/<%= p.ProductID %>" class="prod-name text-dark"><%= p.ProductName %></a>
     <div class="prod-prices mt-1">
-      <div><span class="lbl">Giá thuê:</span> <span class="rent"><%= Number(p.Price).toLocaleString('vi-VN') %>₫</span><span class="lbl">/ngày</span></div>
+      <div><span class="lbl">Giá thuê:</span> <span class="rent"><%= priceOf(p).toLocaleString('vi-VN') %>₫</span><span class="lbl">/ngày</span>
+        <% if (saleOf(p) !== null) { %><s class="old-price"><%= Number(p.Price).toLocaleString('vi-VN') %>₫</s><% } %></div>
       <div><span class="lbl">Giá cọc:</span> <%= Number(p.DepositValue).toLocaleString('vi-VN') %>₫</div>
     </div>
     <div class="d-flex justify-content-between align-items-center mt-1 small text-muted">

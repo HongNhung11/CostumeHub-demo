@@ -79,6 +79,17 @@
               <div class="form-text">Khách đền khi mất / hư nặng. Trống = mất cọc. <a href="/noi-quy" target="_blank">Nội quy</a></div>
               <div class="invalid-feedback">Từ 1.000 đ, tròn nghìn (hoặc để trống).</div>
             </div>
+            <!-- Sale của cửa hàng (khác voucher): giảm thẳng giá thuê của mẫu này -->
+            <div class="col-md-3">
+              <label class="form-label">Giá khuyến mãi / ngày</label>
+              <input type="number" name="SalePrice" class="form-control" min="1000" step="1000" value="<%= v('SalePrice') %>" placeholder="Không sale thì để trống">
+              <div class="form-text">Thấp hơn giá thuê gốc. Khách thấy giá gốc gạch ngang + nhãn giảm %.</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Khuyến mãi đến ngày</label>
+              <input type="date" name="SaleEnd" class="form-control" value="<%= v('SaleEnd') ? String(v('SaleEnd')).slice(0, 10) : '' %>">
+              <div class="form-text">Trống = không hạn. Hết hạn tự về giá gốc.</div>
+            </div>
             <div class="col-md-6">
               <label class="form-label">Tình trạng <span class="text-danger">*</span></label>
               <select name="Status" class="form-select" required>

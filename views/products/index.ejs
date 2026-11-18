@@ -1,6 +1,6 @@
 <%
   // Trạng thái lọc hiện tại -> tạo link giữ nguyên các bộ lọc khác (đổi 1 bộ lọc / sang trang)
-  const state = { type, cat, q, size, color, price, sort, free: onlyFree ? '1' : '' };
+  const state = { type, cat, q, size, color, price, sort, free: onlyFree ? '1' : '', sale: onSale ? '1' : '' };
   const u = (over = {}) => {
     const s = { ...state, ...over };
     const qs = Object.entries(s).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
@@ -12,7 +12,7 @@
   const subOf = (g) => (CAT_GROUPS.find(x => x.group === g) || { items: [] }).items;
   const title = catLabel || type || 'Tất cả sản phẩm';
   const hidden = (skip = []) => Object.entries(state).filter(([k, v]) => v && !skip.includes(k));
-  const anyFilter = type || cat || q || size || color || price || dates || onlyFree;
+  const anyFilter = type || cat || q || size || color || price || dates || onlyFree || onSale;
 %>
 <nav class="small text-muted mb-3"><a href="/" class="text-muted">Trang chủ</a> / <a href="/products?clear=1" class="text-muted">Sản phẩm</a><% if (type || cat) { %> / <span><%= title %></span><% } %></nav>
 
@@ -89,12 +89,17 @@
         <div class="collapse <%= color ? 'show' : '' %>" id="colorBox">
           <div class="d-flex flex-wrap gap-1 pt-2">
             <% colorOptions.forEach(c => { %>
-              <a href="<%= u({ color: color === c ? '' : c }) %>" class="filter-chip <%= color === c ? 'on' : '' %>"><%= c %></a>
+              <a href="<%= u({ color: color === c ? '' : c }) %>" class="filter-chip color-pill <%= color === c ? 'on' : '' %>"><span class="color-dot" style="background:<%= colorHex(c) %>"></span><%= c %></a>
             <% }) %>
           </div>
         </div>
       </div>
       <% } %>
+
+      <!-- Khuyến mãi -->
+      <div class="filter-box">
+        <a href="<%= u({ sale: onSale ? '' : '1' }) %>" class="filter-link <%= onSale ? 'on' : '' %>"><span><i class="bi <%= onSale ? 'bi-check-square-fill' : 'bi-tag' %> me-2"></i>Đang giảm giá</span></a>
+      </div>
 
       <!-- Giá thuê -->
       <div class="filter-box">
@@ -135,7 +140,8 @@
        if (size) chips.push(['Size ' + size, { size: '' }]);
        if (color) chips.push(['Màu ' + color, { color: '' }]);
        if (price) chips.push([PRICE_RANGES.find(r => r.key === price).label, { price: '' }]);
-       if (onlyFree) chips.push(['Chỉ mẫu còn trống', { free: '' }]); %>
+       if (onlyFree) chips.push(['Chỉ mẫu còn trống', { free: '' }]);
+       if (onSale) chips.push(['Đang giảm giá', { sale: '' }]); %>
     <% if (chips.length) { %>
       <div class="d-flex flex-wrap gap-2 mb-3">
         <% chips.forEach(([label, over]) => { %><a href="<%= u(over) %>" class="active-chip"><%= label %> <i class="bi bi-x"></i></a><% }) %>
@@ -186,4 +192,4 @@
   })();
 </script>
 
-<%- include('../partials/quick-view') %>
+
