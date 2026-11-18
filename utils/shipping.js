@@ -24,7 +24,7 @@ function checkZoneDates(zone, start, end) {
   if (lead && daysBetween(todayStr(), start) < lead) {
     const first = viDate(addDays(todayStr(), lead));
     return zone.delivery
-      ? `Không kịp giao: ${zone.label} mất ${zone.days} ngày vận chuyển, đặt hôm nay thì ngày nhận sớm nhất là ${first}. Vui lòng chọn ngày nhận khác.`
+      ? `Không kịp giao: ${zone.label} mất ${zone.days} ngày vận chuyển, đặt hôm nay thì ngày nhận sớm nhất là ${first}. Vui lòng chọn ngày nhận khác hoặc liên hệ với nhân viên cửa hàng.`
       : `Không kịp chuẩn bị đồ: tự đến lấy cần đặt trước ít nhất ${lead} ngày, đặt hôm nay thì ngày nhận sớm nhất là ${first}.`;
   }
   if (daysBetween(start, end) + 1 < zone.minDays) return `${zone.label}: thuê tối thiểu ${zone.minDays} ngày (vận chuyển mất ${zone.days} ngày mỗi chiều).`;
