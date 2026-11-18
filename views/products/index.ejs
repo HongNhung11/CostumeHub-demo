@@ -43,15 +43,14 @@
       <form method="GET" action="/products" class="filter-box">
         <% hidden(['free']).forEach(([k, v]) => { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }) %>
         <div class="filter-title"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Ngày thuê</div>
-        <div class="row g-2">
-          <div class="col-6 col-lg-12">
-            <label class="form-label small text-muted mb-0" for="fStart">Ngày nhận</label>
-            <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.start : '' %>" required>
-          </div>
-          <div class="col-6 col-lg-12">
-            <label class="form-label small text-muted mb-0" for="fEnd">Ngày trả</label>
-            <input type="date" name="end" id="fEnd" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.end : '' %>" required>
-          </div>
+        <%# Cùng 1 kiểu lịch với trang chi tiết / đặt thuê (ngày dạng dd/mm/yyyy), "Áp dụng" là xem luôn %>
+        <div class="rp rp-left" data-min="<%= tmrYmd %>" data-max-days="<%= MAX_RENT_DAYS %>" data-submit="1">
+          <input type="hidden" name="start" class="rp-start" value="<%= dates ? dates.start : '' %>">
+          <input type="hidden" name="end" class="rp-end" value="<%= dates ? dates.end : '' %>">
+          <button type="button" class="rp-trigger w-100 justify-content-between" aria-label="Chọn ngày nhận và ngày trả">
+            <span class="rp-label-start">Từ ngày</span><span class="rp-sep">–</span><span class="rp-label-end">Đến ngày</span>
+            <i class="bi bi-calendar3"></i>
+          </button>
         </div>
         <div class="form-check mt-2">
           <input class="form-check-input" type="checkbox" name="free" value="1" id="fFree" <%= onlyFree ? 'checked' : '' %>>
@@ -179,17 +178,6 @@
   </section>
 </div>
 
-<script>
-  // Ngày trả luôn sau ngày nhận, tối đa <%= MAX_RENT_DAYS %> ngày
-  (function () {
-    const s = document.getElementById('fStart'), e = document.getElementById('fEnd');
-    const add = (v, n) => { const d = new Date(v); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-    s.addEventListener('change', () => {
-      if (!s.value) return;
-      e.min = add(s.value, 1); e.max = add(s.value, <%= MAX_RENT_DAYS %>);
-      if (!e.value || e.value <= s.value || e.value > e.max) e.value = add(s.value, 1);
-    });
-  })();
-</script>
+<script src="/js/range-picker.js"></script>
 
 

@@ -1360,7 +1360,9 @@ a.co-step:hover{ color:var(--primary); }
 .co-panel{ border-radius:16px; padding:1.3rem 1.4rem; }
 .co-panel-head{ display:flex; justify-content:space-between; align-items:baseline; padding-bottom:.9rem; margin-bottom:.4rem; border-bottom:1px solid var(--line); }
 .co-dates{ display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; background:var(--cream-2); border-radius:12px; padding:.9rem 1rem; margin:.8rem 0 .6rem; }
-.card:has(.rp.is-open){ z-index:20; }   /* lịch nổi lên trên các khung bên dưới */
+.card:has(.rp.is-open){ z-index:20; }
+.shop-aside:has(.rp.is-open){ position:relative; z-index:30; }
+.rp-left .rp-pop{ left:0; right:auto; }   /* lịch ở cột lọc bên trái: mở sang phải */   /* lịch nổi lên trên các khung bên dưới */
 .co-dates .bi-calendar-range{ color:var(--primary); }
 .co-dates .rp.is-invalid .rp-trigger{ border-color:#c0392b; box-shadow:0 0 0 3px rgba(192,57,43,.15); }
 .co-item{ display:flex; gap:1rem; padding:1rem 0; border-bottom:1px solid var(--line); }
