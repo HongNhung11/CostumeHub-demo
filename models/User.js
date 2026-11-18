@@ -7,6 +7,10 @@ const User = sequelize.define('User', {
   username: { type: DataTypes.STRING, allowNull: false, unique: true },
   password: { type: DataTypes.STRING, allowNull: false },
   fullName: { type: DataTypes.STRING },
+  // Thông tin liên hệ (đăng ký bắt buộc SĐT + email; địa chỉ, CCCD điền ở Tài khoản của tôi, tự điền vào form đặt thuê)
+  phone: { type: DataTypes.STRING(20), allowNull: true },
+  email: { type: DataTypes.STRING(150), allowNull: true },
+  address: { type: DataTypes.STRING(255), allowNull: true },
   role: { type: DataTypes.STRING, defaultValue: 'khach' }, // admin | nhanvien | khach
   // --- Xác minh danh tính (OCR CCCD) ---
   idCardNumber: { type: DataTypes.STRING },

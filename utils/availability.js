@@ -2,7 +2,9 @@
 // Mỗi tổ hợp size × màu của một mẫu có số bộ riêng (bảng ProductVariants).
 // Số bộ còn trống của 1 tổ hợp trong [start, end] = số bộ shop có − số bộ bị các đơn khác giữ
 // vào NGÀY ĐÔNG NHẤT trong khoảng đó.
-// - Một đơn giữ đồ từ ngày nhận đến HẾT ngày trả (ngày trả còn để kiểm tra/giặt) => khách sau nhận từ hôm sau.
+// - Một đơn giữ đồ từ ngày nhận đến hết ngày trả, CỘNG THÊM CLEAN_DAYS ngày để giặt sấy.
+//   VD thuê 1–3 => đồ bận tới hết ngày 4 (giặt sấy) => khách sau nhận sớm nhất ngày 5.
+//   Ngược lại, đơn mới cũng phải trả trước ngày nhận của đơn sau ít nhất CLEAN_DAYS ngày.
 // - Đơn "Đang thuê" mà quá hạn chưa trả vẫn tính là đang giữ đồ tới hôm nay.
 // => Khách A thuê size S, khách B thuê size M cùng ngày: không ảnh hưởng nhau;
 //    hai khách cùng thuê size S thì phải còn đủ bộ size S.
@@ -14,6 +16,7 @@ const { keyOf } = require('./variants');
 // Đơn đang giữ lịch: "Chờ cọc" cũng giữ chỗ (tối đa DEPOSIT_HOLD_HOURS giờ, quá hạn tự hủy)
 const ACTIVE = ['Đã đặt', 'Chờ cọc', 'Đã cọc', 'Đang thuê'];
 const MAX_RENT_DAYS = 30;
+const CLEAN_DAYS = 1;   // số ngày giặt sấy giữa 2 lượt thuê cùng 1 bộ
 
 // Lấy các dòng đơn đang giữ đồ của các sản phẩm, có chồng lên [start, end]
 async function activeHolds(productIds, start, end, { transaction, excludeRentalId } = {}) {
@@ -36,7 +39,8 @@ async function activeHolds(productIds, start, end, { transaction, excludeRentalI
       const r = it.Rental;
       let holdEnd = r.EndDate;
       if (r.Status === 'Đang thuê' && holdEnd < today) holdEnd = today; // quá hạn chưa trả
-      return { key: keyOf(it.ProductID, it.Size, it.Color), qty: it.Quantity, from: r.StartDate, to: holdEnd };
+      // + ngày giặt sấy sau khi trả
+      return { key: keyOf(it.ProductID, it.Size, it.Color), qty: it.Quantity, from: r.StartDate, to: addDays(holdEnd, CLEAN_DAYS) };
     })
     .filter(h => h.to >= start);
 }
@@ -61,6 +65,8 @@ function peakByKey(holds, start, end) {
 async function productAvailability(products, start, end, opts = {}) {
   const ids = products.map(p => p.ProductID);
   if (!ids.length) return {};
+  // Đơn đang xét cũng cần CLEAN_DAYS ngày giặt sấy sau ngày trả -> xét tới end + CLEAN_DAYS
+  end = addDays(end, CLEAN_DAYS);
   const [variants, holds] = await Promise.all([
     ProductVariant.findAll({ where: { ProductID: { [Op.in]: ids } }, transaction: opts.transaction }),
     activeHolds(ids, start, end, opts),
@@ -146,6 +152,6 @@ function rentDatesFrom(req) {
 }
 
 module.exports = {
-  ACTIVE, MAX_RENT_DAYS, productAvailability, availableMap, freeByVariant,
+  ACTIVE, MAX_RENT_DAYS, CLEAN_DAYS, productAvailability, availableMap, freeByVariant,
   checkDates, peakFutureUsage, productsInRentals, rentDatesFrom,
 };

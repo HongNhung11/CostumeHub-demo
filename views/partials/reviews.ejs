@@ -2,7 +2,8 @@
 <section id="reviews" class="mt-5">
   <h4 class="font-serif mb-3"><i class="bi bi-chat-heart" style="color:var(--gold)"></i> Đánh giá từ khách đã thuê</h4>
   <div class="row g-4">
-    <div class="col-md-4">
+    <%# Chưa có đánh giá thì cột trái rộng ra, không để trống cột phải %>
+    <div class="<%= (summary.count || reviews.length) ? 'col-md-4' : 'col-lg-7' %>">
       <div class="card p-3">
         <% if (summary.count) { %>
           <div class="d-flex align-items-center gap-3 mb-2">
@@ -17,7 +18,7 @@
             </div>
           <% } %>
         <% } else { %>
-          <p class="small text-muted mb-0">Chưa có đánh giá. Khách đã thuê và trả mẫu này sẽ được mời đánh giá.</p>
+          <p class="text-muted mb-0"><i class="bi bi-chat-square-heart me-1"></i> Chưa có đánh giá cho mẫu này.</p>
         <% } %>
       </div>
 
@@ -60,6 +61,7 @@
       <% } %>
     </div>
 
+    <% if (summary.count || reviews.length) { %>
     <div class="col-md-8">
       <% if (summary.count) { %>
         <div class="d-flex gap-2 mb-3">
@@ -100,5 +102,6 @@
         </div>
       <% }) %>
     </div>
+    <% } %>
   </div>
 </section>

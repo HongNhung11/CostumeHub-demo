@@ -14,6 +14,7 @@ const Rental = sequelize.define('Rental', {
   IDCardImage: { type: DataTypes.STRING },                // ảnh chụp CCCD
   DeliveryMethod: { type: DataTypes.STRING, defaultValue: 'Tự đến lấy' }, // Tự đến lấy / Giao tận nơi
   DeliveryAddress: { type: DataTypes.STRING },            // địa chỉ nhận (nếu giao tận nơi)
+  CustomerAddress: { type: DataTypes.STRING(255), allowNull: true },   // địa chỉ liên hệ của khách (bắt buộc khi đặt)
 
   // Thời gian thuê
   StartDate: { type: DataTypes.DATEONLY, allowNull: false },

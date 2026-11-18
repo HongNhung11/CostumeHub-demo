@@ -6,7 +6,7 @@
   <title><%= typeof title !== 'undefined' ? title : 'CostumeHub' %></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Prata&family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
@@ -29,7 +29,7 @@
       </button>
       <div class="collapse navbar-collapse" id="nav">
         <ul class="navbar-nav mx-auto">
-          <li class="nav-item"><a class="nav-link <%= path==='/' ? 'active' : '' %>" href="/">Trang chủ</a></li>
+          <li class="nav-item"><a class="nav-link <%= path==='/' ? 'active' : '' %>" href="/"><i class="bi bi-house me-1"></i>Trang chủ</a></li>
           <!-- Danh mục: menu xổ xuống, rê chuột vào nhóm để mở menu con -->
           <%
             // Danh mục con lấy từ utils/categories.js (CAT_GROUPS)
@@ -47,7 +47,7 @@
             ];
           %>
           <li class="nav-item cat-menu">
-            <a class="nav-link <%= path==='/products' ? 'active' : '' %>" href="/products" aria-haspopup="true"><i class="bi bi-list me-1"></i>Danh mục</a>
+            <a class="nav-link <%= path==='/products' ? 'active' : '' %>" href="/products" aria-haspopup="true"><i class="bi bi-handbag me-1"></i>Sản phẩm</a>
             <div class="cat-panel">
               <% catMenu.forEach(c => { %>
                 <div class="cat-row <%= c.sub ? 'has-sub' : '' %>">
@@ -63,25 +63,43 @@
           </li>
           <% const helpPages = ['/cach-thue', '/hoi-dap', '/doi-size', '/noi-quy']; %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= helpPages.includes(path) ? 'active' : '' %>" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Hỗ trợ</a>
+            <a class="nav-link dropdown-toggle <%= helpPages.includes(path) ? 'active' : '' %>" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-question-circle me-1"></i>Hỗ trợ</a>
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="/cach-thue"><i class="bi bi-signpost-split me-2"></i>Cách thức thuê</a></li>
-              <li><a class="dropdown-item" href="/hoi-dap"><i class="bi bi-question-circle me-2"></i>Câu hỏi thường gặp</a></li>
-              <li><a class="dropdown-item" href="/doi-size"><i class="bi bi-arrow-left-right me-2"></i>Chính sách đổi size</a></li>
-              <li><a class="dropdown-item" href="/noi-quy"><i class="bi bi-journal-text me-2"></i>Nội quy &amp; bảng phí</a></li>
+              <li><a class="dropdown-item <%= path==='/cach-thue' ? 'active' : '' %>" href="/cach-thue"><i class="bi bi-signpost-split me-2"></i>Cách thức thuê</a></li>
+              <li><a class="dropdown-item <%= path==='/hoi-dap' ? 'active' : '' %>" href="/hoi-dap"><i class="bi bi-question-circle me-2"></i>Câu hỏi thường gặp</a></li>
+              <li><a class="dropdown-item <%= path==='/doi-size' ? 'active' : '' %>" href="/doi-size"><i class="bi bi-arrow-left-right me-2"></i>Chính sách đổi size</a></li>
+              <li><a class="dropdown-item <%= path==='/noi-quy' ? 'active' : '' %>" href="/noi-quy"><i class="bi bi-journal-text me-2"></i>Nội quy &amp; bảng phí</a></li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link <%= path==='/contact' ? 'active' : '' %>" href="/contact">Liên hệ</a></li>
+          <% const isStaff = currentUser && (currentUser.role === 'admin' || currentUser.role === 'nhanvien'); %>
+          <% if (isStaff) { %>
+            <%# Admin / nhân viên: "Liên hệ" là danh sách khách gửi form liên hệ cần tư vấn %>
+            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/contacts') ? 'active' : '' %>" href="/admin/contacts"><i class="bi bi-telephone me-1"></i>Liên hệ<% if (typeof newContacts !== 'undefined' && newContacts) { %> <span class="badge rounded-pill bg-danger"><%= newContacts %></span><% } %></a></li>
+          <% } else { %>
+            <li class="nav-item"><a class="nav-link <%= path==='/contact' ? 'active' : '' %>" href="/contact"><i class="bi bi-telephone me-1"></i>Liên hệ</a></li>
+          <% } %>
           <% if (currentUser) { %>
             <li class="nav-item"><a class="nav-link <%= path.startsWith('/rentals') ? 'active' : '' %>" href="/rentals"><i class="bi bi-receipt"></i> Đơn thuê</a></li>
           <% } %>
-          <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'nhanvien')) { %>
-            <li class="nav-item"><a class="nav-link <%= path.startsWith('/products/manage') ? 'active' : '' %>" href="/products/manage"><i class="bi bi-gear"></i> Quản lý</a></li>
+          <% if (isStaff && currentUser.role !== 'admin') { %>
+            <%# Nhân viên chỉ quản lý sản phẩm -> link thẳng, không cần menu xổ %>
+            <li class="nav-item"><a class="nav-link <%= path.startsWith('/products/manage') ? 'active' : '' %>" href="/products/manage"><i class="bi bi-box-seam"></i> Quản lý sản phẩm</a></li>
           <% } %>
-          <% if (currentUser && currentUser.role === 'admin') { %>
-            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/stats') ? 'active' : '' %>" href="/admin/stats"><i class="bi bi-bar-chart-line"></i> Thống kê</a></li>
-            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/coupons') ? 'active' : '' %>" href="/admin/coupons"><i class="bi bi-ticket-perforated"></i> Mã giảm giá</a></li>
-            <li class="nav-item"><a class="nav-link <%= path.startsWith('/admin/users') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people"></i> Tài khoản</a></li>
+          <% if (isStaff && currentUser.role === 'admin') { %>
+            <% const isAdmin = true; %>
+            <% const mgActive = path.startsWith('/products/manage') || path.startsWith('/products/new') || path.startsWith('/admin'); %>
+            <!-- Gom các trang quản trị vào 1 menu để thanh điều hướng không tràn ngang -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle <%= mgActive ? 'active' : '' %>" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-gear"></i> Quản lý</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item <%= path.startsWith('/products/manage') ? 'active' : '' %>" href="/products/manage"><i class="bi bi-box-seam me-2"></i>Quản lý sản phẩm</a></li>
+                <% if (isAdmin) { %>
+                  <li><a class="dropdown-item <%= path.startsWith('/admin/stats') ? 'active' : '' %>" href="/admin/stats"><i class="bi bi-bar-chart-line me-2"></i>Thống kê</a></li>
+                  <li><a class="dropdown-item <%= path.startsWith('/admin/coupons') ? 'active' : '' %>" href="/admin/coupons"><i class="bi bi-ticket-perforated me-2"></i>Mã giảm giá</a></li>
+                  <li><a class="dropdown-item <%= path.startsWith('/admin/users') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people me-2"></i>Tài khoản</a></li>
+                <% } %>
+              </ul>
+            </li>
           <% } %>
         </ul>
         <div class="d-flex gap-2 align-items-center">
@@ -93,11 +111,11 @@
             <a href="/favorites" class="btn btn-light btn-sm <%= path.startsWith('/favorites') ? 'active' : '' %>" title="Yêu thích"><i class="bi bi-heart"></i><span class="d-lg-none"> Yêu thích</span></a>
           <% } %>
           <a href="/cart" class="btn btn-light btn-sm position-relative <%= path.startsWith('/cart') ? 'active' : '' %>" title="Giỏ thuê">
-            <i class="bi bi-bag"></i> Giỏ thuê
+            <i class="bi bi-bag"></i><span class="nav-btn-text"> Giỏ thuê</span>
             <% if (cartCount) { %><span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"><%= cartCount %></span><% } %>
           </a>
           <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'nhanvien')) { %>
-            <a href="/products/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Thêm</a>
+            <a href="/products/new" class="btn btn-primary btn-sm" title="Thêm sản phẩm"><i class="bi bi-plus-lg"></i><span class="nav-btn-text"> Thêm</span></a>
           <% } else if (!currentUser) { %>
             <a href="/login" class="btn btn-outline-primary btn-sm"><i class="bi bi-person"></i> Đăng nhập</a>
             <a href="/register" class="btn btn-primary btn-sm">Đăng ký</a>
@@ -106,7 +124,7 @@
             <!-- Tài khoản: tên + menu (thay cho dòng tên / đăng xuất ở thanh trên cùng) -->
             <div class="dropdown">
               <button class="btn btn-light btn-sm dropdown-toggle <%= path.startsWith('/account') ? 'active' : '' %>" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle"></i> <span class="acc-name"><%= currentUser.fullName || currentUser.username %></span>
+                <i class="bi bi-person-circle"></i> <span class="acc-name nav-btn-text"><%= currentUser.fullName || currentUser.username %></span>
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="/account"><i class="bi bi-person me-2"></i>Tài khoản của tôi</a></li>
@@ -166,6 +184,12 @@
     </div>
   </footer>
 
+  <!-- Nút lên đầu trang: hiện khi cuộn xuống, vòng viền chạy theo tiến độ cuộn -->
+  <button type="button" id="toTop" class="to-top" aria-label="Lên đầu trang" title="Lên đầu trang">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="tt-track" cx="24" cy="24" r="22"/><circle class="tt-ring" cx="24" cy="24" r="22"/></svg>
+    <i class="bi bi-arrow-up"></i>
+  </button>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/app.js"></script>
   <script>
@@ -177,11 +201,45 @@
       e.preventDefault();
       a.parentNode.classList.toggle('open');
     }));
+    // Rê chuột vào "Danh mục" thì đóng các menu xổ khác (Hỗ trợ, Quản lý...) để không bị chồng lên nhau
+    document.querySelectorAll('.cat-menu').forEach(m => m.addEventListener('mouseenter', () => {
+      if (narrow() || !window.bootstrap) return;
+      document.querySelectorAll('.ch-nav [data-bs-toggle="dropdown"].show').forEach(t => bootstrap.Dropdown.getOrCreateInstance(t).hide());
+    }));
     document.querySelectorAll('.cat-row.has-sub > .cat-link').forEach(a => a.addEventListener('click', (e) => {
       if (!narrow()) return;
       e.preventDefault();
       a.parentNode.classList.toggle('open');
     }));
+
+    // Màn hình rộng: các menu xổ Bootstrap (Hỗ trợ, Quản lý, Tài khoản) mở khi rê chuột, giống "Danh mục".
+    // Màn hình hẹp (menu ☰) vẫn bấm để mở như cũ.
+    if (window.bootstrap) {
+      document.querySelectorAll('.ch-nav .dropdown').forEach(dd => {
+        const toggle = dd.querySelector('[data-bs-toggle="dropdown"]');
+        if (!toggle) return;
+        const inst = bootstrap.Dropdown.getOrCreateInstance(toggle);
+        let timer;
+        dd.addEventListener('mouseenter', () => {
+          if (narrow()) return;
+          clearTimeout(timer);
+          // đóng menu khác đang mở rồi mở menu này
+          document.querySelectorAll('.ch-nav [data-bs-toggle="dropdown"].show').forEach(t => { if (t !== toggle) bootstrap.Dropdown.getOrCreateInstance(t).hide(); });
+          inst.show();
+          toggle.blur();                                // Bootstrap tự focus nút khi mở -> bỏ, kẻo nút cứ sáng mãi
+        });
+        dd.addEventListener('mouseleave', () => {
+          if (narrow()) return;
+          timer = setTimeout(() => { inst.hide(); toggle.blur(); }, 180);   // trễ chút để rê chuột xuống menu không bị tắt
+        });
+        // Đang mở do rê chuột thì bấm vào không làm nó đóng lại
+        toggle.addEventListener('click', (e) => {
+          if (narrow()) return;
+          e.preventDefault(); e.stopPropagation();
+          inst.show();
+        });
+      });
+    }
   })();
   </script>
 </body>

@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { sequelize, Rental, RentalItem, Product } = require('../models');
+const { sequelize, Rental, RentalItem, Product, User } = require('../models');
 const { normalizePhone, isValidPhone, isValidCCCD, splitList } = require('../utils/text');
 const { todayStr, daysBetween, viDate, isDateStr } = require('../utils/dates');
 const { normalize } = require('../utils/text');
@@ -44,6 +44,7 @@ exports.create = async (req, res) => {
     const CustomerName = (req.body.CustomerName || '').trim();
     const CustomerPhone = normalizePhone(req.body.CustomerPhone);
     const CustomerIDCard = String(req.body.CustomerIDCard || '').replace(/\s/g, '');
+    const CustomerAddress = String(req.body.CustomerAddress || '').trim().replace(/\s+/g, ' ');
 
     const { lines, products, removedCount } = await loadCart(req);
     if (removedCount) return fail(`${removedCount} món trong giỏ không còn cho thuê (hoặc không còn size / màu đã chọn) nên đã được bỏ ra. Vui lòng xem lại giỏ trước khi đặt.`);
@@ -59,6 +60,7 @@ exports.create = async (req, res) => {
     if (CustomerName.length < 2) return fail('Vui lòng nhập họ tên.');
     if (!isValidPhone(CustomerPhone)) return fail('Số điện thoại không hợp lệ: phải gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.');
     if (!isValidCCCD(CustomerIDCard)) return fail('Số CCCD không hợp lệ: phải gồm đúng 12 chữ số (3 số đầu là mã tỉnh 001–096).');
+    if (CustomerAddress.length < 10 || CustomerAddress.length > 255) return fail('Vui lòng nhập địa chỉ của bạn (số nhà, đường, phường/xã, quận/huyện, tỉnh/TP).');
     if (DeliveryMethod === 'Giao tận nơi' && (DeliveryAddress || '').trim().length < 10) {
       return fail('Vui lòng nhập địa chỉ nhận hàng đầy đủ (số nhà, đường, phường/xã, quận/huyện, tỉnh/TP).');
     }
@@ -98,7 +100,7 @@ exports.create = async (req, res) => {
       const r = await Rental.create({
         ProductID: lines[0].productId,
         UserID: req.session.user ? req.session.user.id : null,
-        CustomerName, CustomerPhone, CustomerIDCard,
+        CustomerName, CustomerPhone, CustomerIDCard, CustomerAddress,
         IDCardImage: req.file ? req.file.filename : null,   // file trong private_uploads/
         DeliveryMethod: DeliveryMethod === 'Giao tận nơi' ? 'Giao tận nơi' : 'Tự đến lấy',
         DeliveryAddress: DeliveryMethod === 'Giao tận nơi' ? DeliveryAddress.trim() : null,
@@ -127,6 +129,17 @@ exports.create = async (req, res) => {
 
     req.session.cart = [];
     delete req.session.couponCode;          // mã đã dùng cho đơn này
+    // Tài khoản chưa lưu SĐT / CCCD / địa chỉ -> lưu lại để lần sau tự điền (không ghi đè thông tin đã có)
+    if (req.session.user) {
+      const u = await User.findByPk(req.session.user.id);
+      if (u) {
+        const fill = {};
+        if (!u.phone) fill.phone = CustomerPhone;
+        if (!u.idCardNumber) fill.idCardNumber = CustomerIDCard;
+        if (!u.address) fill.address = CustomerAddress;
+        if (Object.keys(fill).length) await u.update(fill);
+      }
+    }
     const deadline = timeVi(depositDeadline(rental));
     req.flash('success', `Đặt thuê thành công ${rental.Quantity} món! Vui lòng cọc ${vnd(rental.Deposit)} (${rental.PaymentMethod}) trước ${deadline} để giữ chỗ — xem hướng dẫn bên dưới.` +
       (rental.CouponCode ? ` Mã ${rental.CouponCode} giảm ${vnd(rental.Discount)} tiền thuê.` : ''));

@@ -1,0 +1,87 @@
+<%
+  const link = (o) => {
+    const p = new URLSearchParams();
+    const vals = { status, q, ...o };
+    if (vals.status) p.set('status', vals.status);
+    if (vals.q) p.set('q', vals.q);
+    if (o.page && o.page > 1) p.set('page', o.page);
+    const s = p.toString();
+    return '/admin/contacts' + (s ? '?' + s : '');
+  };
+  const cls = { 'Mới': 'danger', 'Đang tư vấn': 'warning', 'Đã tư vấn': 'success' };
+  const fmt = d => new Date(d).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const isAdmin = currentUser.role === 'admin';
+%>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h3 class="font-serif mb-0"><i class="bi bi-headset" style="color:var(--gold)"></i> Khách liên hệ cần tư vấn</h3>
+  <a href="/contact" class="small" target="_blank" rel="noopener">Xem form liên hệ của khách <i class="bi bi-box-arrow-up-right"></i></a>
+</div>
+
+<!-- Lọc theo trạng thái + tìm -->
+<div class="card p-3 mb-3">
+  <div class="d-flex flex-wrap gap-2 mb-2">
+    <a href="<%= link({ status: '' }) %>" class="filter-chip <%= !status ? 'on' : '' %>">Tất cả (<%= counts.all %>)</a>
+    <% STATUSES.forEach(s => { %>
+      <a href="<%= link({ status: s }) %>" class="filter-chip <%= status === s ? 'on' : '' %>"><%= s %> (<%= counts[s] %>)</a>
+    <% }) %>
+  </div>
+  <form method="GET" action="/admin/contacts" class="d-flex gap-2 flex-wrap">
+    <% if (status) { %><input type="hidden" name="status" value="<%= status %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" class="form-control" style="max-width:360px" placeholder="Tìm theo tên, SĐT, email, nội dung...">
+    <button class="btn btn-primary"><i class="bi bi-search"></i> Tìm</button>
+    <% if (q) { %><a href="<%= link({ q: '' }) %>" class="btn btn-light">Bỏ tìm</a><% } %>
+  </form>
+</div>
+
+<% if (!list.length) { %>
+  <div class="card p-5 text-center text-muted"><i class="bi bi-inbox" style="font-size:2rem"></i><p class="mt-2 mb-0">Chưa có yêu cầu liên hệ nào<%= status ? ' ở trạng thái "' + status + '"' : '' %>.</p></div>
+<% } else { %>
+  <div class="d-flex flex-column gap-3">
+    <% list.forEach(c => { %>
+      <div class="card p-3 contact-card <%= c.Status === 'Mới' ? 'is-new' : '' %>">
+        <div class="row g-3">
+          <!-- Khách + nội dung -->
+          <div class="col-lg-7">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <strong class="fs-6"><%= c.Name %></strong>
+              <span class="badge bg-<%= cls[c.Status] || 'secondary' %>"><%= c.Status %></span>
+              <% if (c.Topic) { %><span class="badge badge-soft"><%= c.Topic %></span><% } %>
+              <span class="small text-muted ms-auto"><i class="bi bi-clock"></i> <%= fmt(c.createdAt) %></span>
+            </div>
+            <div class="small mb-2">
+              <a href="tel:<%= c.Phone %>" class="me-3"><i class="bi bi-telephone"></i> <%= c.Phone %></a>
+              <% if (c.Email) { %><a href="mailto:<%= c.Email %>"><i class="bi bi-envelope"></i> <%= c.Email %></a><% } %>
+              <% if (c.UserID) { %><span class="text-muted ms-2"><i class="bi bi-person-check"></i> có tài khoản</span><% } %>
+            </div>
+            <div class="contact-msg"><%= c.Message %></div>
+          </div>
+          <!-- Xử lý: trạng thái + ghi chú -->
+          <div class="col-lg-5">
+            <form method="POST" action="/admin/contacts/<%= c.ContactID %>" class="d-flex flex-column gap-2">
+              <input type="hidden" name="back" value="<%= reqUrl %>">
+              <select name="Status" class="form-select form-select-sm">
+                <% STATUSES.forEach(s => { %><option <%= c.Status === s ? 'selected' : '' %>><%= s %></option><% }) %>
+              </select>
+              <textarea name="Note" rows="2" class="form-control form-control-sm" maxlength="2000" placeholder="Ghi chú tư vấn (VD: đã gọi, hẹn thử đồ 15h thứ 7)"><%= c.Note || '' %></textarea>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-primary btn-sm"><i class="bi bi-check2"></i> Lưu</button>
+                <% if (c.HandledBy) { %><span class="small text-muted">Xử lý: <%= c.HandledBy %> · <%= fmt(c.updatedAt) %></span><% } %>
+              </div>
+            </form>
+            <% if (isAdmin) { %>
+              <form method="POST" action="/admin/contacts/<%= c.ContactID %>/delete" class="text-end mt-1" onsubmit="return confirm('Xóa yêu cầu liên hệ này?')">
+                <button class="btn btn-link btn-sm text-danger p-0"><i class="bi bi-trash"></i> Xóa</button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+
+  <% if (pages > 1) { %>
+    <nav class="mt-3"><ul class="pagination justify-content-center">
+      <% for (let i = 1; i <= pages; i++) { %><li class="page-item <%= i === page ? 'active' : '' %>"><a class="page-link" href="<%= link({ page: i }) %>"><%= i %></a></li><% } %>
+    </ul></nav>
+  <% } %>
+<% } %>

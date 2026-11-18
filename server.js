@@ -70,6 +70,8 @@ app.use(async (req, res, next) => {
       }
       const { Notification } = require('./models');
       res.locals.unreadCount = await Notification.count({ where: { UserID: u.id, isRead: false } });
+      // Admin / nhân viên: số khách liên hệ mới chưa tư vấn (badge trên menu "Liên hệ")
+      if (u.role === 'admin' || u.role === 'nhanvien') res.locals.newContacts = await require('./controllers/contactController').countNew();
     }
     next();
   });
@@ -159,7 +161,7 @@ async function migrateSchema() {
     await User.update({ isActive: true }, { where: {}, hooks: false });
   }
   // Các cột mới khác (đều cho phép trống)
-  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds', 'SalePrice', 'SaleEnd']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt']] };
+  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds', 'SalePrice', 'SaleEnd']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt', 'CustomerAddress']], Users: [User, ['phone', 'email', 'address']] };
   const added = [];
   for (const [table, [model, cols]] of Object.entries(NEW_COLUMNS)) {
     const desc = await qi.describeTable(table);

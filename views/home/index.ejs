@@ -88,33 +88,24 @@
     <h2 class="section-title mb-0">Lưu ý &amp; Quy định khi thuê / thử đồ</h2>
     <hr class="divider-gold mx-auto mt-3">
   </div>
-  <div class="row g-4">
-    <div class="col-md-6">
-      <h6 class="font-serif"><i class="bi bi-clock-history" style="color:var(--gold)"></i> Thời gian nhận &amp; trả</h6>
-      <ul class="small text-muted">
-        <li>Nhận đồ đúng ngày đã đặt tại cửa hàng (8:00–21:00) hoặc giao tận nơi.</li>
-        <li>Trả đồ đúng hạn trong ngày trả. Trả trễ tính phí phạt theo ngày của từng sản phẩm.</li>
-        <li>Nên thử đồ và kiểm tra tình trạng ngay khi nhận.</li>
-      </ul>
-      <h6 class="font-serif mt-3"><i class="bi bi-cash-coin" style="color:var(--gold)"></i> Cọc &amp; thanh toán</h6>
-      <ul class="small text-muted">
-        <li>Đặt thuê xong, đơn được giữ chỗ 24 giờ để bạn cọc (tiền mặt / chuyển khoản / ví); cửa hàng xác nhận đã nhận cọc là xong.</li>
-        <li>Cọc được hoàn lại đầy đủ khi trả đồ đúng hạn, nguyên vẹn.</li>
-        <li>Cần cung cấp CCCD (số + ảnh chụp) để xác minh khi thuê.</li>
-      </ul>
-    </div>
-    <div class="col-md-6">
-      <h6 class="font-serif"><i class="bi bi-exclamation-triangle" style="color:var(--gold)"></i> Sử dụng &amp; bảo quản</h6>
-      <ul class="small text-muted">
-        <li>Giữ gìn sản phẩm sạch sẽ, không tự ý giặt, cắt, sửa hay làm biến dạng.</li>
-        <li>Tránh để dính mỹ phẩm, nước hoa, thức ăn, đồ uống lên trang phục.</li>
-        <li>Không cho người khác thuê lại hoặc mang ra khỏi phạm vi đã thỏa thuận.</li>
-      </ul>
-    </div>
+  <%# Gọn: 4 ý chính, chi tiết + bảng trừ phí nằm ở trang /noi-quy %>
+  <div class="row g-3 rule-tiles">
+    <% [
+      ['bi-clock-history', 'Nhận & trả đúng hẹn', '8:00–21:00, trả trễ tính phí theo ngày'],
+      ['bi-cash-coin', 'Cọc hoàn đủ', 'Khi trả đồ đúng hạn, nguyên vẹn'],
+      ['bi-person-vcard', 'Mang theo CCCD', 'Để xác minh khi nhận đồ'],
+      ['bi-droplet-half', 'Giữ đồ sạch đẹp', 'Không tự giặt, sửa; tránh mỹ phẩm'],
+    ].forEach(([icon, title, sub]) => { %>
+      <div class="col-6 col-lg-3">
+        <div class="rule-tile">
+          <i class="bi <%= icon %>"></i>
+          <div class="fw-semibold"><%= title %></div>
+          <div class="small text-muted"><%= sub %></div>
+        </div>
+      </div>
+    <% }) %>
   </div>
-  <h6 class="font-serif mt-2 mb-2"><i class="bi bi-shield-exclamation" style="color:var(--gold)"></i> Bảng trừ phí vào tiền cọc</h6>
-  <div class="small"><%- include('../partials/fee-table') %></div>
-  <div class="text-center mt-3"><a href="/noi-quy" class="btn btn-outline-primary btn-sm"><i class="bi bi-journal-text"></i> Xem đầy đủ nội quy thuê đồ</a></div>
+  <div class="text-center mt-3"><a href="/noi-quy" class="btn btn-outline-primary btn-sm"><i class="bi bi-journal-text"></i> Xem nội quy &amp; bảng phí</a></div>
 </div>
 
 <!-- CTA BAND -->

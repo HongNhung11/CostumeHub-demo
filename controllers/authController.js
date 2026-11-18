@@ -1,5 +1,5 @@
 const { User } = require('../models');
-const { cleanName, validateAccount } = require('../utils/account');
+const { cleanName, validateAccount, checkPhone, checkEmail, cleanEmail, normalizePhone } = require('../utils/account');
 
 // Lấy đích quay lại (ưu tiên query ?next=, rồi session.returnTo)
 function getReturnTo(req) {
@@ -10,8 +10,11 @@ function getReturnTo(req) {
 
 exports.loginForm = (req, res) =>
   res.render('auth/login', { title: 'Đăng nhập', returnTo: getReturnTo(req) });
-exports.registerForm = (req, res) =>
-  res.render('auth/register', { title: 'Đăng ký', returnTo: getReturnTo(req) });
+exports.registerForm = (req, res) => {
+  const old = req.session.registerOld || {};
+  delete req.session.registerOld;
+  res.render('auth/register', { title: 'Đăng ký', returnTo: getReturnTo(req), old });
+};
 
 exports.register = async (req, res) => {
   const returnTo = getReturnTo(req);
@@ -20,14 +23,20 @@ exports.register = async (req, res) => {
     const username = String(req.body.username || '').trim();
     const password = String(req.body.password || '');
     const fullName = cleanName(req.body.fullName);
+    const phone = normalizePhone(req.body.phone);
+    const email = cleanEmail(req.body.email);
+    // Giữ lại thông tin đã nhập (trừ mật khẩu) khi có lỗi
+    req.session.registerOld = { fullName, username, phone: req.body.phone || '', email };
 
     // Kiểm tra ở máy chủ (không chỉ dựa vào trình duyệt)
-    const err = validateAccount({ fullName, username, password });
+    const err = validateAccount({ fullName, username, password }) || checkPhone(phone) || checkEmail(email);
     if (err) { req.flash('error', err); return res.redirect(back); }
 
     const exists = await User.findOne({ where: { username } });
     if (exists) { req.flash('error', 'Tên đăng nhập đã tồn tại.'); return res.redirect(back); }
-    const user = await User.create({ username, password, fullName, role: 'khach' });
+    if (await User.findOne({ where: { email } })) { req.flash('error', 'Email này đã được dùng cho tài khoản khác.'); return res.redirect(back); }
+    const user = await User.create({ username, password, fullName, phone, email, role: 'khach' });
+    delete req.session.registerOld;
     // Đăng ký xong đăng nhập luôn rồi quay lại trang trước đó
     req.session.user = { id: user.id, username: user.username, fullName: user.fullName, role: user.role };
     delete req.session.returnTo;

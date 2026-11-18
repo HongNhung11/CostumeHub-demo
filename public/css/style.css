@@ -25,10 +25,10 @@
 body{
   background:var(--cream);
   color:var(--ink);
-  font-family:'Montserrat',system-ui,Arial,sans-serif;
+  font-family:'DM Sans',system-ui,Arial,sans-serif;
   font-size:17px;
 }
-h1,h2,h3,h4,h5,.font-serif{ font-family:'Prata',Georgia,serif; }
+h1,h2,h3,h4,h5,.font-serif{ font-family:'Cormorant Garamond',Georgia,serif; }
 a{ text-decoration:none; }
 
 /* ---------- Top bar ---------- */
@@ -45,7 +45,7 @@ a{ text-decoration:none; }
   border-bottom:1px solid var(--line);
 }
 .ch-nav .navbar-brand{
-  font-family:'Prata',serif; font-weight:800;
+  font-family:'Cormorant Garamond',serif; font-weight:800;
   font-size:1.55rem; color:var(--primary)!important; letter-spacing:.5px;
 }
 .ch-nav .navbar-brand .dot{ color:var(--gold); }
@@ -98,7 +98,7 @@ a{ text-decoration:none; }
 
 /* ---------- Stat ---------- */
 .stat{ background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:1.4rem; text-align:center; box-shadow:var(--shadow-sm); }
-.stat .num{ font-family:'Prata',serif; font-size:2.2rem; font-weight:800; color:var(--primary); }
+.stat .num{ font-family:'Cormorant Garamond',serif; font-size:2.2rem; font-weight:800; color:var(--primary); }
 
 /* ---------- Category pill ---------- */
 .cat-card{ position:relative; border-radius:var(--radius); overflow:hidden; aspect-ratio:3/4; box-shadow:var(--shadow-sm); }
@@ -116,7 +116,7 @@ a{ text-decoration:none; }
 .prod-thumb img{ width:100%; height:100%; object-fit:cover; transition:.5s; }
 .prod-card:hover .prod-thumb img{ transform:scale(1.06); }
 .prod-badge{ position:absolute; top:10px; left:10px; }
-.price-tag{ color:var(--primary); font-weight:800; font-family:'Prata',serif; }
+.price-tag{ color:var(--primary); font-weight:800; font-family:'Cormorant Garamond',serif; }
 .chip{ display:inline-block; padding:.15rem .6rem; border-radius:999px; font-size:.72rem; font-weight:600; background:var(--cream-2); color:var(--muted); }
 
 /* ---------- Admin table ---------- */
@@ -244,7 +244,7 @@ tr.row-selected td{ font-weight:500; }
 @keyframes shimmerTxt{ 0%,100%{ background-position:0% 50% } 50%{ background-position:100% 50% } }
 .hero-split .lead{ font-size:1.08rem; color:#6b5d52; max-width:480px; margin-bottom:24px; }
 .hs-mini{ display:flex; gap:26px; margin-top:26px; }
-.hs-mini .n{ font-family:'Prata',serif; font-size:1.7rem; font-weight:800; color:var(--primary); line-height:1; }
+.hs-mini .n{ font-family:'Cormorant Garamond',serif; font-size:1.7rem; font-weight:800; color:var(--primary); line-height:1; }
 .hs-mini small{ color:var(--muted); font-size:.82rem; }
 /* collage */
 .collage{ position:relative; height:440px; }
@@ -262,7 +262,7 @@ tr.row-selected td{ font-weight:500; }
 .marquee{ border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--cream-2); overflow:hidden; white-space:nowrap; border-radius:12px; }
 .marquee .mtrack{ display:inline-block; padding:13px 0; animation:runText 24s linear infinite; will-change:transform; }
 .marquee:hover .mtrack{ animation-play-state:paused; }
-.marquee span{ font-family:'Prata',serif; font-style:italic; font-size:1.25rem; color:var(--primary); margin:0 24px; }
+.marquee span{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:1.25rem; color:var(--primary); margin:0 24px; }
 .marquee span i{ color:var(--gold); font-size:.55rem; margin-left:24px; vertical-align:middle; font-style:normal; }
 @keyframes runText{ from{ transform:translateX(0) } to{ transform:translateX(-50%) } }
 
@@ -295,7 +295,7 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
 @keyframes rowNew{ 0%{ background:rgba(25,135,84,.35) } 100%{ background:rgba(25,135,84,.10) } }
 
 /* ===== Thống kê (admin) ===== */
-.stat-tile .stat-num{ font-family:'Prata',serif; font-size:1.45rem; font-weight:700; color:var(--ink); line-height:1.25; margin:.15rem 0; }
+.stat-tile .stat-num{ font-family:'Cormorant Garamond',serif; font-size:1.45rem; font-weight:700; color:var(--ink); line-height:1.25; margin:.15rem 0; }
 .status-tile{ background:#fff; transition:box-shadow .2s; }
 .status-tile:hover{ box-shadow:var(--shadow-sm); }
 
@@ -508,7 +508,7 @@ body{ font-size:1rem; }
 .qv-thumb{ width:58px; height:76px; padding:0; border:2px solid transparent; background:none; }
 .qv-thumb img{ width:100%; height:100%; object-fit:cover; }
 .qv-thumb.active{ border-color:var(--primary); }
-.qv-title{ font-family:'Montserrat',sans-serif; font-size:1.55rem; font-weight:500; margin:0 2.2rem .4rem 0; line-height:1.3; }
+.qv-title{ font-family:'DM Sans',sans-serif; font-size:1.55rem; font-weight:500; margin:0 2.2rem .4rem 0; line-height:1.3; }
 .qv-meta{ color:#555; }
 .qv-meta .sep{ color:var(--primary); margin:0 .5rem; }
 .qv-row{ display:flex; align-items:center; gap:1rem; margin-bottom:1rem; }
@@ -544,7 +544,7 @@ body{ font-size:1rem; }
 .pd-thumbs .gal-thumb{ width:84px; height:112px; border-radius:0; }
 .pd-main{ position:relative; flex:1; aspect-ratio:3/4; background:var(--cream-2); overflow:hidden; }
 .pd-main img{ width:100%; height:100%; object-fit:cover; }
-.pd-title{ font-family:'Montserrat',sans-serif; font-size:2rem; font-weight:600; line-height:1.3; margin-bottom:.5rem; }
+.pd-title{ font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:600; line-height:1.3; margin-bottom:.5rem; }
 .pd-meta{ display:flex; flex-wrap:wrap; gap:.3rem 0; color:#555; }
 .pd-meta span + span::before{ content:"|"; color:var(--primary); margin:0 .6rem; }
 .pd-rating{ margin:.5rem 0 1rem; }
@@ -575,7 +575,7 @@ body{ font-size:1rem; }
 .pd-spec-title{ font-weight:700; margin:1.2rem 0 .6rem; }
 .pd-spec th{ width:220px; color:#555; font-weight:500; background:var(--cream-2) !important; }
 .pd-guide li{ margin-bottom:.4rem; }
-.pd-section-title{ font-family:'Montserrat',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:.5px; text-align:center; margin-bottom:1.2rem; }
+.pd-section-title{ font-family:'DM Sans',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:.5px; text-align:center; margin-bottom:1.2rem; }
 @media (max-width: 991px){ .pd-gallery{ position:static; flex-direction:column-reverse; } .pd-thumbs{ flex-direction:row; width:auto; } .pd-thumbs .gal-thumb{ width:64px; height:84px; } }
 .pd-size-link{ display:inline-flex; align-items:center; gap:.3rem; border:1px solid var(--line); border-radius:999px; padding:.1rem .7rem; color:var(--primary); background:#fff; }
 .pd-size-link:hover{ border-color:var(--primary); }
@@ -602,13 +602,13 @@ body{ font-size:1rem; }
 /* Phần dưới: 2 khung trắng trên nền xám */
 .pd-lower{ background:var(--cream-2); margin-left:-32px; margin-right:-32px; padding:2.5rem 32px; }
 .pd-card{ background:#fff; padding:1.6rem 1.8rem; }
-.pd-card-title{ font-family:'Montserrat',sans-serif; font-weight:700; text-transform:uppercase; font-size:1.35rem; margin-bottom:1.2rem; padding-bottom:.9rem; border-bottom:1px solid #e6e6e6; }
+.pd-card-title{ font-family:'DM Sans',sans-serif; font-weight:700; text-transform:uppercase; font-size:1.35rem; margin-bottom:1.2rem; padding-bottom:.9rem; border-bottom:1px solid #e6e6e6; }
 .pd-card p, .pd-card li{ line-height:1.75; }
 .pd-spec-list > div{ display:flex; justify-content:space-between; gap:1rem; padding:.7rem 0; border-bottom:1px solid #e6e6e6; }
 .pd-spec-list > div > span:first-child{ color:#888; }
 .pd-spec-list > div > span:last-child{ text-align:right; }
 .pd-section-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; }
-.pd-section-head h3{ font-family:'Montserrat',sans-serif; font-weight:500; font-size:2rem; margin:0; }
+.pd-section-head h3{ font-family:'DM Sans',sans-serif; font-weight:500; font-size:2rem; margin:0; }
 .pd-section-head a{ color:var(--ink); font-size:1.05rem; }
 
 /* Cột lọc: mũi tên mở / đóng Phụ kiện */
@@ -619,9 +619,9 @@ body{ font-size:1rem; }
 .filter-toggle{ display:flex; justify-content:space-between; align-items:center; color:var(--ink); margin-bottom:0; }
 .filter-toggle.collapsed .filter-caret{ transform:rotate(-90deg); }
 /* Hỏi đáp dưới sản phẩm: cùng kiểu chữ với các khung Mô tả / Thông tin chi tiết */
-#product-faq > h4{ font-family:'Montserrat',sans-serif; font-weight:700; text-transform:uppercase; font-size:1.35rem; }
+#product-faq > h4{ font-family:'DM Sans',sans-serif; font-weight:700; text-transform:uppercase; font-size:1.35rem; }
 #product-faq > h4 i{ display:none; }
-.product-faq .accordion-button{ font-family:'Montserrat',sans-serif; }
+.product-faq .accordion-button{ font-family:'DM Sans',sans-serif; }
 
 /* Nút "Xem nhanh" ở GIỮA ảnh (rê chuột mới hiện; màn hình cảm ứng thì luôn hiện) */
 .prod-media{ position:relative; }
@@ -662,6 +662,12 @@ body{ font-size:1rem; }
   .ch-nav .nav-link::after{ display:none; }
   .ch-nav .navbar-collapse > .d-flex{ flex-wrap:wrap; padding-top:.5rem; border-top:1px solid var(--line); }
 }
+/* 1200–1399px: menu nằm ngang nhưng chỗ còn hẹp → thu khoảng cách để không tràn */
+@media (min-width: 1200px) and (max-width: 1399px){
+  .ch-nav .nav-link{ font-size:14px; letter-spacing:.3px; padding-left:.55rem !important; padding-right:.55rem !important; }
+  .ch-nav .btn-sm{ font-size:14px; padding:.4rem .7rem; }
+  .ch-nav .navbar-brand{ font-size:1.6rem !important; }
+}
 @media (max-width: 575px){
   .topbar{ font-size:12.5px !important; }
   .ch-nav .navbar-brand{ font-size:1.5rem !important; }
@@ -685,14 +691,14 @@ body{ font-size:1rem; }
 
 
 /* ============================================================
-   GIAO DIỆN THEO TINASTORE: màu kem / hồng đất (phông chữ: xem phần Prata + Montserrat ở cuối file),
+   GIAO DIỆN THEO TINASTORE: màu kem / hồng đất (phông chữ: xem phần Cormorant Garamond + DM Sans ở cuối file),
    nền kem, điểm nhấn hồng đất
    ============================================================ */
-body{ font-family:'Montserrat',system-ui,Arial,sans-serif; background:var(--cream); color:var(--ink); -webkit-font-smoothing:antialiased; }
-h1,h2,h3,.font-serif,.section-title{ font-family:'Prata',Georgia,serif; font-weight:600; letter-spacing:.2px; }
+body{ font-family:'DM Sans',system-ui,Arial,sans-serif; background:var(--cream); color:var(--ink); -webkit-font-smoothing:antialiased; }
+h1,h2,h3,.font-serif,.section-title{ font-family:'Cormorant Garamond',Georgia,serif; font-weight:600; letter-spacing:.2px; }
 ::selection{ background:var(--blush); color:var(--ink); }
 .ch-nav{ background:rgba(250,247,244,.92) !important; backdrop-filter:blur(20px) saturate(180%); border-bottom:1px solid rgba(239,232,227,.8); }
-.ch-nav .navbar-brand{ font-family:'Prata',serif !important; font-weight:600 !important; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink) !important; }
+.ch-nav .navbar-brand{ font-family:'Cormorant Garamond',serif !important; font-weight:600 !important; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink) !important; }
 .ch-nav .navbar-brand .dot{ color:var(--primary); }
 .ch-nav .nav-link:hover, .ch-nav .nav-link.active{ color:var(--primary) !important; }
 .ch-nav .nav-link::after{ background:var(--primary); }
@@ -711,13 +717,13 @@ a{ color:var(--primary); } a:hover{ color:var(--primary-d); }
 .card{ border-color:var(--line); }
 .ch-footer{ background:#2c2a28; }
 /* Tiêu đề trang chi tiết / khung dùng phông có chân cho sang */
-.pd-title, .qv-title, .pd-section-head h3{ font-family:'Prata',serif; font-weight:600; }
+.pd-title, .qv-title, .pd-section-head h3{ font-family:'Cormorant Garamond',serif; font-weight:600; }
 .pd-title{ font-size:2.4rem; }
 .qv-title{ font-size:1.9rem; }
-.pd-card-title, #product-faq > h4, .pd-section-title{ font-family:'Prata',serif; text-transform:none; font-size:1.7rem; font-weight:600; letter-spacing:.3px; }
-.price-tag, .pd-rent, .prod-prices .rent, .qv-price{ color:var(--primary); font-family:'Montserrat',sans-serif; }
+.pd-card-title, #product-faq > h4, .pd-section-title{ font-family:'Cormorant Garamond',serif; text-transform:none; font-size:1.7rem; font-weight:600; letter-spacing:.3px; }
+.price-tag, .pd-rent, .prod-prices .rent, .qv-price{ color:var(--primary); font-family:'DM Sans',sans-serif; }
 .hot-badge{ background:var(--primary); }
-.prod-grid .prod-name{ font-family:'Montserrat',sans-serif; }
+.prod-grid .prod-name{ font-family:'DM Sans',sans-serif; }
 /* Nút "Bảng số đo" cùng hàng với các ô size, cách ô cuối một khoảng */
 .pd-size-inline{ align-self:center; margin:0 0 0 1rem !important; }
 
@@ -738,11 +744,11 @@ a{ color:var(--primary); } a:hover{ color:var(--primary-d); }
 
 
 /* ============================================================
-   PHÔNG CHỮ: Prata (tiêu đề) + Montserrat (chữ thường)
-   Prata chỉ có 1 độ đậm -> để 400 cho tiêu đề (tránh trình duyệt tự làm đậm giả)
+   PHÔNG CHỮ (theo tinastore): Cormorant Garamond (tiêu đề) + DM Sans (chữ thường)
+   Cormorant Garamond có nhiều độ đậm -> tiêu đề 600
    ============================================================ */
 h1,h2,h3,h4,h5,h6,.font-serif,.section-title,.pd-title,.qv-title,.pd-section-head h3,.pd-card-title,#product-faq > h4,.pd-section-title,
-.hero-split h1,.ch-nav .navbar-brand{ font-weight:400 !important; }
+.hero-split h1,.ch-nav .navbar-brand{ font-weight:600 !important; }
 .ch-nav .navbar-brand{ letter-spacing:2px; }
 .hero-split h1 .accent{ font-style:italic; }
 body{ letter-spacing:.1px; }
@@ -758,7 +764,7 @@ body{ letter-spacing:.1px; }
 .pd-type-chip:hover{ background:var(--blush); color:var(--primary-d); }
 .pd-title{ font-size:2.5rem !important; line-height:1.2; margin-bottom:.9rem; color:var(--ink); }
 .pd-price-line{ display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
-.pd-price-main{ font-family:'Montserrat',sans-serif; font-size:2rem; font-weight:700; color:var(--ink); }
+.pd-price-main{ font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:700; color:var(--ink); }
 .pd-price-main span{ font-size:1rem; font-weight:400; color:var(--muted); margin-left:.3rem; }
 .pd-stars{ color:var(--muted); display:inline-flex; align-items:center; gap:.4rem; font-size:.95rem; }
 .pd-stars .stars{ color:#f5b301; font-size:1.05rem; }
@@ -814,3 +820,295 @@ body{ letter-spacing:.1px; }
 .pd-old-price{ font-size:1.05rem; font-weight:400; color:#9a9490; margin-left:.6rem; }
 .pd-sale-chip{ display:inline-block; background:#d9534f; color:#fff; font-size:.85rem; font-weight:700; border-radius:999px; padding:.15rem .6rem; margin-left:.5rem; vertical-align:middle; }
 .pd-sale-note{ color:#d9534f; font-size:.92rem; margin-top:.3rem; }
+
+/* Trang chủ: lưu ý thuê đồ dạng 4 ô ngắn */
+.rule-tile{ text-align:center; padding:1.1rem .8rem; height:100%; border-radius:14px; background:var(--cream); border:1px solid var(--line); }
+.rule-tile .bi{ font-size:1.6rem; color:var(--primary); display:block; margin-bottom:.4rem; }
+
+/* ============================================================
+   ĐỒNG BỘ MÀU NÚT & TRẠNG THÁI "ĐANG CHỌN"
+   Mọi thứ khách bấm chọn (size, màu, danh mục, phụ kiện, câu hỏi, menu…)
+   dùng chung 1 kiểu: nền hồng nhạt + viền & chữ hồng đất + chuyển động mềm.
+   ============================================================ */
+:root{
+  --sel-bg:var(--blush-light);     /* nền khi đang chọn */
+  --sel-border:var(--primary);     /* viền khi đang chọn */
+  --sel-text:var(--primary-d);     /* chữ khi đang chọn */
+  --hover-bg:#fbf1ef;              /* nền khi rê chuột */
+  --ease:cubic-bezier(.4,0,.2,1);
+  /* Thay màu xanh mặc định của Bootstrap bằng tông hồng đất */
+  --bs-primary:#b8847e; --bs-primary-rgb:184,132,126;
+  --bs-link-color:#b8847e; --bs-link-hover-color:#a6736d;
+  --bs-link-color-rgb:184,132,126; --bs-link-hover-color-rgb:166,115,109;
+}
+
+/* Chuyển động chung cho các nút chọn */
+.btn, .filter-link, .filter-chip, .pd-opt, .qv-opt, .color-pill, .dropdown-item,
+.accordion-button, .page-link, .gal-thumb, .qv-thumb{
+  transition:background-color .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease),
+             box-shadow .25s var(--ease), transform .15s var(--ease) !important;
+}
+.btn:active, .filter-chip:active, .pd-opt:active, .qv-opt:active{ transform:scale(.97); }
+
+/* --- Rê chuột: cùng 1 kiểu --- */
+.filter-link:hover, .filter-chip:hover, .pd-opt:hover, .qv-opt:hover, .color-pill:hover,
+.dropdown-item:hover, .dropdown-item:focus{
+  background:var(--hover-bg) !important; border-color:var(--gold) !important; color:var(--primary) !important;
+}
+
+/* --- Đang chọn: cùng 1 kiểu --- */
+.filter-link.on, .filter-chip.on, .filter-chip.color-pill.on,
+.btn-check:checked + .pd-opt, .btn-check:checked + .qv-opt, .btn-check:checked + .color-pill,
+.btn-check:checked + .pd-opt:not(.color-pill), .btn-check:checked + .qv-opt:not(.color-pill),
+.dropdown-item.active, .dropdown-item:active{
+  background:var(--sel-bg) !important; border-color:var(--sel-border) !important; color:var(--sel-text) !important;
+  font-weight:600; box-shadow:0 0 0 1px var(--sel-border), 0 4px 12px rgba(184,132,126,.18);
+}
+.filter-link.on{ box-shadow:inset 3px 0 0 var(--sel-border); }        /* danh mục: vạch nhấn bên trái */
+.dropdown-item.active, .dropdown-item:active{ box-shadow:none; }
+.filter-link.on span{ color:var(--sel-text) !important; }
+.btn-check:checked + .pd-opt::after, .btn-check:checked + .qv-opt::after{ display:none !important; }
+.btn-check:focus-visible + .pd-opt, .btn-check:focus-visible + .qv-opt, .btn-check:focus-visible + .color-pill{
+  box-shadow:0 0 0 3px rgba(232,196,196,.6) !important;
+}
+
+/* --- Câu hỏi (FAQ ở trang Hỏi đáp + trang chi tiết): đồng bộ, bỏ màu xanh --- */
+.accordion{
+  --bs-accordion-active-bg:var(--sel-bg); --bs-accordion-active-color:var(--sel-text);
+  --bs-accordion-btn-focus-box-shadow:0 0 0 .2rem rgba(232,196,196,.45);
+  --bs-accordion-border-color:var(--line);
+}
+.accordion-button{ font-weight:600; }
+.accordion-button:hover{ background:var(--hover-bg); color:var(--primary); }
+.accordion-button:not(.collapsed){
+  background:var(--sel-bg) !important; color:var(--sel-text) !important; box-shadow:inset 3px 0 0 var(--sel-border) !important;
+}
+.accordion-button::after{ transition:transform .3s var(--ease); }
+.accordion-button:not(.collapsed)::after{ filter:sepia(1) saturate(2) hue-rotate(-30deg) brightness(.85); }
+
+/* --- Nút sáng đang bật (chuông, yêu thích, tài khoản trên menu) --- */
+.btn-light.active, .btn-light:active{ background:var(--sel-bg) !important; border-color:var(--sel-border) !important; color:var(--sel-text) !important; }
+
+/* --- Ô tick / radio / công tắc, phân trang, ảnh nhỏ --- */
+.form-check-input:checked{ background-color:var(--primary); border-color:var(--primary); }
+.form-check-input:focus{ border-color:var(--blush); box-shadow:0 0 0 .2rem rgba(232,196,196,.45); }
+.page-item.active .page-link{ background:var(--primary); border-color:var(--primary); color:#fff; }
+.page-link:hover{ background:var(--hover-bg); color:var(--primary); }
+.gal-thumb.active, .qv-thumb.active{ border-color:var(--sel-border) !important; box-shadow:0 0 0 2px var(--sel-bg); }
+
+/* --- Nút chính / viền: hiệu ứng nổi nhẹ --- */
+.btn-primary:hover, .btn-outline-primary:hover{ box-shadow:0 6px 16px rgba(184,132,126,.28); transform:translateY(-1px); }
+
+/* ===== Nút lên đầu trang ===== */
+.to-top{
+  position:fixed; right:22px; bottom:22px; z-index:1040; width:48px; height:48px; padding:0;
+  border:0; border-radius:50%; background:#fff; color:var(--primary); cursor:pointer;
+  box-shadow:0 6px 18px rgba(61,61,61,.15);
+  opacity:0; visibility:hidden; transform:translateY(16px) scale(.9);
+  transition:opacity .3s var(--ease), transform .3s var(--ease), visibility .3s, background-color .25s, color .25s;
+}
+.to-top.show{ opacity:1; visibility:visible; transform:none; }
+.to-top svg{ position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); }
+.to-top circle{ fill:none; stroke-width:2.5; }
+.to-top .tt-track{ stroke:var(--blush-light); }
+.to-top .tt-ring{ stroke:var(--primary); stroke-linecap:round; transition:stroke-dashoffset .1s linear, stroke .25s; }
+.to-top .bi{ position:relative; font-size:1.2rem; display:inline-block; transition:transform .25s var(--ease); }
+.to-top:hover{ background:var(--primary); color:#fff; }
+.to-top:hover .tt-ring{ stroke:#fff; }
+.to-top:hover .bi{ transform:translateY(-3px); }
+.to-top:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(232,196,196,.7), 0 6px 18px rgba(61,61,61,.15); }
+@media (max-width: 575px){ .to-top{ right:14px; bottom:14px; width:44px; height:44px; } }
+
+/* ===== Đồng bộ 2 kiểu menu xổ: "Danh mục" (tự viết) và "Hỗ trợ / Quản lý / Tài khoản" (Bootstrap) ===== */
+.ch-nav .dropdown-menu, .cat-panel, .cat-flyout{
+  border:1px solid var(--line) !important; border-radius:12px !important; padding:6px !important;
+  background:#fff; box-shadow:0 14px 34px rgba(61,61,61,.13) !important;
+}
+.ch-nav .dropdown-menu{ margin-top:6px !important; animation:menuIn .18s var(--ease); }
+.cat-panel, .cat-flyout{ animation:menuIn .18s var(--ease); }
+.cat-flyout{ top:-7px; margin-left:4px; }
+.cat-flyout::before{ content:""; position:absolute; top:0; bottom:0; left:-10px; width:10px; } /* cầu nối để rê chuột sang menu con không bị tắt */
+@keyframes menuIn{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:none; } }
+
+.ch-nav .dropdown-item, .cat-link{
+  border-radius:8px; padding:9px 14px !important; font-size:1rem !important; color:var(--ink);
+  transition:background-color .2s var(--ease), color .2s var(--ease), padding .2s var(--ease) !important;
+}
+.ch-nav .dropdown-item .bi{ color:var(--muted); transition:color .2s; }
+.cat-link .bi-chevron-right{ font-size:.8rem; color:var(--muted); transition:transform .2s var(--ease), color .2s; }
+
+@media (min-width: 1200px){
+  /* Rê chuột: nền hồng rất nhạt + chữ hồng đất, nhích nhẹ sang phải */
+  .ch-nav .dropdown-item:hover, .ch-nav .dropdown-item:focus,
+  .cat-link:hover, .cat-row:hover > .cat-link{
+    background:var(--sel-bg) !important; color:var(--sel-text) !important; padding-left:18px !important;
+  }
+  .ch-nav .dropdown-item:hover .bi, .cat-link:hover .bi, .cat-row:hover > .cat-link .bi{ color:var(--sel-text); }
+  .cat-row:hover > .cat-link .bi-chevron-right{ transform:translateX(3px); }
+}
+/* Trang đang xem: chữ hồng đất đậm + chấm nhấn, không tô nền (để khác với rê chuột) */
+.ch-nav .dropdown-item.active{
+  background:transparent !important; color:var(--sel-text) !important; font-weight:600; box-shadow:inset 3px 0 0 var(--sel-border) !important;
+}
+.ch-nav .dropdown-item.active .bi{ color:var(--sel-text); }
+/* Cầu nối vô hình giữa nút menu và khung menu xổ (rê chuột xuống không bị hụt) */
+.ch-nav .dropdown-menu::before{ content:""; position:absolute; left:0; right:0; top:-12px; height:12px; }
+
+/* ===== Menu trên cùng: bỏ ô vuông focus, mọi mục cùng 1 kiểu ===== */
+.ch-nav .nav-link, .ch-nav .nav-link:focus, .ch-nav .nav-link:focus-visible,
+.ch-nav .dropdown-item:focus, .ch-nav .dropdown-item:focus-visible,
+.cat-link:focus, .cat-link:focus-visible{ outline:none !important; box-shadow:none !important; }
+/* Rê chuột / đang mở menu xổ / dùng phím Tab / trang đang xem: chữ hồng đất + gạch chân */
+.ch-nav .nav-link:hover, .ch-nav .nav-link.show, .ch-nav .nav-link:focus-visible,
+.cat-menu:hover > .nav-link, .cat-menu:focus-within > .nav-link{ color:var(--primary) !important; }
+.ch-nav .nav-link.show::after, .ch-nav .nav-link:focus-visible::after,
+.cat-menu:hover > .nav-link::after, .cat-menu:focus-within > .nav-link::after{ transform:scaleX(1); }
+.ch-nav .nav-link::after{ background:var(--primary) !important; }
+/* Nút trên thanh menu (chuông, tim, giỏ, tài khoản): viền focus mềm thay cho ô xanh */
+.ch-nav .btn:focus, .ch-nav .btn:focus-visible, .ch-nav .btn.show{ box-shadow:0 0 0 3px rgba(232,196,196,.45) !important; outline:none !important; }
+.ch-nav .btn.show{ background:var(--sel-bg) !important; border-color:var(--sel-border) !important; color:var(--sel-text) !important; }
+/* Mục trong menu xổ: focus (sau khi bấm / dùng phím) giống hệt rê chuột */
+.ch-nav .dropdown-item:focus-visible, .cat-link:focus-visible{ background:var(--sel-bg) !important; color:var(--sel-text) !important; }
+/* Mũi tên ▾ mặc định của Bootstrap dùng chung ::after với gạch chân -> làm gạch chân dày hơn mục khác. Bỏ viền mũi tên. */
+.ch-nav .nav-link.dropdown-toggle::after{ border:0 !important; margin:0 !important; vertical-align:baseline; }
+
+/* Cột lọc: tên danh mục luôn 1 dòng (chữ đậm khi chọn không làm xuống dòng), quá dài thì "…" */
+.filter-link{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block !important; }
+.filter-link .filter-caret{ float:right; margin-top:.3rem; }
+.filter-sub{ margin-left:8px !important; padding-left:4px !important; }
+.filter-sub .filter-link{ padding:5px 10px !important; }
+
+/* ============================================================
+   TRANG CHI TIẾT — BỐ CỤC GỌN (nhãn trái, giá trị phải)
+   ============================================================ */
+.pd-compact .pd-brand{ display:inline-block; font-weight:700; font-size:1.05rem; color:var(--ink); margin-bottom:.15rem; }
+.pd-compact .pd-brand:hover{ color:var(--primary); }
+
+.pd-prices{ margin-bottom:1.1rem; }
+.pd-pline{ display:flex; align-items:baseline; flex-wrap:wrap; gap:.4rem; margin-bottom:.35rem; }
+.pd-pline > span:first-child{ color:var(--ink); min-width:82px; }
+.pd-pline strong{ font-weight:700; color:var(--ink); }
+.pd-pline small{ color:var(--muted); }
+.pd-now{ font-size:1.5rem; color:var(--ink) !important; }
+.pd-now.is-sale{ color:#c0392b !important; }
+.pd-prices .pd-old-price{ color:var(--muted); font-size:1rem; margin-left:.3rem; }
+.pd-prices .pd-sale-chip{ background:#c0392b; color:#fff; font-size:.78rem; font-weight:700; padding:.1rem .45rem; border-radius:6px; }
+.pd-prices .pd-sale-note{ color:var(--primary); font-weight:500; font-size:.95rem; margin-top:.2rem; }
+
+/* Ô chọn lịch thuê: nền xám nhạt, trái = nhãn, phải = khoảng ngày */
+.pd-rentbox{ display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;
+  background:var(--cream-2); border-radius:12px; padding:1rem 1.1rem; margin-bottom:1.3rem; }
+.pd-rentbox-left i{ color:var(--primary); }
+.pd-range{ display:flex; align-items:center; gap:.35rem; background:#fff; border:1px solid var(--line); border-radius:10px; padding:.25rem .35rem .25rem .6rem; }
+.pd-range input{ border:0; background:transparent; font-size:.92rem; color:var(--ink); width:128px; padding:.3rem 0; }
+.pd-range input:focus{ outline:none; }
+.pd-range span{ color:var(--muted); }
+.pd-range-btn{ border:0; background:var(--primary); color:#fff; width:34px; height:34px; border-radius:8px; transition:background .2s; }
+.pd-range-btn:hover{ background:var(--primary-d); }
+
+/* Các dòng chọn: nhãn cố định bên trái */
+.pd-row{ display:flex; gap:1rem; align-items:flex-start; margin-bottom:1.1rem; }
+.pd-row-label{ flex:0 0 90px; color:var(--muted); padding-top:.5rem; }
+.pd-row-val{ flex:1; min-width:0; }
+.pd-row .pd-guide-link{ display:inline-flex; align-items:center; gap:.3rem; white-space:nowrap; }
+.pd-compact .pd-stock{ margin:0; font-size:.92rem; }
+.pd-compact .pd-buy-row{ margin-top:1.4rem; }
+.pd-compact .pd-btn{ min-width:170px; }
+
+.pd-compact .pd-share{ margin:1.2rem 0 0; gap:.6rem; font-size:.95rem; }
+.pd-link-btn{ border:0; background:none; padding:0; color:var(--muted); }
+.pd-link-btn:hover, .pd-link-btn.on{ color:var(--primary); }
+
+@media (max-width: 575px){
+  .pd-row-label{ flex-basis:72px; }
+  .pd-range{ width:100%; }
+  .pd-range input{ flex:1; width:auto; }
+  .pd-compact .pd-btn{ flex:1; min-width:0; }
+}
+
+/* Cột lọc danh mục: không tô nền — đang chọn chỉ đổi chữ hồng đất + đậm, rê chuột chỉ đổi màu chữ */
+.filter-link, .filter-link:hover, .filter-link.on{ background:transparent !important; box-shadow:none !important; border-color:transparent !important; }
+.filter-link:hover{ color:var(--primary) !important; }
+.filter-link.on{ color:var(--primary-d) !important; font-weight:600; }
+
+/* Trang chi tiết: "Thuê thế nào?" — 4 bước ngắn dưới nút đặt thuê */
+.pd-steps{ margin-top:1.4rem; border:1px solid var(--line); border-radius:14px; background:#fff; padding:.9rem 1rem 1rem; }
+.pd-steps-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.7rem; }
+.pd-steps-head span{ font-weight:600; }
+.pd-steps-head a{ font-size:.88rem; }
+.pd-steps-row{ display:grid; grid-template-columns:repeat(4, 1fr); gap:.5rem; position:relative; }
+.pd-step{ position:relative; text-align:center; font-size:.86rem; color:var(--muted); line-height:1.3; }
+.pd-step i{ display:flex; align-items:center; justify-content:center; width:42px; height:42px; margin:0 auto .4rem;
+  border-radius:50%; background:var(--blush-light); color:var(--primary); font-size:1.15rem; position:relative; z-index:1; }
+.pd-step b{ position:absolute; top:-4px; left:calc(50% + 12px); z-index:2; width:18px; height:18px; border-radius:50%;
+  background:var(--primary); color:#fff; font-size:.68rem; display:flex; align-items:center; justify-content:center; }
+/* đường nối giữa các bước */
+.pd-step:not(:last-child)::after{ content:""; position:absolute; top:21px; left:calc(50% + 24px); right:calc(-50% + 24px);
+  border-top:1px dashed var(--gold); }
+@media (max-width: 575px){
+  .pd-steps-row{ grid-template-columns:repeat(2, 1fr); row-gap:1rem; }
+  .pd-step:nth-child(2)::after{ display:none; }
+}
+
+/* Trang chi tiết: chia sẻ + yêu thích dưới ảnh */
+.pd-share-under{ justify-content:center; margin:1.1rem 0 0 !important; gap:.7rem; }
+.pd-fav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:.45rem 1rem; border-radius:10px; font-weight:500; }
+.pd-fav-btn:hover, .pd-fav-btn.on{ border-color:var(--primary); color:var(--primary); }
+.pd-fav-btn.on .bi{ color:#e0565b; }
+
+/* Dải chính sách thuê: 4 cột, ngăn bằng vạch dọc, icon nét mảnh */
+.pd-policy-strip{ display:grid; grid-template-columns:repeat(4, 1fr); margin-top:2.5rem; padding:1.6rem 0;
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.pps-item{ display:flex; gap:1rem; align-items:flex-start; padding:.3rem 1.6rem; }
+.pps-item + .pps-item{ border-left:1px solid var(--line); }
+.pps-item > .bi{ font-size:2.3rem; line-height:1; color:var(--muted); flex-shrink:0; transition:color .25s, transform .25s; }
+.pps-item:hover > .bi{ color:var(--primary); transform:translateY(-2px); }
+.pps-title{ font-weight:600; font-size:1.05rem; color:var(--ink); margin-bottom:.2rem; }
+.pps-title a{ color:inherit; } .pps-title a:hover{ color:var(--primary); }
+.pps-sub{ color:var(--muted); font-size:.92rem; line-height:1.45; }
+@media (max-width: 991px){
+  .pd-policy-strip{ grid-template-columns:repeat(2, 1fr); row-gap:1.2rem; }
+  .pps-item:nth-child(3){ border-left:0; }
+}
+@media (max-width: 575px){
+  .pd-policy-strip{ grid-template-columns:1fr; }
+  .pps-item{ border-left:0 !important; padding:.3rem .5rem; }
+}
+
+/* Bảng số đo: rộng hết khung, các cột chia đều, không phải kéo ngang */
+.size-chart-wide{ width:100%; table-layout:fixed; font-size:1rem; }
+#sizeChartModal .size-chart-wide th, #sizeChartModal .size-chart-wide td{ padding:.65rem .4rem; white-space:normal; word-break:keep-all; }
+#sizeChartModal .size-chart-wide thead th{ font-weight:600; font-size:.95rem; }
+#sizeChartModal .size-chart-wide tbody th{ color:var(--primary); }
+
+/* ===== Chân trang luôn nằm sát đáy (trang ngắn / khi thu nhỏ trình duyệt không còn khoảng trắng dưới footer) ===== */
+body{ min-height:100vh; display:flex; flex-direction:column; }
+body > main{ flex:1 0 auto; width:100%; }
+body > footer{ flex-shrink:0; }
+
+/* Màn hình 1200–1499px: nút bên phải menu chỉ hiện icon (rê chuột có tên) để menu admin không tràn ngang */
+@media (min-width: 1200px) and (max-width: 1499px){
+  .ch-nav .nav-btn-text{ display:none; }
+  .ch-nav .navbar-collapse > .d-flex{ gap:.4rem !important; }
+  .ch-nav .nav-link{ margin:0 .15rem; }
+}
+/* Chặn cuộn ngang toàn trang nếu có phần tử nào lỡ rộng hơn màn hình */
+html, body{ overflow-x:clip; }
+
+/* Giỏ thuê: ô số lượng − / + nhỏ gọn */
+.qty-box.qty-sm{ display:inline-flex; align-items:center; border:1px solid var(--line); border-radius:20px; overflow:hidden; background:#fff; }
+.qty-box.qty-sm button{ border:0; background:#fff; width:30px; height:32px; color:var(--ink); }
+.qty-box.qty-sm button:hover{ background:var(--sel-bg); color:var(--primary); }
+.qty-box.qty-sm input{ width:40px; border:0; text-align:center; -moz-appearance:textfield; }
+.qty-box.qty-sm input::-webkit-outer-spin-button, .qty-box.qty-sm input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.qty-box.qty-sm input:focus{ outline:none; }
+
+/* Trang Liên hệ (khách) */
+.contact-info .ci-row{ display:flex; gap:.8rem; margin-bottom:1rem; }
+.contact-info .ci-row > .bi{ font-size:1.25rem; color:var(--primary); width:36px; height:36px; border-radius:50%; background:var(--sel-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.contact-info .ci-row b{ display:block; font-size:.9rem; }
+.contact-info .ci-row span{ color:var(--muted); }
+
+/* Khách liên hệ (admin / nhân viên) */
+.contact-card.is-new{ border-left:4px solid var(--primary); }
+.contact-msg{ white-space:pre-line; background:var(--cream); border-radius:10px; padding:.7rem .9rem; font-size:.95rem; }

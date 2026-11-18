@@ -51,15 +51,26 @@
       })();
       </script>
     <% } %>
+    <!-- Chia sẻ + yêu thích: ngay dưới ảnh -->
+    <div class="pd-share pd-share-under">
+      <span class="text-muted">Chia sẻ</span>
+      <a href="#" id="shareFb" class="pd-share-btn" title="Chia sẻ Facebook"><i class="bi bi-facebook"></i></a>
+      <button type="button" id="copyUrl" class="pd-share-btn" title="Sao chép đường dẫn"><i class="bi bi-link-45deg"></i></button>
+      <form method="POST" action="/favorites/<%= product.ProductID %>" class="d-inline">
+        <input type="hidden" name="back" value="/products/<%= product.ProductID %>">
+        <button class="pd-fav-btn <%= isFav ? 'on' : '' %>"><%= isFav ? 'Đã yêu thích' : 'Yêu thích' %> <i class="bi <%= isFav ? 'bi-heart-fill' : 'bi-heart' %>"></i></button>
+      </form>
+      <% if (staff) { %><a href="/products/<%= product.ProductID %>/edit" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> Sửa</a><% } %>
+    </div>
   </div>
 
-  <!-- ===== THÔNG TIN + ĐẶT THUÊ ===== -->
+  <!-- ===== THÔNG TIN + ĐẶT THUÊ (gọn: nhãn trái – giá trị phải) ===== -->
   <div class="col-lg-6">
-    <div class="pd-info">
+    <div class="pd-info pd-compact">
       <a href="<%= typeLink %>" class="pd-type-chip"><%= product.ProductType %></a>
       <h1 class="pd-title"><%= product.ProductName %></h1>
 
-      <!-- Giá + đánh giá cùng 1 hàng -->
+      <!-- Giá + đánh giá cùng 1 hàng (giảm giá của cửa hàng hiện luôn ở giá; mã giảm giá chỉ nhập ở giỏ thuê) -->
       <div class="pd-price-line">
         <div class="pd-price-main"><%= vnd(priceOf(product)) %><span>/ ngày</span>
           <% if (saleOf(product) !== null) { %><s class="pd-old-price"><%= vnd(product.Price) %></s><span class="pd-sale-chip">-<%= salePercent(product) %>%</span><% } %></div>
@@ -78,134 +89,134 @@
           <i class="bi bi-clock-history"></i>
           <div><span>Phí trả trễ</span><strong><%= vnd(product.LateFeePerDay) %></strong><small>Mỗi ngày trễ</small></div>
         </div>
-        <% if (Number(product.ProductValue) > 0) { %>
+        <%# Luôn hiện ô này; chưa nhập giá trị thì khi mất / hư nặng sẽ mất tiền cọc (utils/fees.js lossAmount) %>
         <div class="pd-fact">
           <i class="bi bi-gem"></i>
-          <div><span>Giá trị sản phẩm</span><strong><%= vnd(product.ProductValue) %></strong><small>Đền khi mất / hư nặng</small></div>
+          <% if (Number(product.ProductValue) > 0) { %>
+            <div><span>Giá trị sản phẩm</span><strong><%= vnd(product.ProductValue) %></strong><small>Đền khi mất / hư nặng</small></div>
+          <% } else { %>
+            <div><span>Giá trị sản phẩm</span><strong><%= vnd(product.DepositValue) %></strong><small>Mất / hư nặng: mất tiền cọc</small></div>
+          <% } %>
         </div>
-        <% } %>
       </div>
       <hr class="pd-hr">
 
       <% if (!canRent) { %>
         <div class="alert alert-warning">Sản phẩm hiện <strong><%= product.Status %></strong>, chưa thể đặt thuê. Vui lòng chọn mẫu khác.</div>
       <% } else { %>
+        <!-- Ô chọn lịch thuê: chỉ báo còn trống / đã kín khi khách chọn ngày -->
+        <form method="GET" action="/products/<%= product.ProductID %>" class="pd-rentbox">
+          <div class="pd-rentbox-left">
+            <div class="fw-semibold"><i class="bi bi-calendar-range"></i> Chọn lịch thuê</div>
+            <% if (dates && avail) { %>
+              <% if (avail.free > 0) { %>
+                <div class="small text-success"><i class="bi bi-check-circle-fill"></i> <%= sizes.length > 1 ? 'Còn size ' + avail.freeSizes.join(', ') : 'Còn trống' %></div>
+              <% } else { %>
+                <div class="small text-danger"><i class="bi bi-x-circle-fill"></i> Đã kín lịch, chọn ngày khác</div>
+              <% } %>
+            <% } else { %>
+              <div class="small text-muted">Xem size nào còn trống</div>
+            <% } %>
+          </div>
+          <div class="pd-range">
+            <input type="date" name="start" id="cStart" min="<%= ymd(new Date()) %>" value="<%= dates ? dates.start : '' %>" required aria-label="Từ ngày">
+            <span>–</span>
+            <input type="date" name="end" id="cEnd" min="<%= ymd(new Date(Date.now() + 864e5)) %>" value="<%= dates ? dates.end : '' %>" required aria-label="Đến ngày">
+            <button class="pd-range-btn" title="Kiểm tra lịch trống" aria-label="Kiểm tra lịch trống"><i class="bi bi-search"></i></button>
+          </div>
+        </form>
+
         <!-- Chọn màu / size / số lượng rồi thêm vào giỏ thuê -->
         <form method="POST" action="/cart/add" id="addCartForm" novalidate>
           <input type="hidden" name="ProductID" value="<%= product.ProductID %>">
+          <span id="colorName" hidden><%= onlyColor || '' %></span><span id="sizeName" hidden><%= onlySize || '' %></span>
 
-          <div class="pd-group">
-            <div class="pd-group-label">Màu sắc: <strong id="colorName"><%= onlyColor || '' %></strong></div>
-            <div class="d-flex flex-wrap gap-2 opt-group" data-opt="Color">
-              <% colors.forEach((c, i) => { const off = !colorTotal(c); %>
-                <input type="radio" class="btn-check" name="Color" id="color<%= i %>" value="<%= c %>" <%= off ? 'disabled' : '' %> <%= (onlyColor && !off) ? 'checked' : '' %>>
-                <label class="pd-opt color-pill <%= off ? 'opt-off' : '' %>" for="color<%= i %>"><span class="color-dot" style="background:<%= colorHex(c) %>"></span><%= c %></label>
-              <% }) %>
+          <div class="pd-row">
+            <div class="pd-row-label">Màu sắc</div>
+            <div class="pd-row-val">
+              <div class="d-flex flex-wrap gap-2 opt-group" data-opt="Color">
+                <% colors.forEach((c, i) => { const off = !colorTotal(c); %>
+                  <input type="radio" class="btn-check" name="Color" id="color<%= i %>" value="<%= c %>" <%= off ? 'disabled' : '' %> <%= (onlyColor && !off) ? 'checked' : '' %>>
+                  <label class="pd-opt color-pill <%= off ? 'opt-off' : '' %>" for="color<%= i %>"><span class="color-dot" style="background:<%= colorHex(c) %>"></span><%= c %></label>
+                <% }) %>
+              </div>
+              <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn màu sắc.</div>
             </div>
-            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn màu sắc.</div>
           </div>
 
-          <div class="pd-group">
-            <div class="pd-group-label d-flex justify-content-between align-items-center">
-              <span>Size: <strong id="sizeName"><%= onlySize || '' %></strong></span>
-              <% if (chart.length) { %><a href="#" class="pd-guide-link" data-bs-toggle="modal" data-bs-target="#sizeChartModal"><i class="bi bi-rulers"></i> Bảng hướng dẫn chọn size</a><% } %>
+          <div class="pd-row">
+            <div class="pd-row-label">Size</div>
+            <div class="pd-row-val">
+              <div class="d-flex flex-wrap gap-2 align-items-center opt-group" data-opt="Size">
+                <% sizes.forEach((sz, i) => { const total = sizeTotal(sz), free = sizeFree(sz); const off = !total || free <= 0; %>
+                  <input type="radio" class="btn-check" name="Size" id="size<%= i %>" value="<%= sz %>" <%= off ? 'disabled' : '' %> <%= (onlySize && !off) ? 'checked' : '' %>>
+                  <label class="pd-opt <%= off ? 'opt-off' : '' %>" for="size<%= i %>" title="<%= !total ? 'Shop không có size này' : off ? 'Đã có khách thuê trong ngày bạn chọn' : '' %>"><%= sz %></label>
+                <% }) %>
+                <%# Bảng số đo nằm cùng hàng, bên phải các nút size %>
+                <% if (chart.length) { %><a href="#" class="pd-guide-link small ms-2" data-bs-toggle="modal" data-bs-target="#sizeChartModal"><i class="bi bi-rulers"></i> Bảng số đo</a><% } %>
+              </div>
+              <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn size.</div>
             </div>
-            <div class="d-flex flex-wrap gap-2 opt-group" data-opt="Size">
-              <% sizes.forEach((sz, i) => { const total = sizeTotal(sz), free = sizeFree(sz); const off = !total || free <= 0; %>
-                <input type="radio" class="btn-check" name="Size" id="size<%= i %>" value="<%= sz %>" <%= off ? 'disabled' : '' %> <%= (onlySize && !off) ? 'checked' : '' %>>
-                <label class="pd-opt <%= off ? 'opt-off' : '' %>" for="size<%= i %>" title="<%= !total ? 'Shop không có size này' : off ? 'Đã có khách thuê trong ngày bạn chọn' : '' %>">
-                  <%= sz %><% if (dates && total && free <= 0) { %> <small>· hết lịch</small><% } %>
-                </label>
-              <% }) %>
-            </div>
-            <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn size.</div>
           </div>
 
-          <div class="pd-stock"><span class="dot"></span> <span id="comboInfo">Còn hàng — chọn ngày bên dưới để xem lịch trống</span></div>
+          <div class="pd-row">
+            <div class="pd-row-label">Số lượng</div>
+            <div class="pd-row-val d-flex align-items-center flex-wrap gap-3">
+              <div class="qty-box">
+                <button type="button" data-d="-1" aria-label="Giảm">−</button>
+                <input type="number" name="Quantity" id="qtyInput" value="1" min="1" step="1" required>
+                <button type="button" data-d="1" aria-label="Tăng">+</button>
+              </div>
+              <span class="pd-stock"><span class="dot"></span> <span id="comboInfo">Còn hàng</span></span>
+            </div>
+          </div>
 
           <div class="pd-buy-row">
-            <div class="qty-box">
-              <button type="button" data-d="-1" aria-label="Giảm">−</button>
-              <input type="number" name="Quantity" id="qtyInput" value="1" min="1" step="1" required>
-              <button type="button" data-d="1" aria-label="Tăng">+</button>
-            </div>
-            <button class="btn pd-btn pd-btn-add need-combo flex-grow-1"><i class="bi bi-bag-plus"></i> Thêm vào giỏ</button>
-            <button class="btn pd-btn pd-btn-buy need-combo flex-grow-1" name="buyNow" value="1">Thuê ngay</button>
+            <button class="btn pd-btn pd-btn-add need-combo"><i class="bi bi-bag-plus"></i> Thêm vào giỏ</button>
+            <button class="btn pd-btn pd-btn-buy need-combo" name="buyNow" value="1">Thuê ngay</button>
           </div>
-
-          <!-- Mã giảm giá: chọn ở đây thì giỏ thuê tự điền sẵn -->
-          <% if (promos.length) { %>
-            <div class="pd-coupon-row">
-              <i class="bi bi-ticket-perforated"></i>
-              <select name="CouponCode" class="form-select form-select-sm">
-                <option value="">Chọn mã giảm giá (không bắt buộc)</option>
-                <% promos.forEach(c => { %><option value="<%= c.code %>" <%= savedCoupon === c.code ? 'selected' : '' %>><%= c.code %> · <%= c.text %></option><% }) %>
-              </select>
-            </div>
-          <% } %>
-          <% if (inCart) { %><div class="small text-muted mt-2"><i class="bi bi-bag-check"></i> Giỏ của bạn đã có <%= inCart %> <%= product.Unit %> mẫu này · <a href="/cart">Xem giỏ</a></div><% } %>
-          <% if (!currentUser) { %><div class="small text-muted mt-2">Bạn có thể thêm vào giỏ trước, đăng nhập khi đặt thuê.</div><% } %>
-        </form>
-
-        <!-- Kiểm tra lịch trống
-
-        <!-- Kiểm tra lịch trống: chỉ báo đã kín / còn trống khi khách chọn ngày -->
-        <form method="GET" action="/products/<%= product.ProductID %>" class="pd-dates mt-3">
-          <div class="pd-opt-label"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Kiểm tra lịch trống</div>
-          <div class="d-flex flex-wrap align-items-end gap-2">
-            <div>
-              <label class="form-label text-muted mb-0" for="cStart">Ngày nhận</label>
-              <input type="date" name="start" id="cStart" class="form-control" min="<%= ymd(new Date()) %>" value="<%= dates ? dates.start : '' %>" required>
-            </div>
-            <div>
-              <label class="form-label text-muted mb-0" for="cEnd">Ngày trả</label>
-              <input type="date" name="end" id="cEnd" class="form-control" min="<%= ymd(new Date(Date.now() + 864e5)) %>" value="<%= dates ? dates.end : '' %>" required>
-            </div>
-            <button class="btn btn-outline-primary">Kiểm tra</button>
-          </div>
-          <% if (dates && avail) { %>
-            <% if (avail.free > 0) { %>
-              <div class="mt-2 text-success"><i class="bi bi-check-circle-fill"></i>
-                Từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>: <%= sizes.length > 1 ? 'còn size ' + avail.freeSizes.join(', ') : 'mẫu này còn trống' %>.
-                <% const full = sizes.filter(s => !avail.freeSizes.includes(s)); if (full.length && sizes.length > 1) { %><span class="text-muted">Size <%= full.join(', ') %> đã có khách thuê.</span><% } %>
-              </div>
-            <% } else { %>
-              <div class="mt-2 text-danger"><i class="bi bi-x-circle-fill"></i> Mẫu này <strong>đã có khách thuê</strong> từ <%= viDate(dates.start) %> đến <%= viDate(dates.end) %>. Vui lòng chọn ngày khác.</div>
-            <% } %>
-          <% } else { %>
-            <div class="mt-2 text-muted small">Chọn ngày nhận – ngày trả để biết size nào còn trống.</div>
-          <% } %>
+          <% if (inCart) { %><div class="small text-muted mt-2"><i class="bi bi-bag-check"></i> Giỏ đã có <%= inCart %> <%= product.Unit %> mẫu này · <a href="/cart">Xem giỏ</a></div><% } %>
         </form>
       <% } %>
 
-      <!-- Chia sẻ + yêu thích -->
-      <div class="pd-share">
-        <form method="POST" action="/favorites/<%= product.ProductID %>" class="d-inline">
-          <input type="hidden" name="back" value="/products/<%= product.ProductID %>">
-          <button class="btn btn-sm <%= isFav ? 'btn-danger' : 'btn-outline-danger' %>"><i class="bi <%= isFav ? 'bi-heart-fill' : 'bi-heart' %>"></i> <%= isFav ? 'Đã yêu thích' : 'Yêu thích' %></button>
-        </form>
-        <span class="text-muted ms-2">Chia sẻ:</span>
-        <a href="#" id="shareFb" class="pd-share-btn" title="Chia sẻ Facebook"><i class="bi bi-facebook"></i></a>
-        <button type="button" id="copyUrl" class="pd-share-btn" title="Sao chép đường dẫn"><i class="bi bi-link-45deg"></i></button>
-        <% if (staff) { %><a href="/products/<%= product.ProductID %>/edit" class="btn btn-sm btn-outline-primary ms-auto"><i class="bi bi-pencil"></i> Sửa</a><% } %>
-      </div>
-
-      <!-- Chính sách thuê -->
-      <div class="pd-box">
-        <div class="pd-box-title"><i class="bi bi-shield-check"></i> Chính sách thuê</div>
-        <div class="row g-2 pd-policy">
-          <div class="col-sm-6"><i class="bi bi-stars"></i> Giặt hấp miễn phí sau mỗi lượt thuê</div>
-          <div class="col-sm-6"><i class="bi bi-arrow-left-right"></i> <a href="/doi-size">Đổi size miễn phí</a> khi không vừa</div>
-          <div class="col-sm-6"><i class="bi bi-cash-coin"></i> Hoàn cọc khi trả đồ đúng hạn, nguyên vẹn</div>
-          <div class="col-sm-6"><i class="bi bi-truck"></i> Nhận tại cửa hàng hoặc giao tận nơi</div>
+      <!-- Thuê thế nào? 4 bước ngắn ngay dưới nút đặt thuê (chi tiết ở /cach-thue) -->
+      <div class="pd-steps">
+        <div class="pd-steps-head"><span>Thuê thế nào?</span><a href="/cach-thue">Xem chi tiết <i class="bi bi-arrow-right"></i></a></div>
+        <div class="pd-steps-row">
+          <% [
+            ['bi-calendar-check', 'Chọn ngày & size'],
+            ['bi-wallet2', 'Cọc giữ chỗ trong 24h'],
+            ['bi-bag-heart', 'Nhận đồ, thử ngay'],
+            ['bi-arrow-repeat', 'Trả đồ, nhận lại cọc'],
+          ].forEach(([icon, text], i) => { %>
+            <div class="pd-step"><i class="bi <%= icon %>"></i><b><%= i + 1 %></b><span><%= text %></span></div>
+          <% }) %>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- ===== CHÍNH SÁCH THUÊ: dải 4 cột, icon nét mảnh ===== -->
+<section class="pd-policy-strip">
+  <% [
+    ['bi-stars', 'Giặt hấp miễn phí', 'Mỗi bộ được giặt hấp, kiểm tra kỹ trước khi giao', null],
+    ['bi-arrow-left-right', 'Đổi size miễn phí', 'Mặc không vừa được đổi size khác còn trống', '/doi-size'],
+    ['bi-shield-check', 'Hoàn cọc đầy đủ', 'Trả đồ đúng hạn, nguyên vẹn là nhận lại cọc', '/noi-quy'],
+    ['bi-truck', 'Nhận đồ linh hoạt', 'Lấy tại cửa hàng hoặc giao tận nơi', null],
+  ].forEach(([icon, title, sub, href]) => { %>
+    <div class="pps-item">
+      <i class="bi <%= icon %>"></i>
+      <div>
+        <div class="pps-title"><% if (href) { %><a href="<%= href %>"><%= title %></a><% } else { %><%= title %><% } %></div>
+        <div class="pps-sub"><%= sub %></div>
+      </div>
+    </div>
+  <% }) %>
+</section>
+
 <!-- ===== MÔ TẢ SẢN PHẨM (trái) + THÔNG TIN CHI TIẾT (phải) ===== -->
-<section class="pd-lower mt-5">
+<section class="pd-lower mt-4">
   <div class="row g-4">
     <div class="col-lg-8">
       <div class="pd-card">
@@ -242,17 +253,6 @@
           <div><span>Đơn vị thuê</span><span><%= product.Unit %></span></div>
           <% if (staff) { %><div><span>Số bộ cửa hàng có <span class="badge bg-light text-muted border">NV</span></span><span><%= product.Quantity %> <%= product.Unit %></span></div><% } %>
         </div>
-      </div>
-      <div class="pd-card mt-4">
-        <h4 class="pd-card-title">Hướng dẫn thuê</h4>
-        <ol class="pd-guide mb-2">
-          <li>Chọn kích thước, màu sắc, kiểm tra lịch trống.</li>
-          <li>Thêm vào giỏ / Thuê ngay, nhập thông tin.</li>
-          <li>Cọc trong 24 giờ để giữ chỗ.</li>
-          <li>Nhận đồ, thử ngay — không vừa được đổi size.</li>
-          <li>Trả đúng hạn, nhận lại tiền cọc.</li>
-        </ol>
-        <a href="/cach-thue">Xem chi tiết <i class="bi bi-arrow-right"></i></a>
       </div>
     </div>
   </div>
@@ -291,25 +291,27 @@
 <% if (chart.length) { %>
 <!-- BẢNG SỐ ĐO: cửa sổ nhỏ, mở từ link "Bảng số đo" cạnh dòng Kích thước -->
 <div class="modal fade" id="sizeChartModal" tabindex="-1" aria-label="Bảng số đo">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title"><i class="bi bi-rulers" style="color:var(--gold)"></i> Bảng số đo — <%= product.ProductName %></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
     <div class="modal-body">
         <div class="row g-4">
-          <div class="col-lg-7">
-            <div class="table-responsive">
-              <table class="table table-bordered text-center size-chart mb-2">
-                <thead class="table-light"><tr><th>Size</th><% CHART_FIELDS.forEach(f => { %><th><%= f.label %> (cm)</th><% }) %></tr></thead>
+          <div class="col-lg-8">
+            <%# Bảng rộng hết khung, không cuộn ngang; đơn vị ghi 1 lần ở dưới thay vì từng cột %>
+            <div>
+              <table class="table table-bordered text-center size-chart size-chart-wide mb-1">
+                <thead class="table-light"><tr><th>Size</th><% CHART_FIELDS.forEach(f => { %><th><%= f.label %></th><% }) %></tr></thead>
                 <tbody>
                   <% chart.forEach(r => { %><tr><th><%= r.size %></th><% CHART_FIELDS.forEach(f => { %><td><%= r[f.key] || '—' %></td><% }) %></tr><% }) %>
                 </tbody>
               </table>
+              <div class="small text-muted mb-2">Đơn vị: cm</div>
             </div>
             <% if (summary.count && (summary.fit['Hơi chật'] || summary.fit['Hơi rộng'] || summary.fit['Vừa'])) { %>
               <div class="text-muted">Khách đã thuê nhận xét: <%= summary.fit['Vừa'] %> vừa · <%= summary.fit['Hơi chật'] %> hơi chật · <%= summary.fit['Hơi rộng'] %> hơi rộng.</div>
             <% } %>
             <div class="text-muted">Số đo giữa 2 size: chọn size lớn hơn. Không vừa? Xem <a href="/doi-size">chính sách đổi size</a>.</div>
           </div>
-          <div class="col-lg-5"><%- include('../partials/measure-guide') %></div>
+          <div class="col-lg-4"><%- include('../partials/measure-guide') %></div>
         </div>
     </div>
   </div></div>
@@ -379,7 +381,7 @@
       form.querySelectorAll('.need-combo').forEach(b => { b.disabled = max <= 0; });
       if (max <= 0) info.textContent += ' Bạn đã chọn hết số bộ có thể thuê của size này.';
     } else {
-      info.textContent = hasDates ? 'Còn hàng trong ngày bạn chọn — chọn màu và size' : 'Còn hàng — chọn ngày bên dưới để xem lịch trống';
+      info.textContent = hasDates ? 'Còn trống trong ngày bạn chọn' : 'Còn hàng';
       form.querySelectorAll('.need-combo').forEach(b => { b.disabled = false; });
     }
     form.querySelectorAll('.opt-group').forEach(g => { if (g.querySelector('input:checked')) g.nextElementSibling.hidden = true; });

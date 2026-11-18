@@ -33,15 +33,43 @@
     </div>
 
     <div class="row g-3">
-      <div class="col-md-6">
-        <div class="card p-3 h-100">
+      <!-- Thông tin cá nhân: SĐT, email, CCCD, địa chỉ -> tự điền vào form đặt thuê -->
+      <div class="col-12">
+        <div class="card p-3 p-md-4" id="thong-tin">
           <h6 class="font-serif mb-3"><i class="bi bi-pencil"></i> Thông tin cá nhân</h6>
-          <form method="POST" action="/account/profile">
-            <label class="form-label small text-muted">Họ và tên</label>
-            <input name="fullName" class="form-control mb-3" required minlength="2" maxlength="100" value="<%= user.fullName || '' %>">
-            <button class="btn btn-primary"><i class="bi bi-save"></i> Lưu</button>
+          <form method="POST" action="/account/profile" id="profileForm" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small text-muted" for="pfName">Họ và tên <span class="text-danger">*</span></label>
+                <input name="fullName" id="pfName" class="form-control" required minlength="2" maxlength="100" value="<%= user.fullName || '' %>">
+                <div class="invalid-feedback">Họ tên 2–100 ký tự.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small text-muted" for="pfPhone">Số điện thoại <span class="text-danger">*</span></label>
+                <input name="phone" id="pfPhone" type="tel" class="form-control" required inputmode="tel" placeholder="VD 0912345678" value="<%= user.phone || '' %>">
+                <div class="invalid-feedback">10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small text-muted" for="pfEmail">Email <span class="text-danger">*</span></label>
+                <input name="email" id="pfEmail" type="email" class="form-control" required maxlength="150" value="<%= user.email || '' %>">
+                <div class="invalid-feedback">Email không hợp lệ.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small text-muted" for="pfCCCD">Số CCCD</label>
+                <input name="idCardNumber" id="pfCCCD" class="form-control" inputmode="numeric" maxlength="12" placeholder="12 chữ số" value="<%= user.idCardNumber || '' %>">
+                <div class="invalid-feedback">CCCD gồm đúng 12 chữ số.</div>
+              </div>
+              <div class="col-12">
+                <label class="form-label small text-muted" for="pfAddr">Địa chỉ</label>
+                <input name="address" id="pfAddr" class="form-control" maxlength="255" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" value="<%= user.address || '' %>">
+                <div class="invalid-feedback">Địa chỉ ít nhất 10 ký tự.</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-3 mt-3 flex-wrap">
+              <button class="btn btn-primary"><i class="bi bi-save"></i> Lưu thông tin</button>
+              <span class="small text-muted">Thông tin này được điền sẵn khi bạn đặt thuê. Tên đăng nhập <code><%= user.username %></code> không đổi được.</span>
+            </div>
           </form>
-          <p class="small text-muted mt-3 mb-0">Tên đăng nhập không đổi được. Họ tên sẽ được điền sẵn khi bạn đặt thuê.</p>
         </div>
       </div>
       <div class="col-md-6">
@@ -68,4 +96,21 @@
     const check = () => b.setCustomValidity(b.value && a.value !== b.value ? 'Nhập lại mật khẩu mới không khớp.' : '');
     a.addEventListener('input', check); b.addEventListener('input', check);
   })();
+</script>
+
+<script>
+(function () {
+  const f = document.getElementById('profileForm');
+  if (!f) return;
+  const phone = document.getElementById('pfPhone'), cccd = document.getElementById('pfCCCD'), addr = document.getElementById('pfAddr');
+  const norm = v => { v = v.replace(/[\s.\-()]/g, ''); if (v.startsWith('+84')) v = '0' + v.slice(3); else if (/^84\d{9}$/.test(v)) v = '0' + v.slice(2); return v; };
+  const check = () => {
+    phone.setCustomValidity(/^0(3|5|7|8|9)\d{8}$/.test(norm(phone.value)) ? '' : 'x');
+    const c = cccd.value, p = parseInt(c.slice(0, 3), 10);
+    cccd.setCustomValidity(!c || (/^\d{12}$/.test(c) && p >= 1 && p <= 96) ? '' : 'x');
+    addr.setCustomValidity(!addr.value.trim() || addr.value.trim().length >= 10 ? '' : 'x');
+  };
+  cccd.addEventListener('input', () => { cccd.value = cccd.value.replace(/\D/g, '').slice(0, 12); });
+  f.addEventListener('submit', ev => { check(); if (!f.checkValidity()) { ev.preventDefault(); f.classList.add('was-validated'); } });
+})();
 </script>

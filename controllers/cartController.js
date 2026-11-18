@@ -98,20 +98,32 @@ exports.view = async (req, res) => {
   // Mã giảm giá đang áp dụng (gợi ý cho khách bấm chọn)
   const { activeCoupons, summary } = require('../utils/coupons');
   const coupons = (await activeCoupons()).map(c => ({ code: c.Code, text: c.Description || summary(c), summary: summary(c) }));
-  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons, savedCoupon: req.session.couponCode || '' });
+  // Thông tin cá nhân đã lưu -> tự điền SĐT / CCCD / địa chỉ
+  let profile = {};
+  if (req.session.user) {
+    const u = await require('../models').User.findByPk(req.session.user.id, { attributes: ['phone', 'idCardNumber', 'address'] });
+    if (u) profile = u.get({ plain: true });
+  }
+  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons, profile, savedCoupon: req.session.couponCode || '' });
 };
 
 // ===== Đổi số lượng 1 dòng =====
 exports.update = async (req, res) => {
   const cart = getCart(req);
   const line = cart.find(l => l.key === req.params.key);
-  if (line) {
+  // Trang giỏ gọi bằng fetch (không tải lại trang) -> trả JSON; gửi form thường thì vẫn chuyển trang như cũ
+  const wantsJson = req.get('X-Requested-With') === 'fetch';
+  let error = null;
+  if (!line) error = 'Món này không còn trong giỏ.';
+  else {
     const qty = parseInt(req.body.qty);
     const stock = await stockOf(line.productId, line.size, line.color);
-    if (!(qty >= 1)) req.flash('error', 'Số lượng phải từ 1 trở lên.');
-    else if (qty > stock) req.flash('error', `Size ${line.size} – ${line.color} không đủ số lượng bạn chọn. Vui lòng giảm số lượng.`);
+    if (!(qty >= 1)) error = 'Số lượng phải từ 1 trở lên.';
+    else if (qty > stock) error = `Size ${line.size} – ${line.color} chỉ còn ${stock} bộ.`;
     else line.qty = qty;
   }
+  if (wantsJson) return res.json({ ok: !error, error, qty: line ? line.qty : 0 });
+  if (error) req.flash('error', error);
   res.redirect('/cart');
 };
 

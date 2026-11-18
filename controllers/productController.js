@@ -200,7 +200,7 @@ exports.manage = async (req, res) => {
   const highlight = parseInt(req.query.new) || null;           // làm nổi bật SP vừa thêm
 
   res.render('products/manage', {
-    title: 'Quản lý Trang phục',
+    title: 'Quản lý sản phẩm',
     products: rows, columns: COLUMNS,
     page, totalPages, limit, q, count, highlight,
   });

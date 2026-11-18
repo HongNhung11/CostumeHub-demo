@@ -15,9 +15,20 @@ function checkPassword(password, username = '') {
   return null;
 }
 
+// SĐT / email (đăng ký, sửa thông tin cá nhân)
+const { normalizePhone, isValidPhone } = require('./text');
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const cleanEmail = (s) => String(s || '').trim().toLowerCase();
+function checkPhone(phone) {
+  return isValidPhone(phone) ? null : 'Số điện thoại không hợp lệ: 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.';
+}
+function checkEmail(email) {
+  return email.length <= 150 && EMAIL_RE.test(email) ? null : 'Email không hợp lệ (VD ten@gmail.com).';
+}
+
 // Trả về lỗi đầu tiên hoặc null
 function validateAccount({ fullName, username, password }) {
   return checkFullName(fullName) || checkUsername(username) || checkPassword(password, username);
 }
 
-module.exports = { cleanName, checkFullName, checkUsername, checkPassword, validateAccount };
+module.exports = { cleanName, checkFullName, checkUsername, checkPassword, validateAccount, checkPhone, checkEmail, cleanEmail, normalizePhone };

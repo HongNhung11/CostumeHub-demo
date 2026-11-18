@@ -7,13 +7,13 @@ const rentalRoutes = require('./rentals');
 
 // Trang chủ + liên hệ
 router.get('/', home.home);
-router.get('/contact', home.contact);
+router.get('/contact', require('../controllers/contactController').form);
 router.get('/noi-quy', (req, res) => res.render('home/rules', { title: 'Nội quy thuê đồ' }));
 // Trang hỗ trợ khách: cách thức thuê, hỏi đáp, chính sách đổi size
 router.get('/cach-thue', (req, res) => res.render('home/how', { title: 'Cách thức thuê đồ' }));
 router.get('/hoi-dap', (req, res) => res.render('home/faq', { title: 'Câu hỏi thường gặp' }));
 router.get('/doi-size', (req, res) => res.render('home/exchange', { title: 'Chính sách đổi size', SWAP_DAYS: require('../controllers/rentalController').SWAP_DAYS_AFTER_PICKUP }));
-router.post('/contact', home.contactSubmit);
+router.post('/contact', require('../controllers/contactController').submit);
 
 // Auth
 router.get('/login', auth.loginForm);
@@ -52,6 +52,15 @@ router.use('/products', productRoutes);
   router.post('/products/:id/reviews', requireLogin, uploadReviewImages, rv.save);
   router.post('/reviews/:rid/delete', requireLogin, rv.remove);
   router.post('/reviews/:rid/hide', requireStaff, rv.toggleHide);
+}
+
+// Khách liên hệ cần tư vấn: admin + nhân viên (đặt trước router /admin vì router đó chỉ cho admin)
+{
+  const { requireStaff, requireAdmin } = require('../middlewares/auth');
+  const contacts = require('../controllers/contactController');
+  router.get('/admin/contacts', requireStaff, contacts.index);
+  router.post('/admin/contacts/:id', requireStaff, contacts.update);
+  router.post('/admin/contacts/:id/delete', requireAdmin, contacts.remove);
 }
 
 // Khu vực quản trị (chỉ admin): thống kê, mã giảm giá, quản lý tài khoản

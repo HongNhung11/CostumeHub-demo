@@ -118,6 +118,28 @@ document.addEventListener('DOMContentLoaded', () => {
     onScroll();
   }
 
+  /* --- Nút lên đầu trang --- */
+  const toTop = document.getElementById('toTop');
+  if (toTop) {
+    const ring = toTop.querySelector('.tt-ring');
+    const LEN = 2 * Math.PI * 22;                       // chu vi vòng tròn (r = 22)
+    if (ring) ring.style.strokeDasharray = LEN;
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = max > 0 ? Math.min(window.scrollY / max, 1) : 0;
+      toTop.classList.toggle('show', window.scrollY > 400);
+      if (ring) ring.style.strokeDashoffset = LEN * (1 - pct);
+    };
+    window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+    update();
+    toTop.addEventListener('click', () => {
+      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+    });
+  }
+
   /* ---------------------------------------------------------
      1: Hiệu ứng — hiện dần khi cuộn (scroll reveal)
      --------------------------------------------------------- */

@@ -24,9 +24,4 @@ exports.home = async (req, res) => {
   res.render('home/index', { title: 'Trang chủ - CostumeHub', total, available, featured, topRated, ratings });
 };
 
-exports.contact = (req, res) => res.render('home/contact', { title: 'Liên hệ' });
-
-exports.contactSubmit = (req, res) => {
-  req.flash('success', 'Cảm ơn bạn! Chúng tôi sẽ liên hệ lại sớm.');
-  res.redirect('/contact');
-};
+// Trang liên hệ: xem controllers/contactController.js
