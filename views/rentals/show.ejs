@@ -316,12 +316,13 @@
     <div class="mt-3 d-flex gap-2">
       <a href="/rentals" class="btn btn-light"><i class="bi bi-list-ul"></i> Danh sách đơn</a>
       <a href="/products" class="btn btn-outline-primary"><i class="bi bi-bag"></i> Tiếp tục thuê</a>
-      <button onclick="window.print()" class="btn btn-light"><i class="bi bi-printer"></i> In hóa đơn</button>
+      <% if (isStaff) { %><button onclick="window.print()" class="btn btn-light"><i class="bi bi-printer"></i> In hóa đơn</button><% } %>
     </div>
   </div>
 </div>
 
-<!-- Bản IN hóa đơn: gọn, chỉ thông tin cần thiết (trên màn hình thì ẩn) -->
+<!-- Bản IN hóa đơn (chỉ nhân viên in, đưa khách khi giao đồ): gọn, chỉ thông tin cần thiết, trên màn hình thì ẩn -->
+<% if (isStaff) { %>
 <% const invDisc = Number(rental.Discount) || 0, invTotal = Number(rental.RentFee) - invDisc + Number(rental.Deposit); %>
 <div class="inv-print" id="invPrint">
   <div class="inv-shop">
@@ -347,3 +348,4 @@
   <div class="inv-foot">Tiền cọc được hoàn lại khi trả đồ nguyên vẹn. Cảm ơn quý khách!</div>
 </div>
 <script>document.body.appendChild(document.getElementById('invPrint'));   // đưa ra ngoài để khi in chỉ còn hóa đơn</script>
+<% } %>
