@@ -80,7 +80,6 @@
         </div>
         <div class="rp-legend">
           <span><i class="lg-today"></i>Hôm nay</span><span><i class="lg-range"></i>Các ngày thuê</span>
-          <span><i class="lg-start"></i>Ngày nhận / ngày trả</span>
         </div>
         <div class="rp-foot">
           <span class="rp-hint">${hint}</span>

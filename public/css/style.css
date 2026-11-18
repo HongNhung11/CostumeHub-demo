@@ -1169,16 +1169,16 @@ html, body{ overflow-x:clip; }
 .rp-day.is-out{ color:#c4bcb6; font-weight:400; }
 .rp-day.is-off{ color:#cfc8c3; background:#f6f3f1; font-weight:400; cursor:not-allowed; }
 .rp-day.is-today{ border-color:var(--primary); border-radius:8px; }
-/* Cả khoảng nhận → trả là 1 dải cùng màu (các ngày thuê); 2 đầu tô đậm */
+/* Cả khoảng nhận → trả là 1 dải cùng màu (các ngày thuê), bo tròn 2 đầu */
 .rp-day.is-in{ background:#f3e1dc; }
-.rp-day.is-start, .rp-day.is-end{ background:var(--primary); color:#fff; border-color:transparent; }
+.rp-day.is-start, .rp-day.is-end{ background:#f3e1dc; }
 .rp-day.is-start{ border-radius:8px 0 0 8px; }
 .rp-day.is-end{ border-radius:0 8px 8px 0; }
 .rp-day.is-start.is-end, .rp-day.is-start:not(.is-in){ border-radius:8px; }
 
 .rp-legend{ display:grid; grid-template-columns:1fr 1fr; gap:.35rem .8rem; margin:.9rem 0 .2rem; font-size:.86rem; color:var(--ink); }
 .rp-legend i{ display:inline-block; width:14px; height:14px; border-radius:3px; margin-right:.4rem; vertical-align:-2px; }
-.lg-today{ border:1.5px solid var(--primary); } .lg-start{ background:var(--primary); } .lg-range{ background:#f3e1dc; }
+.lg-today{ border:1.5px solid var(--primary); } .lg-range{ background:#f3e1dc; }
 .rp-foot{ display:flex; justify-content:space-between; align-items:center; gap:.6rem; margin-top:.8rem; padding-top:.8rem; border-top:1px solid var(--line); }
 .rp-hint{ font-size:.86rem; color:var(--muted); }
 .rp-hint b{ color:var(--ink); }
