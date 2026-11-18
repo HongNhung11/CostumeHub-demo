@@ -1,8 +1,11 @@
 <%
   // BƯỚC 1: GIỎ THUÊ — xem lại món, size, số lượng. Ngày thuê, cách nhận, thanh toán ở bước 2 (/cart/checkout)
   const vnd = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
-  let pricePerDay = 0, depositAll = 0, qtyAll = 0;
-  lines.forEach(l => { pricePerDay += priceOf(l.product) * l.qty; depositAll += Number(l.product.DepositValue) * l.qty; qtyAll += l.qty; });
+  // Tóm tắt chỉ tính các món đang được chọn để đặt (bỏ chọn = vẫn ở trong giỏ, lần sau đặt)
+  let pricePerDay = 0, depositAll = 0, qtyAll = 0, qtySel = 0;
+  const picked = lines.filter(l => !l.off);
+  lines.forEach(l => { qtyAll += l.qty; });
+  picked.forEach(l => { pricePerDay += priceOf(l.product) * l.qty; depositAll += Number(l.product.DepositValue) * l.qty; qtySel += l.qty; });
   const next = currentUser ? '/cart/checkout' : '/login?next=/cart/checkout';
 %>
 <%- include('../partials/checkout-steps', { step: 1 }) %>
@@ -22,9 +25,11 @@
       <h5 class="font-serif mb-0">Giỏ thuê <span class="text-muted fs-6">(<%= qtyAll %> món)</span></h5>
       <a href="/products" class="small"><i class="bi bi-plus-lg"></i> Thêm món khác</a>
     </div>
+    <label class="ci-all mb-2"><input type="checkbox" class="form-check-input" id="selAll" <%= picked.length === lines.length ? 'checked' : '' %>> Chọn tất cả (<%= lines.length %>)</label>
     <div class="d-flex flex-column gap-3">
       <% lines.forEach(l => { const p = l.product; const sale = saleOf(p) !== null; %>
-        <div class="cart-item">
+        <div class="cart-item<%= l.off ? ' is-off' : '' %>">
+          <input type="checkbox" class="form-check-input ci-check" value="<%= l.key %>" <%= l.off ? '' : 'checked' %> aria-label="Chọn món này để đặt thuê">
           <a href="/products/<%= p.ProductID %>" class="ci-img"><% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" onerror="this.style.display='none'"><% } %></a>
           <div class="ci-main">
             <div class="d-flex justify-content-between gap-2">
@@ -61,10 +66,12 @@
   <div class="col-lg-4">
     <div class="card p-4 co-summary">
       <h5 class="font-serif mb-3">Tóm tắt giỏ thuê</h5>
+      <div class="cs-row"><span>Đã chọn</span><b><%= qtySel %> / <%= qtyAll %> món</b></div>
       <div class="cs-row"><span>Giá thuê / ngày</span><b><%= vnd(pricePerDay) %></b></div>
       <div class="cs-row"><span>Tiền cọc <small class="text-muted">(hoàn lại)</small></span><b><%= vnd(depositAll) %></b></div>
       <div class="cs-note"><i class="bi bi-info-circle"></i> Số ngày thuê, cách nhận đồ và mã giảm giá chọn ở bước tiếp theo.</div>
-      <a href="<%= next %>" class="btn btn-dark btn-lg w-100 co-cta"><i class="bi bi-lock-fill"></i> <%= currentUser ? 'Tiến hành đặt thuê' : 'Đăng nhập để đặt thuê' %></a>
+      <% if (!picked.length) { %><div class="small text-danger mb-2">Chọn ít nhất 1 món để đặt thuê.</div><% } %>
+      <a href="<%= next %>" class="btn btn-dark btn-lg w-100 co-cta<%= picked.length ? '' : ' disabled' %>"<%- picked.length ? '' : ' aria-disabled="true"' %>><i class="bi bi-lock-fill"></i> <%= currentUser ? 'Tiến hành đặt thuê' : 'Đăng nhập để đặt thuê' %></a>
       <% if (!currentUser) { %><div class="small text-muted text-center mt-2">Chưa có tài khoản? <a href="/register?next=/cart/checkout">Đăng ký miễn phí</a> — giỏ thuê vẫn được giữ.</div><% } %>
       <a href="/products" class="d-block text-center small mt-3"><i class="bi bi-arrow-left"></i> Tiếp tục chọn đồ</a>
       <hr>
@@ -78,6 +85,20 @@
 </div>
 
 <script>
+// Chọn món để đặt: lưu lựa chọn rồi tải lại để tính lại tóm tắt
+(function () {
+  const checks = [...document.querySelectorAll('.ci-check')], all = document.getElementById('selAll');
+  const save = async () => {
+    const keys = checks.filter(c => c.checked).map(c => c.value).join(',');
+    try {
+      await fetch('/cart/select', { method: 'POST', headers: { 'X-Requested-With': 'fetch', 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'keys=' + encodeURIComponent(keys) });
+    } catch (_) {}
+    location.reload();
+  };
+  checks.forEach(c => c.addEventListener('change', save));
+  all.addEventListener('change', () => { checks.forEach(c => { c.checked = all.checked; }); save(); });
+})();
+
 // Đổi số lượng: lưu vào giỏ rồi tải lại để cập nhật tiền (bước này chưa có gì phải điền nên không mất dữ liệu)
 document.querySelectorAll('.cart-qty-form').forEach(f => {
   const inp = f.querySelector('input[name="qty"]'), err = f.closest('.ci-main').querySelector('.qty-err');

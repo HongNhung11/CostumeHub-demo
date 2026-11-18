@@ -141,8 +141,8 @@ function checkDates(start, end) {
   const { isDateStr } = require('./dates');
   if (!isDateStr(start) || !isDateStr(end)) return 'Vui lòng chọn ngày nhận và ngày trả.';
   if (start < todayStr()) return 'Ngày nhận không được ở quá khứ.';
-  const n = daysBetween(start, end);
-  if (n < 1) return 'Ngày trả phải sau ngày nhận ít nhất 1 ngày.';
+  if (end < start) return 'Ngày trả không được trước ngày nhận.';
+  const n = daysBetween(start, end) + 1;   // tính cả ngày nhận và ngày trả
   if (n > MAX_RENT_DAYS) return `Mỗi đơn thuê tối đa ${MAX_RENT_DAYS} ngày.`;
   return null;
 }

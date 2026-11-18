@@ -12,6 +12,7 @@ router.get('/', c.view);
 router.get('/checkout', requireLogin, c.checkout);
 router.get('/availability', c.availability);
 router.get('/coupon', requireLogin, c.coupon);
+router.post('/select', c.select);
 router.post('/:key/update', c.update);
 router.post('/:key/remove', c.remove);
 

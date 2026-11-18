@@ -1,6 +1,7 @@
 /* ============================================================
    LỊCH CHỌN KHOẢNG NGÀY THUÊ (1 lịch, bấm 2 lần)
-   - Bấm lần 1: ngày nhận (xanh lá) · bấm lần 2: ngày trả (cam) · ở giữa: ngày thuê (xanh dương)
+   - Bấm lần 1: ngày nhận · bấm lần 2: ngày trả (bấm lại đúng ngày nhận = thuê 1 ngày)
+   - Cả khoảng nhận → trả tô cùng 1 màu = các ngày thuê; số ngày tính cả ngày nhận và ngày trả
    - Ngày đã qua bị mờ, hôm nay có viền. Bấm "Áp dụng" để gửi form.
    Cách gắn:
      <div class="rp" data-min="YYYY-MM-DD" data-max-days="30" data-submit="1">
@@ -15,6 +16,7 @@
   const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); };
   const vi = s => { const d = parse(s); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; };
   const diff = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
+  const rentDays = (a, b) => diff(a, b) + 1;   // nhận 18, trả 20 = 3 ngày
 
   function init(root) {
     const inStart = root.querySelector('.rp-start'), inEnd = root.querySelector('.rp-end');
@@ -53,16 +55,17 @@
         const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
         const s = ymd(d);
         const cls = ['rp-day'];
-        const past = s < min, tooFar = start && !end && s > start && diff(start, s) > maxDays;
+        const past = s < min, tooFar = start && !end && s > start && rentDays(start, s) > maxDays;
         if (d.getMonth() !== m) cls.push('is-out');
         if (past || tooFar) cls.push('is-off');
         if (s === today) cls.push('is-today');
         if (s === start) cls.push('is-start');
         if (s === end) cls.push('is-end');
         if (start && end && s > start && s < end) cls.push('is-mid');
+        if (start && end && s >= start && s <= end) cls.push('is-in');
         cells += `<button type="button" class="${cls.join(' ')}" data-d="${s}" ${past || tooFar ? 'disabled' : ''}>${d.getDate()}</button>`;
       }
-      const hint = !start ? 'Chọn <b>ngày nhận</b> đồ' : !end ? 'Chọn <b>ngày trả</b> đồ' : `${vi(start)} → ${vi(end)} · <b>${diff(start, end)} ngày</b>`;
+      const hint = !start ? 'Chọn <b>ngày nhận</b> đồ' : !end ? 'Chọn <b>ngày trả</b> đồ' : `${vi(start)} → ${vi(end)} · thuê <b>${rentDays(start, end)} ngày</b>`;
       pop.innerHTML = `
         <div class="rp-cal">
           <div class="rp-head">
@@ -76,8 +79,8 @@
           <div class="rp-grid">${cells}</div>
         </div>
         <div class="rp-legend">
-          <span><i class="lg-today"></i>Hôm nay</span><span><i class="lg-start"></i>Ngày nhận đồ</span>
-          <span><i class="lg-mid"></i>Ngày thuê</span><span><i class="lg-end"></i>Ngày trả đồ</span>
+          <span><i class="lg-today"></i>Hôm nay</span><span><i class="lg-range"></i>Các ngày thuê</span>
+          <span><i class="lg-start"></i>Ngày nhận / ngày trả</span>
         </div>
         <div class="rp-foot">
           <span class="rp-hint">${hint}</span>
@@ -99,8 +102,9 @@
       const day = e.target.closest('.rp-day');
       if (day && !day.disabled) {
         const s = day.dataset.d;
-        // chưa có ngày nhận, hoặc đã đủ 2 ngày, hoặc bấm trước/đúng ngày nhận -> chọn lại ngày nhận
-        if (!start || end || s <= start) { start = s; end = ''; }
+        // chưa có ngày nhận, hoặc đã đủ 2 ngày, hoặc bấm trước ngày nhận -> chọn lại ngày nhận
+        // bấm lại đúng ngày nhận -> nhận và trả cùng ngày (thuê 1 ngày)
+        if (!start || end || s < start) { start = s; end = ''; }
         else end = s;
         render(); return;
       }

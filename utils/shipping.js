@@ -22,7 +22,7 @@ function checkZoneDates(zone, start, end) {
   if (zone.days && daysBetween(todayStr(), start) < zone.days) {
     return `${zone.label} cần ${zone.days} ngày vận chuyển: ngày nhận sớm nhất là ${viDate(addDays(todayStr(), zone.days))}.`;
   }
-  if (daysBetween(start, end) < zone.minDays) return `${zone.label}: thuê tối thiểu ${zone.minDays} ngày (vận chuyển mất ${zone.days} ngày mỗi chiều).`;
+  if (daysBetween(start, end) + 1 < zone.minDays) return `${zone.label}: thuê tối thiểu ${zone.minDays} ngày (vận chuyển mất ${zone.days} ngày mỗi chiều).`;
   return null;
 }
 

@@ -185,7 +185,7 @@
   const s=document.getElementById('StartDate'), e=document.getElementById('EndDate'), picker=document.getElementById('coPicker'), MAXD=<%= MAX_RENT_DAYS %>;
   const vnd=n=>n.toLocaleString('vi-VN')+' đ';
   const viD=v=>v?v.split('-').reverse().join('/'):'';
-  const days=()=>{ if(!s.value||!e.value) return 0; const d=Math.round((new Date(e.value)-new Date(s.value))/86400000); return d>=1?d:0; };
+  const days=()=>{ if(!s.value||!e.value) return 0; const d=Math.round((new Date(e.value)-new Date(s.value))/86400000)+1; return d>=1?d:0; };   // tính cả ngày nhận và ngày trả
   const price=+document.getElementById('pricePerDay').value, dep=+document.getElementById('depositAll').value;
   let disc=0;   // số tiền giảm của mã đang áp dụng (tính lại khi đổi ngày)
   function calc(){

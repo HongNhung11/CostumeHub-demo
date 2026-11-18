@@ -14,7 +14,9 @@ function daysBetween(a, b) {
   const toUTC = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
   return Math.round((toUTC(b) - toUTC(a)) / 86400000);
 }
+// Số ngày thuê: tính cả ngày nhận và ngày trả (nhận 18, trả 20 = 3 ngày)
+const rentDaysOf = (start, end) => daysBetween(start, end) + 1;
 const isDateStr = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
 const viDate = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
 
-module.exports = { todayStr, addDays, daysBetween, isDateStr, viDate };
+module.exports = { todayStr, addDays, daysBetween, rentDaysOf, isDateStr, viDate };

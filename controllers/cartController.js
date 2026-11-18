@@ -16,7 +16,8 @@ async function stockOf(productId, size, color) {
 }
 
 // Nạp sản phẩm cho từng dòng giỏ; bỏ các dòng mà sản phẩm đã bị xóa / ngừng cho thuê / không còn size × màu đó
-async function loadCart(req) {
+// opts.selectedOnly: chỉ lấy các món khách đánh dấu để đặt (dòng có off = true là đang bỏ chọn)
+async function loadCart(req, opts = {}) {
   const cart = getCart(req);
   const ids = [...new Set(cart.map(l => l.productId))];
   const products = ids.length ? await Product.findAll({ where: { ProductID: { [Op.in]: ids } } }) : [];
@@ -30,7 +31,8 @@ async function loadCart(req) {
     else removed.push(l);
   }
   if (removed.length) req.session.cart = lines.map(({ product, stock, ...l }) => l);
-  return { lines, products: products.filter(p => lines.some(l => l.productId === p.ProductID)), removedCount: removed.length };
+  const picked = opts.selectedOnly ? lines.filter(l => !l.off) : lines;
+  return { lines: picked, products: products.filter(p => picked.some(l => l.productId === p.ProductID)), removedCount: removed.length };
 }
 exports.loadCart = loadCart;
 
@@ -83,6 +85,8 @@ exports.add = async (req, res) => {
   }
 
   if (req.body.buyNow) {
+    // Thuê ngay: chỉ đặt món vừa chọn, các món khác vẫn nằm trong giỏ nhưng bỏ chọn
+    for (const l of cart) l.off = !(l.productId === productId && l.size === size && l.color === color);
     // Thuê ngay khi chưa đăng nhập: đồ đã vào giỏ -> đăng nhập xong quay lại giỏ để đặt
     if (!req.session.user) {
       req.flash('error', `Vui lòng đăng nhập để thuê ngay. "${product.ProductName}" đã được thêm vào giỏ, đăng nhập xong bạn tiếp tục đặt thuê.`);
@@ -99,8 +103,8 @@ exports.add = async (req, res) => {
 };
 
 // Dữ liệu chung cho bước 1 (giỏ thuê) và bước 2 (đặt thuê & giao nhận)
-async function cartData(req, res) {
-  const { lines, removedCount } = await loadCart(req);
+async function cartData(req, res, opts = {}) {
+  const { lines, removedCount } = await loadCart(req, opts);
   if (removedCount) res.locals.error = [`${removedCount} món trong giỏ không còn cho thuê (hoặc không còn size / màu đã chọn) nên đã được bỏ ra.`];
   const old = req.session.checkoutOld || {};
   delete req.session.checkoutOld;
@@ -126,8 +130,11 @@ exports.view = async (req, res) => {
 
 // ===== Bước 2: Đặt thuê & giao nhận — ngày thuê, cách nhận đồ, thông tin, thanh toán (cần đăng nhập) =====
 exports.checkout = async (req, res) => {
-  const data = await cartData(req, res);
-  if (!data.lines.length) { req.flash('error', 'Giỏ thuê đang trống.'); return res.redirect('/cart'); }
+  const data = await cartData(req, res, { selectedOnly: true });
+  if (!data.lines.length) {
+    req.flash('error', (req.session.cart || []).length ? 'Vui lòng chọn ít nhất 1 món để đặt thuê.' : 'Giỏ thuê đang trống.');
+    return res.redirect('/cart');
+  }
   res.render('cart/checkout', { title: 'Đặt thuê & giao nhận', ...data });
 };
 
@@ -151,6 +158,14 @@ exports.update = async (req, res) => {
   res.redirect('/cart');
 };
 
+// ===== Chọn / bỏ chọn món để đặt thuê (body: keys = danh sách key được chọn, cách nhau dấu phẩy) =====
+exports.select = (req, res) => {
+  const keys = new Set(String(req.body.keys || '').split(',').filter(Boolean));
+  for (const l of getCart(req)) l.off = !keys.has(l.key);
+  if (req.get('X-Requested-With') === 'fetch') return res.json({ ok: true });
+  res.redirect('/cart');
+};
+
 // ===== Bỏ 1 dòng khỏi giỏ =====
 exports.remove = (req, res) => {
   req.session.cart = getCart(req).filter(l => l.key !== req.params.key);
@@ -168,7 +183,7 @@ exports.availability = async (req, res) => {
   const zone = zoneOf(req.query.zone);
   const zoneErr = require('../utils/shipping').checkZoneDates(zone, start, end);
   if (zoneErr) return res.json({ ok: false, error: zoneErr, lines: {} });
-  const { lines, products } = await loadCart(req);
+  const { lines, products } = await loadCart(req, { selectedOnly: true });
   const avail = await productAvailability(products, start, end, { shipDays: zone.days });
   const need = needByVariant(lines);
   const result = {};
@@ -185,14 +200,14 @@ exports.availability = async (req, res) => {
 // Tiền thuê = tổng giá/ngày của giỏ × số ngày đang chọn. Khi đặt, máy chủ kiểm tra lại lần nữa.
 exports.coupon = async (req, res) => {
   const { applyCoupon } = require('../utils/coupons');
-  const { daysBetween } = require('../utils/dates');
+  const { rentDaysOf } = require('../utils/dates');
   const { start, end, code } = req.query;
   const err = checkDates(start, end);
   if (err) return res.json({ ok: false, error: err });
-  const { lines } = await loadCart(req);
-  if (!lines.length) return res.json({ ok: false, error: 'Giỏ thuê đang trống.' });
+  const { lines } = await loadCart(req, { selectedOnly: true });
+  if (!lines.length) return res.json({ ok: false, error: 'Chưa chọn món nào để đặt thuê.' });
   const { priceOf } = require('../utils/pricing');
-  const rentFee = lines.reduce((s, l) => s + priceOf(l.product) * l.qty, 0) * daysBetween(start, end);
+  const rentFee = lines.reduce((s, l) => s + priceOf(l.product) * l.qty, 0) * rentDaysOf(start, end);
   const r = await applyCoupon(code, req.session.user ? req.session.user.id : null, rentFee);
   if (r.error) return res.json({ ok: false, error: r.error });
   res.json({ ok: true, code: r.coupon.Code, discount: r.discount, rentFee, description: r.coupon.Description || '' });

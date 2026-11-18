@@ -8,7 +8,7 @@ const { searchProducts } = require('../utils/search');
 const { peakFutureUsage, productsInRentals, productAvailability, rentDatesFrom, MAX_RENT_DAYS } = require('../utils/availability');
 const { splitQuantity, formatVariants, parseVariants, sizesOf, colorsOf, variantGrid, saveVariants } = require('../utils/variants');
 const { splitList } = require('../utils/text');
-const { viDate, daysBetween } = require('../utils/dates');
+const { viDate, rentDaysOf } = require('../utils/dates');
 const { PRODUCT_TYPES, PRODUCT_STATUSES, normalizeStatus } = require('../utils/constants');
 const { uploadDir, MAX_GALLERY } = require('../middlewares/upload');
 const { FIELDS: CHART_FIELDS, parseChart, chartRows, readChartForm } = require('../utils/sizeChart');
@@ -182,7 +182,7 @@ exports.index = async (req, res) => {
     products: rows, counts, totalAll, type, q, page, totalPages, count, ratings, favSet, cat, catLabel: cat ? CATEGORIES[cat].label : '',
     color, colorOptions, price, PRICE_RANGES, sort, SORTS, CAT_GROUPS: menuGroups(), hot, onSale,
     COSTUME_TYPES, ACCESSORY_TYPES,
-    dates, tags, onlyFree, size, sizeOptions, viDate, rentDays: dates ? daysBetween(dates.start, dates.end) : 0, MAX_RENT_DAYS,
+    dates, tags, onlyFree, size, sizeOptions, viDate, rentDays: dates ? rentDaysOf(dates.start, dates.end) : 0, MAX_RENT_DAYS,
   });
 };
 

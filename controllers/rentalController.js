@@ -2,7 +2,7 @@ const fs = require('fs');
 const { sequelize, Rental, RentalItem, Product, User } = require('../models');
 const { normalizePhone, isValidPhone, isValidCCCD, splitList } = require('../utils/text');
 const { zoneOf, zoneKeyOf, checkZoneDates } = require('../utils/shipping');
-const { todayStr, daysBetween, viDate, isDateStr } = require('../utils/dates');
+const { todayStr, daysBetween, rentDaysOf, viDate, isDateStr } = require('../utils/dates');
 const { normalize } = require('../utils/text');
 const { DAMAGE_RULES, lossAmount } = require('../utils/fees');
 const { productAvailability, checkDates } = require('../utils/availability');
@@ -53,15 +53,15 @@ exports.create = async (req, res) => {
     const CustomerIDCard = String(req.body.CustomerIDCard || '').replace(/\s/g, '');
     const CustomerAddress = String(req.body.CustomerAddress || '').trim().replace(/\s+/g, ' ');
 
-    const { lines, products, removedCount } = await loadCart(req);
+    const { lines, products, removedCount } = await loadCart(req, { selectedOnly: true });   // chỉ các món khách đã chọn
     if (removedCount) return fail(`${removedCount} món trong giỏ không còn cho thuê (hoặc không còn size / màu đã chọn) nên đã được bỏ ra. Vui lòng xem lại giỏ trước khi đặt.`);
-    if (!lines.length) return fail('Giỏ thuê đang trống.');
+    if (!lines.length) return fail('Chưa chọn món nào để đặt thuê.');
 
     // (loadCart đã bỏ các dòng có size × màu không còn trong kho của mẫu)
 
     const dateErr = checkDates(StartDate, EndDate);
     if (dateErr) return fail(dateErr);
-    const rentDays = daysBetween(StartDate, EndDate);
+    const rentDays = rentDaysOf(StartDate, EndDate);   // tính cả ngày nhận và ngày trả
     // Giao xa: kịp gửi đồ (ngày nhận ≥ hôm nay + số ngày giao) + thuê đủ số ngày tối thiểu của khu vực
     const zoneErr = checkZoneDates(zone, StartDate, EndDate);
     if (zoneErr) return fail(zoneErr);
@@ -139,7 +139,7 @@ exports.create = async (req, res) => {
       return r;
     });
 
-    req.session.cart = [];
+    req.session.cart = (req.session.cart || []).filter(l => l.off).map(l => ({ ...l, off: false }));   // món chưa đặt vẫn ở lại giỏ
     delete req.session.couponCode;          // mã đã dùng cho đơn này
     // Tài khoản chưa lưu SĐT / CCCD / địa chỉ -> lưu lại để lần sau tự điền (không ghi đè thông tin đã có)
     if (req.session.user) {
