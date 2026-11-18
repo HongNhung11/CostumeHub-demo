@@ -20,7 +20,7 @@ const zoneKeyOf = (key) => (ZONES[key] ? key : 'pickup');
 function checkZoneDates(zone, start, end) {
   const { todayStr, daysBetween, addDays, viDate } = require('./dates');
   if (zone.days && daysBetween(todayStr(), start) < zone.days) {
-    return `${zone.label} cần ${zone.days} ngày vận chuyển: ngày nhận sớm nhất là ${viDate(addDays(todayStr(), zone.days))}.`;
+    return `Không kịp giao: ${zone.label.toLowerCase()} mất ${zone.days} ngày vận chuyển, đặt hôm nay thì ngày nhận sớm nhất là ${viDate(addDays(todayStr(), zone.days))}. Vui lòng chọn ngày nhận khác hoặc tự đến lấy tại cửa hàng.`;
   }
   if (daysBetween(start, end) + 1 < zone.minDays) return `${zone.label}: thuê tối thiểu ${zone.minDays} ngày (vận chuyển mất ${zone.days} ngày mỗi chiều).`;
   return null;
