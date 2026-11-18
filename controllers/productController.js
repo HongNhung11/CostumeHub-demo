@@ -605,7 +605,14 @@ exports.importData = async (req, res) => {
 };
 
 // ---------- helpers ----------
+// Ô tiền nhập dạng "145.000" -> bỏ dấu chấm / khoảng trắng / "đ" trước khi kiểm tra và lưu
+const MONEY_FIELDS = ['Price', 'DepositValue', 'LateFeePerDay', 'ProductValue', 'SalePrice'];
+function cleanMoney(body) {
+  for (const f of MONEY_FIELDS) if (typeof body[f] === 'string') body[f] = body[f].replace(/[.\s,đ]/gi, '');
+  return body;
+}
 function pickBody(body) {
+  cleanMoney(body);
   const d = {};
   const fields = ['ProductName', 'ProductType', 'Unit', 'Color', 'Size', 'Description', 'PathImage', 'Status'];
   // Thông tin chi tiết: không bắt buộc, để trống = xóa
@@ -657,6 +664,7 @@ function readVariantForm(body) {
 // Kiểm tra dữ liệu Thêm/Sửa: bắt buộc mọi trường, giá từ 1.000 đ trở lên
 // withGrid: số lượng nhập theo bảng size × màu (không dùng ô "Số lượng" chung)
 function validateProduct(body, { hasImage, withGrid = false }) {
+  cleanMoney(body);
   const errors = [];
   const str = (k) => String(body[k] ?? '').trim();
   const required = {

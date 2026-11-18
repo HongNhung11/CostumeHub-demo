@@ -320,3 +320,30 @@
     </div>
   </div>
 </div>
+
+<!-- Bản IN hóa đơn: gọn, chỉ thông tin cần thiết (trên màn hình thì ẩn) -->
+<% const invDisc = Number(rental.Discount) || 0, invTotal = Number(rental.RentFee) - invDisc + Number(rental.Deposit); %>
+<div class="inv-print" id="invPrint">
+  <div class="inv-shop">
+    <b>CostumeHub</b> — Cho thuê trang phục
+    <div>Cửa hàng CostumeHub, Hà Nội · ĐT: 0123 456 789 · 8:00 – 21:00 hằng ngày</div>
+  </div>
+  <h2>HÓA ĐƠN THUÊ ĐỒ</h2>
+  <div class="inv-sub">Mã đơn #<%= rental.RentalID %> · Ngày lập <%= new Date(rental.createdAt).toLocaleDateString('vi-VN') %></div>
+  <table class="inv-tbl">
+    <tr><th colspan="2">Khách thuê</th></tr>
+    <tr><td>Họ tên</td><td><%= rental.CustomerName %></td></tr>
+    <tr><td>Số điện thoại</td><td><%= rental.CustomerPhone %></td></tr>
+    <% if (rental.CustomerAddress) { %><tr><td>Địa chỉ</td><td><%= rental.CustomerAddress %></td></tr><% } %>
+    <tr><th colspan="2">Thời gian thuê</th></tr>
+    <tr><td>Ngày thuê</td><td><%= vi(rental.StartDate) %></td></tr>
+    <tr><td>Hẹn trả</td><td><%= vi(rental.EndDate) %> (<%= rental.RentDays %> ngày)</td></tr>
+    <tr><th colspan="2">Thanh toán</th></tr>
+    <tr><td>Tiền thuê</td><td><%= vnd(rental.RentFee) %></td></tr>
+    <tr><td>Tiền cọc</td><td><%= vnd(rental.Deposit) %></td></tr>
+    <tr><td>Mã giảm</td><td><%= invDisc ? rental.CouponCode + ': - ' + vnd(invDisc) : 'Không' %></td></tr>
+    <tr class="inv-total"><td>Tổng</td><td><%= vnd(invTotal) %></td></tr>
+  </table>
+  <div class="inv-foot">Tiền cọc được hoàn lại khi trả đồ nguyên vẹn. Cảm ơn quý khách!</div>
+</div>
+<script>document.body.appendChild(document.getElementById('invPrint'));   // đưa ra ngoài để khi in chỉ còn hóa đơn</script>

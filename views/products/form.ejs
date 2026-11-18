@@ -1,6 +1,8 @@
 <%
   const v = (k, d = '') => (product[k] !== undefined && product[k] !== null ? product[k] : d);
   const isEdit = !!product.ProductID;
+  // Ô tiền hiện có dấu chấm ngăn cách hàng nghìn: 145000 -> 145.000
+  const money = (k) => { const x = v(k); return x === '' || isNaN(Number(x)) ? x : Number(x).toLocaleString('vi-VN'); };
 %>
 <div class="row justify-content-center">
   <div class="col-lg-8">
@@ -60,29 +62,29 @@
             </div>
             <div class="col-md-3">
               <label class="form-label">Giá thuê / ngày <span class="text-danger">*</span></label>
-              <input type="number" name="Price" class="form-control" required min="1000" step="1000" value="<%= v('Price') %>" placeholder="≥ 1.000">
+              <input type="text" inputmode="numeric" name="Price" class="form-control money-input" required data-min="1000" value="<%= money('Price') %>" placeholder="≥ 1.000">
               <div class="invalid-feedback">Từ 1.000 đ trở lên, tròn nghìn.</div>
             </div>
             <div class="col-md-3">
               <label class="form-label">Tiền cọc <span class="text-danger">*</span></label>
-              <input type="number" name="DepositValue" class="form-control" required min="0" step="1000" value="<%= v('DepositValue') %>">
+              <input type="text" inputmode="numeric" name="DepositValue" class="form-control money-input" required data-min="0" value="<%= money('DepositValue') %>">
               <div class="invalid-feedback">Số ≥ 0, tròn nghìn.</div>
             </div>
             <div class="col-md-3">
               <label class="form-label">Phí phạt trễ / ngày <span class="text-danger">*</span></label>
-              <input type="number" name="LateFeePerDay" class="form-control" required min="0" step="1000" value="<%= v('LateFeePerDay') %>">
+              <input type="text" inputmode="numeric" name="LateFeePerDay" class="form-control money-input" required data-min="0" value="<%= money('LateFeePerDay') %>">
               <div class="invalid-feedback">Số ≥ 0, tròn nghìn.</div>
             </div>
             <div class="col-md-3">
               <label class="form-label">Giá trị sản phẩm</label>
-              <input type="number" name="ProductValue" class="form-control" min="1000" step="1000" value="<%= v('ProductValue') %>" placeholder="Không bắt buộc">
+              <input type="text" inputmode="numeric" name="ProductValue" class="form-control money-input" data-min="1000" value="<%= money('ProductValue') %>" placeholder="Không bắt buộc">
               <div class="form-text">Khách đền khi mất / hư nặng. Trống = mất cọc. <a href="/noi-quy" target="_blank">Nội quy</a></div>
               <div class="invalid-feedback">Từ 1.000 đ, tròn nghìn (hoặc để trống).</div>
             </div>
             <!-- Sale của cửa hàng (khác voucher): giảm thẳng giá thuê của mẫu này -->
             <div class="col-md-3">
               <label class="form-label">Giá khuyến mãi / ngày</label>
-              <input type="number" name="SalePrice" class="form-control" min="1000" step="1000" value="<%= v('SalePrice') %>" placeholder="Không sale thì để trống">
+              <input type="text" inputmode="numeric" name="SalePrice" class="form-control money-input" data-min="1000" value="<%= money('SalePrice') %>" placeholder="Không sale thì để trống">
               <div class="form-text">Thấp hơn giá thuê gốc. Khách thấy giá gốc gạch ngang + nhãn giảm %.</div>
             </div>
             <div class="col-md-3">
@@ -234,6 +236,27 @@
     hint.className = 'form-text' + (n > max ? ' text-danger' : '');
     hint.textContent = n > max ? `Bạn chọn ${n} ảnh — tối đa ${max} ảnh phụ.` : n ? `Đã chọn ${n} ảnh phụ.` : 'Giữ Ctrl để chọn nhiều ảnh cùng lúc.';
   });
+})();
+
+// Ô tiền: tự thêm dấu chấm ngăn cách khi bấm Enter hoặc rời ô (145000 -> 145.000)
+(function () {
+  const fmt = (n) => n.toLocaleString('vi-VN');
+  document.querySelectorAll('.money-input').forEach(el => {
+    const check = () => {
+      const raw = el.value.replace(/[^\d]/g, '');
+      const n = raw ? Number(raw) : null, min = +el.dataset.min || 0;
+      el.value = n === null ? '' : fmt(n);
+      el.setCustomValidity(n === null ? '' : (n < min || n % 1000 !== 0 ? 'Số tiền phải tròn nghìn' + (min ? ' và từ ' + fmt(min) + ' đ' : '') : ''));
+    };
+    el.addEventListener('blur', check);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+    el.addEventListener('input', () => { el.value = el.value.replace(/[^\d.]/g, ''); el.setCustomValidity(''); });
+    check();
+  });
+  // Trước khi gửi: định dạng lại lần cuối để báo lỗi tròn nghìn (máy chủ tự bỏ dấu chấm)
+  document.getElementById('productForm').addEventListener('submit', () => {
+    document.querySelectorAll('.money-input').forEach(el => { el.dispatchEvent(new Event('blur')); });
+  }, true);
 })();
 
 // Kiểm tra phía trình duyệt trước khi gửi (máy chủ vẫn kiểm tra lại)
