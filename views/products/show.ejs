@@ -167,7 +167,7 @@
               <% } %>
             </div>
             <%# 1 lịch: bấm ngày nhận rồi ngày trả, "Áp dụng" -> gửi #rentForm (public/js/range-picker.js) %>
-            <div class="rp pd-range" data-min="<%= ymd(new Date(Date.now() + SHIP.ZONES[zoneKey].days * 864e5)) %>" data-max-days="<%= MAX_RENT_DAYS %>" data-submit="1" data-form="rentForm">
+            <div class="rp pd-range" data-min="<%= ymd(new Date(Date.now() + SHIP.ZONES[zoneKey].leadDays * 864e5)) %>" data-max-days="<%= MAX_RENT_DAYS %>" data-submit="1" data-form="rentForm">
               <input type="hidden" name="start" form="rentForm" id="cStart" class="rp-start" value="<%= dates ? dates.start : '' %>">
               <input type="hidden" name="end" form="rentForm" id="cEnd" class="rp-end" value="<%= dates ? dates.end : '' %>">
               <button type="button" class="rp-trigger" aria-label="Chọn ngày nhận và ngày trả">

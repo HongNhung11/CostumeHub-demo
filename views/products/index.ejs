@@ -8,7 +8,7 @@
   };
   const pad2 = n => String(n).padStart(2, '0');
   const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  const todayYmd = ymd(new Date()), tmrYmd = ymd(new Date(Date.now() + 864e5));
+  const tmrYmd = ymd(new Date(Date.now() + 864e5));
   const subOf = (g) => (CAT_GROUPS.find(x => x.group === g) || { items: [] }).items;
   const title = catLabel || type || 'Tất cả sản phẩm';
   const hidden = (skip = []) => Object.entries(state).filter(([k, v]) => v && !skip.includes(k));
@@ -46,7 +46,7 @@
         <div class="row g-2">
           <div class="col-6 col-lg-12">
             <label class="form-label small text-muted mb-0" for="fStart">Ngày nhận</label>
-            <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= todayYmd %>" value="<%= dates ? dates.start : '' %>" required>
+            <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.start : '' %>" required>
           </div>
           <div class="col-6 col-lg-12">
             <label class="form-label small text-muted mb-0" for="fEnd">Ngày trả</label>

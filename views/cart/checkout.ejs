@@ -32,7 +32,7 @@
             <div class="fw-semibold"><i class="bi bi-calendar-range"></i> Thời gian thuê</div>
             <div class="small text-muted" id="datesHint">Chọn ngày nhận và ngày trả</div>
           </div>
-          <div class="rp" id="coPicker" data-min="<%= d2s(new Date(Date.now() + ZONES[zoneSel].days * 864e5)) %>" data-max-days="<%= MAX_RENT_DAYS %>">
+          <div class="rp" id="coPicker" data-min="<%= d2s(new Date(Date.now() + ZONES[zoneSel].leadDays * 864e5)) %>" data-max-days="<%= MAX_RENT_DAYS %>">
             <input type="hidden" name="StartDate" id="StartDate" class="rp-start" value="<%= startV %>">
             <input type="hidden" name="EndDate" id="EndDate" class="rp-end" value="<%= endV %>">
             <button type="button" class="rp-trigger" aria-label="Chọn ngày nhận và ngày trả">
@@ -113,7 +113,7 @@
           <div class="co-label">Phương thức nhận đồ</div>
           <div class="co-zones">
             <% Object.entries(ZONES).forEach(([k, z]) => { %>
-              <input type="radio" class="btn-check" name="DeliveryZone" value="<%= k %>" id="zone-<%= k %>" data-days="<%= z.days %>" data-delivery="<%= z.delivery ? 1 : 0 %>" <%= zoneSel === k ? 'checked' : '' %>>
+              <input type="radio" class="btn-check" name="DeliveryZone" value="<%= k %>" id="zone-<%= k %>" data-days="<%= z.days %>" data-lead="<%= z.leadDays %>" data-delivery="<%= z.delivery ? 1 : 0 %>" <%= zoneSel === k ? 'checked' : '' %>>
               <label class="co-opt" for="zone-<%= k %>">
                 <i class="bi <%= k === 'pickup' ? 'bi-shop' : k === 'local' ? 'bi-scooter' : 'bi-truck' %>"></i>
                 <span><b><%= z.short %></b><small><%= z.note %></small></span>
@@ -249,14 +249,14 @@
   const addD=(v,n)=>{ const [y,m,d]=v.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,d+n)); return t.toISOString().slice(0,10); };
   function onZone(){
     const z=document.querySelector('input[name="DeliveryZone"]:checked'); if(!z) return;
-    const days_=+z.dataset.days, deli=z.dataset.delivery==='1';
+    const days_=+z.dataset.days, lead=+z.dataset.lead||0, deli=z.dataset.delivery==='1';
     addrBox.style.display=deli?'block':'none'; addr.required=deli;
     const home=document.getElementById('CustomerAddress');
     if(deli && !addr.value.trim() && home && home.value.trim()) addr.value=home.value.trim();
-    picker.dataset.min=addD(TODAY,days_);          // lịch khóa những ngày không kịp giao
+    picker.dataset.min=addD(TODAY,lead);           // lịch khóa những ngày không kịp chuẩn bị / giao
     shipNote.className='small mt-2 '+(days_?'ship-note':'text-muted');
-    shipNote.innerHTML = !days_ ? 'Nhận và trả đồ tại cửa hàng (8:00 – 21:00).'
-      : `<i class="bi bi-info-circle"></i> Vận chuyển ${days_} ngày mỗi chiều${s.value?`: shop gửi đồ ngày <b>${viD(addD(s.value,-days_))}</b>`:''}. Ngày trả là ngày bạn <b>gửi đồ đi</b>. Ngày nhận sớm nhất: <b>${viD(addD(TODAY,days_))}</b>.`;
+    shipNote.innerHTML = !days_ ? `Nhận và trả đồ tại cửa hàng (8:00 – 21:00). Shop cần ${lead} ngày chuẩn bị đồ: ngày nhận sớm nhất <b>${viD(addD(TODAY,lead))}</b>.`
+      : `<i class="bi bi-info-circle"></i> Vận chuyển ${days_} ngày mỗi chiều${s.value?`: shop gửi đồ ngày <b>${viD(addD(s.value,-days_))}</b>`:''}. Ngày trả là ngày bạn <b>gửi đồ đi</b>. Ngày nhận sớm nhất: <b>${viD(addD(TODAY,lead))}</b>.`;
   }
   document.querySelectorAll('input[name="DeliveryZone"]').forEach(r=>r.addEventListener('change',()=>{ onZone(); checkAvail(); }));
   picker.addEventListener('rp:change',()=>{ calc(); onZone(); checkAvail(); if(cIn.value) applyCode(); });
