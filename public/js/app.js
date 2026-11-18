@@ -180,3 +180,48 @@ document.addEventListener('DOMContentLoaded', () => {
     } else counters.forEach(run);
   }
 });
+
+/* ---------------------------------------------------------
+   THÊM VÀO GIỎ không tải lại trang: hiện khung "Đã thêm vào giỏ" + cập nhật số trên biểu tượng giỏ.
+   (Nút "Thuê ngay" vẫn gửi form bình thường để chuyển sang giỏ / đăng nhập.)
+   --------------------------------------------------------- */
+(function () {
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let timer;
+  function toast(html, isError) {
+    let t = document.getElementById('cartToast');
+    if (!t) { t = document.createElement('div'); t.id = 'cartToast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); document.body.appendChild(t); }
+    t.className = 'cart-toast' + (isError ? ' is-error' : '');
+    t.innerHTML = html + '<button type="button" class="ct-close" aria-label="Đóng">×</button>';
+    t.querySelector('.ct-close').onclick = () => t.classList.remove('show');
+    requestAnimationFrame(() => t.classList.add('show'));
+    clearTimeout(timer); timer = setTimeout(() => t.classList.remove('show'), isError ? 5000 : 4500);
+  }
+  function setBadge(n) {
+    const a = document.querySelector('.ch-nav a[href="/cart"]'); if (!a) return;
+    let b = a.querySelector('.badge');
+    if (!b) { b = document.createElement('span'); b.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger'; a.appendChild(b); }
+    b.textContent = n; b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
+  }
+  document.addEventListener('submit', async (ev) => {
+    const f = ev.target;
+    if (!(f instanceof HTMLFormElement) || f.getAttribute('action') !== '/cart/add') return;
+    if (ev.defaultPrevented) return;                         // form tự kiểm tra (chưa chọn size / màu) đã chặn
+    if (ev.submitter && ev.submitter.name === 'buyNow') return;   // Thuê ngay: gửi bình thường
+    ev.preventDefault();
+    const btns = f.querySelectorAll('button'); btns.forEach(b => { b.disabled = true; });
+    try {
+      const r = await (await fetch('/cart/add', { method: 'POST', headers: { 'X-Requested-With': 'fetch', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(new FormData(f)).toString() })).json();
+      if (r.ok) {
+        setBadge(r.cartCount);
+        toast(`<div class="ct-head"><i class="bi bi-check-circle-fill"></i> Đã thêm sản phẩm vào giỏ</div>
+          <div class="ct-body">${r.image ? `<img src="${esc(r.image)}" alt="">` : ''}<div><b>${esc(r.name)}</b><span>Size ${esc(r.size)} · ${esc(r.color)} · SL ${r.qty}</span></div></div>
+          <div class="ct-actions"><a href="/cart" class="btn btn-primary btn-sm">Xem giỏ (${r.cartCount})</a><button type="button" class="btn btn-light btn-sm" onclick="this.closest('.cart-toast').classList.remove('show')">Thuê tiếp</button></div>`);
+        const modal = f.closest('.modal');   // đang ở cửa sổ xem nhanh -> đóng lại
+        if (modal && window.bootstrap) bootstrap.Modal.getOrCreateInstance(modal).hide();
+      } else toast(`<div class="ct-head"><i class="bi bi-exclamation-circle-fill"></i> ${esc(r.error || 'Không thêm được vào giỏ.')}</div>`, true);
+    } catch (_) { f.submit(); }                              // lỗi mạng -> gửi form kiểu cũ
+    finally { btns.forEach(b => { b.disabled = false; }); }
+  });
+})();

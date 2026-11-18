@@ -1,0 +1,76 @@
+<%
+  const vnd = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
+  const vi = s => s ? s.split('-').reverse().join('/') : '';
+  const total = groups.reduce((n, g) => n + (g.key === 'packTmr' ? 0 : g.list.length), 0);
+%>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h3 class="font-serif mb-0"><i class="bi bi-list-check" style="color:var(--gold)"></i> Việc hôm nay <span class="text-muted fs-6">· <%= vi(today) %></span></h3>
+  <a href="/rentals" class="btn btn-light btn-sm"><i class="bi bi-receipt"></i> Tất cả đơn thuê</a>
+</div>
+
+<!-- Tóm tắt: số việc mỗi nhóm, bấm để nhảy tới -->
+<div class="today-summary mb-4">
+  <% groups.forEach(g => { %>
+    <a href="#<%= g.key %>" class="ts-item <%= g.list.length ? '' : 'is-empty' %>">
+      <i class="bi <%= g.icon %>"></i><b><%= g.list.length %></b><span><%= g.title %></span>
+    </a>
+  <% }) %>
+</div>
+<% if (!total) { %><div class="alert alert-success"><i class="bi bi-emoji-smile"></i> Hôm nay chưa có việc nào cần xử lý.</div><% } %>
+
+<% groups.forEach(g => { if (!g.list.length) return; %>
+  <section id="<%= g.key %>" class="mb-4">
+    <h5 class="font-serif mb-1"><i class="bi <%= g.icon %>" style="color:var(--primary)"></i> <%= g.title %> <span class="badge badge-soft"><%= g.list.length %></span></h5>
+    <p class="small text-muted mb-2"><%= g.hint %></p>
+    <div class="d-flex flex-column gap-2">
+      <% g.list.forEach(r => { const deli = FLOW.isDelivery(r), cod = r.PaymentMethod === FLOW.PAY.COD && !FLOW.isPaid(r); %>
+        <div class="card p-3 today-card <%= r.alert && r.alert.overdue ? 'is-late' : '' %>">
+          <div class="row g-2 align-items-center">
+            <div class="col-lg-5">
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="/rentals/<%= r.RentalID %>" class="fw-semibold">#<%= r.RentalID %></a>
+                <span class="badge bg-<%= FLOW.cls(r.Status) %>"><%= FLOW.label(r.Status) %></span>
+                <span class="badge badge-soft"><i class="bi <%= deli ? 'bi-truck' : 'bi-shop' %>"></i> <%= SHIP.zoneOf(r.DeliveryZone || (deli ? 'local' : 'pickup')).short %></span>
+                <% if (cod) { %><span class="badge bg-warning text-dark">COD thu <%= vnd(FLOW.amountDue(r)) %></span><% } %>
+              </div>
+              <div class="small mt-1"><strong><%= r.CustomerName %></strong> · <a href="tel:<%= r.CustomerPhone %>"><%= r.CustomerPhone %></a></div>
+              <% if (deli && r.DeliveryAddress) { %><div class="small text-muted"><i class="bi bi-geo-alt"></i> <%= r.DeliveryAddress %></div><% } %>
+            </div>
+            <div class="col-lg-4 small">
+              <% r.items.forEach(it => { %><div><%= it.ProductName %> <span class="text-muted">× <%= it.Quantity %><% if (it.Size) { %> · <%= it.Size %><% } %><% if (it.Color) { %> · <%= it.Color %><% } %></span></div><% }) %>
+              <div class="text-muted mt-1">Thuê <%= vi(r.StartDate) %> → <%= vi(r.EndDate) %><% if (deli) { %> · gửi <%= vi(FLOW.shipDay(r)) %><% } %></div>
+              <% if (r.TrackingCode && r.Status === 'Đang giao') { %><div class="text-muted"><%= r.Carrier %>: <strong><%= r.TrackingCode %></strong></div><% } %>
+              <% if (r.ReturnTrackingCode && r.Status === 'Đang gửi trả') { %><div class="text-muted">Khách gửi trả <%= vi(r.ReturnSentDate) %>: <strong><%= r.ReturnTrackingCode %></strong></div><% } %>
+              <% if (r.alert) { %><div class="fw-semibold text-<%= r.alert.level === 'info' ? 'primary' : r.alert.level %>"><i class="bi bi-bell"></i> <%= r.alert.text %></div><% } %>
+            </div>
+            <!-- Thao tác nhanh -->
+            <div class="col-lg-3 d-flex flex-wrap gap-1 justify-content-lg-end">
+              <% if (r.Status === 'Chờ cọc') { %>
+                <form method="POST" action="/rentals/<%= r.RentalID %>/deposit" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(FLOW.amountDue(r)) %>?')">
+                  <input type="hidden" name="back" value="/rentals/today"><button class="btn btn-sm btn-success"><i class="bi bi-cash-coin"></i> Đã nhận tiền</button>
+                </form>
+              <% } else if (r.Status === 'Đã cọc' && deli) { %>
+                <a href="/rentals/<%= r.RentalID %>/slip" target="_blank" rel="noopener" class="btn btn-sm btn-light"><i class="bi bi-printer"></i> In phiếu</a>
+                <% if (g.key === 'pack') { %><a href="/rentals/<%= r.RentalID %>#giao-shipper" class="btn btn-sm btn-primary"><i class="bi bi-truck"></i> Gửi shipper</a><% } %>
+              <% } else if (r.Status === 'Đã cọc') { %>
+                <% if (r.StartDate <= today) { %>
+                  <form method="POST" action="/rentals/<%= r.RentalID %>/handover" onsubmit="return confirm('Giao đồ cho khách<%= cod ? ' và thu ' + vnd(FLOW.amountDue(r)) : '' %>?')">
+                    <input type="hidden" name="back" value="/rentals/today"><button class="btn btn-sm btn-primary"><i class="bi bi-box-arrow-up"></i> Giao đồ</button>
+                  </form>
+                <% } else { %><a href="/rentals/<%= r.RentalID %>/slip" target="_blank" rel="noopener" class="btn btn-sm btn-light"><i class="bi bi-printer"></i> In phiếu</a><% } %>
+              <% } else if (r.Status === 'Đang giao') { %>
+                <form method="POST" action="/rentals/<%= r.RentalID %>/delivered" onsubmit="return confirm('Khách đã nhận đồ<%= cod ? ' và đã trả ' + vnd(FLOW.amountDue(r)) + ' cho shipper' : '' %>?')">
+                  <input type="hidden" name="back" value="/rentals/today"><button class="btn btn-sm btn-primary"><i class="bi bi-check2"></i> Khách đã nhận</button>
+                </form>
+              <% } else if (r.Status === 'Đang thuê' || r.Status === 'Đang gửi trả') { %>
+                <a href="/rentals/<%= r.RentalID %>/return" class="btn btn-sm btn-success"><i class="bi bi-box-arrow-in-down"></i> Nhận lại đồ</a>
+              <% } else { %>
+                <span class="small text-muted">Nhận lại <%= vi(r.ReturnDate) %> → giặt</span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+<% }) %>

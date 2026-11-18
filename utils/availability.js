@@ -5,6 +5,8 @@
 // - Một đơn giữ đồ từ ngày nhận đến hết ngày trả, CỘNG THÊM CLEAN_DAYS ngày để giặt sấy.
 //   VD thuê 1–3 => đồ bận tới hết ngày 4 (giặt sấy) => khách sau nhận sớm nhất ngày 5.
 //   Ngược lại, đơn mới cũng phải trả trước ngày nhận của đơn sau ít nhất CLEAN_DAYS ngày.
+// - Đơn giao tận nơi (ShipDays = số ngày vận chuyển mỗi chiều, xem utils/shipping.js): bận thêm ShipDays ngày
+//   TRƯỚC ngày nhận (đồ đang đi tới khách) và ShipDays ngày SAU ngày trả (đồ đang về shop).
 // - Đơn "Đang thuê" mà quá hạn chưa trả vẫn tính là đang giữ đồ tới hôm nay.
 // => Khách A thuê size S, khách B thuê size M cùng ngày: không ảnh hưởng nhau;
 //    hai khách cùng thuê size S thì phải còn đủ bộ size S.
@@ -12,9 +14,10 @@ const { Op } = require('sequelize');
 const { Rental, RentalItem, ProductVariant } = require('../models');
 const { todayStr, addDays, daysBetween } = require('./dates');
 const { keyOf } = require('./variants');
+const { MAX_SHIP_DAYS } = require('./shipping');
 
-// Đơn đang giữ lịch: "Chờ cọc" cũng giữ chỗ (tối đa DEPOSIT_HOLD_HOURS giờ, quá hạn tự hủy)
-const ACTIVE = ['Đã đặt', 'Chờ cọc', 'Đã cọc', 'Đang thuê'];
+// Đơn đang giữ lịch: "Chờ cọc" cũng giữ chỗ (chuyển khoản: tối đa vài phút, quá hạn tự hủy — utils/rentalFlow.js)
+const ACTIVE = ['Đã đặt', 'Chờ cọc', 'Đã cọc', 'Đang giao', 'Đang thuê', 'Đang gửi trả'];
 const MAX_RENT_DAYS = 30;
 const CLEAN_DAYS = 1;   // số ngày giặt sấy giữa 2 lượt thuê cùng 1 bộ
 
@@ -25,10 +28,14 @@ async function activeHolds(productIds, start, end, { transaction, excludeRentalI
     where: { ProductID: { [Op.in]: productIds } },
     include: [{
       model: Rental,
-      attributes: ['RentalID', 'StartDate', 'EndDate', 'Status'],
+      attributes: ['RentalID', 'StartDate', 'EndDate', 'Status', 'ShipDays', 'ReturnDate', 'ReturnSentDate'],
       where: {
-        Status: { [Op.in]: ACTIVE },
-        StartDate: { [Op.lte]: end },
+        // Đơn đang giữ đồ + đơn vừa hoàn tất (đồ còn đang giặt sau ngày shop nhận lại)
+        [Op.or]: [
+          { Status: { [Op.in]: ACTIVE } },
+          { Status: 'Hoàn tất', ReturnDate: { [Op.gte]: addDays(start, -CLEAN_DAYS) } },
+        ],
+        StartDate: { [Op.lte]: addDays(end, MAX_SHIP_DAYS) },   // đơn giao xa bận cả mấy ngày trước ngày nhận
         ...(excludeRentalId ? { RentalID: { [Op.ne]: excludeRentalId } } : {}),
       },
     }],
@@ -37,12 +44,19 @@ async function activeHolds(productIds, start, end, { transaction, excludeRentalI
   return items
     .map(it => {
       const r = it.Rental;
+      const key = keyOf(it.ProductID, it.Size, it.Color);
+      // Shop đã nhận lại đồ: chỉ còn bận ngày nhận lại + ngày giặt
+      if (r.Status === 'Hoàn tất') return { key, qty: it.Quantity, from: r.ReturnDate, to: addDays(r.ReturnDate, CLEAN_DAYS) };
       let holdEnd = r.EndDate;
-      if (r.Status === 'Đang thuê' && holdEnd < today) holdEnd = today; // quá hạn chưa trả
-      // + ngày giặt sấy sau khi trả
-      return { key: keyOf(it.ProductID, it.Size, it.Color), qty: it.Quantity, from: r.StartDate, to: addDays(holdEnd, CLEAN_DAYS) };
+      if (r.Status === 'Đang gửi trả' && r.ReturnSentDate && r.ReturnSentDate > holdEnd) holdEnd = r.ReturnSentDate;   // gửi trả muộn
+      const ship = Number(r.ShipDays) || 0;
+      if (r.Status === 'Đang thuê' && holdEnd < today) holdEnd = today;   // quá hạn chưa trả / chưa gửi trả
+      // Đã gửi trả nhưng quá ngày dự kiến mà chưa về shop -> coi như còn đang trên đường
+      if (r.Status === 'Đang gửi trả' && addDays(holdEnd, ship) < today) holdEnd = addDays(today, -ship);
+      // − ngày vận chuyển đi · + ngày vận chuyển về + ngày giặt sấy
+      return { key, qty: it.Quantity, from: addDays(r.StartDate, -ship), to: addDays(holdEnd, ship + CLEAN_DAYS) };
     })
-    .filter(h => h.to >= start);
+    .filter(h => h.to >= start && h.from <= end);
 }
 
 // Số bộ bị giữ cùng lúc nhiều nhất trong [start, end], theo từng tổ hợp: { key: peak }
@@ -65,8 +79,10 @@ function peakByKey(holds, start, end) {
 async function productAvailability(products, start, end, opts = {}) {
   const ids = products.map(p => p.ProductID);
   if (!ids.length) return {};
-  // Đơn đang xét cũng cần CLEAN_DAYS ngày giặt sấy sau ngày trả -> xét tới end + CLEAN_DAYS
-  end = addDays(end, CLEAN_DAYS);
+  // Đơn đang xét: thêm ngày vận chuyển 2 đầu (opts.shipDays, giao tận nơi) + CLEAN_DAYS ngày giặt sấy sau khi về shop
+  const ship = Number(opts.shipDays) || 0;
+  start = addDays(start, -ship);
+  end = addDays(end, ship + CLEAN_DAYS);
   const [variants, holds] = await Promise.all([
     ProductVariant.findAll({ where: { ProductID: { [Op.in]: ids } }, transaction: opts.transaction }),
     activeHolds(ids, start, end, opts),
@@ -98,7 +114,7 @@ async function freeByVariant(product, start, end, opts) {
 // Số bộ bị giữ cùng lúc nhiều nhất từ hôm nay trở đi, theo từng "Size|Color" (dùng khi sửa số lượng SP)
 async function peakFutureUsage(productId) {
   const start = todayStr();
-  const holds = await activeHolds([productId], start, '9999-12-31');
+  const holds = await activeHolds([productId], start, '9990-12-31');   // (không dùng 9999: + ngày vận chuyển sẽ tràn sang năm 10000)
   if (!holds.length) return {};
   const end = holds.reduce((m, h) => (h.to > m ? h.to : m), start);
   const out = {};

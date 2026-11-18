@@ -47,33 +47,34 @@ exports.lineKey = lineKey;
 exports.add = async (req, res) => {
   const productId = parseInt(req.body.ProductID);
   const back = `/products/${productId}`;
+  // Trang chi tiết / xem nhanh gọi bằng fetch (không tải lại trang) -> trả JSON để hiện khung "Đã thêm vào giỏ"
+  const wantsJson = req.get('X-Requested-With') === 'fetch' && !req.body.buyNow;
+  const fail = (msg, to = back) => {
+    if (wantsJson) return res.json({ ok: false, error: msg });
+    req.flash('error', msg); return res.redirect(to);
+  };
   const product = await Product.findByPk(productId);
-  if (!product) { req.flash('error', 'Không tìm thấy sản phẩm.'); return res.redirect('/products'); }
-  if (product.Status !== 'Còn trống') { req.flash('error', `Sản phẩm hiện ${product.Status.toLowerCase()}, chưa thể thuê.`); return res.redirect(back); }
+  if (!product) return fail('Không tìm thấy sản phẩm.', '/products');
+  if (product.Status !== 'Còn trống') return fail(`Sản phẩm hiện ${product.Status.toLowerCase()}, chưa thể thuê.`);
 
   const size = String(req.body.Size || '').trim(), color = String(req.body.Color || '').trim();
-  if (!size) { req.flash('error', 'Vui lòng chọn size / kích thước.'); return res.redirect(back); }
-  if (!color) { req.flash('error', 'Vui lòng chọn màu.'); return res.redirect(back); }
+  if (!size) return fail('Vui lòng chọn size / kích thước.');
+  if (!color) return fail('Vui lòng chọn màu.');
   const stock = await stockOf(productId, size, color);
-  if (!stock) { req.flash('error', `Mẫu này không có size ${size} màu ${color}.`); return res.redirect(back); }
+  if (!stock) return fail(`Mẫu này không có size ${size} màu ${color}.`);
 
   const qty = parseInt(req.body.Quantity);
-  if (!(qty >= 1)) { req.flash('error', 'Số lượng phải từ 1 trở lên.'); return res.redirect(back); }
+  if (!(qty >= 1)) return fail('Số lượng phải từ 1 trở lên.');
 
   const cart = getCart(req);
   const same = cart.find(l => l.productId === productId && l.size === size && l.color === color);
   const inCart = same ? same.qty : 0;
-  if (inCart + qty > stock) {
-    req.flash('error', `Size ${size} – ${color} không đủ số lượng bạn chọn${inCart ? ` (giỏ đã có ${inCart})` : ''}. Vui lòng giảm số lượng.`);
-    return res.redirect(back);
-  }
+  if (inCart + qty > stock) return fail(`Size ${size} – ${color} không đủ số lượng bạn chọn${inCart ? ` (giỏ đã có ${inCart})` : ''}. Vui lòng giảm số lượng.`);
+  if (!same && cart.length >= MAX_LINES) return fail(`Giỏ thuê tối đa ${MAX_LINES} dòng.`);
 
   await Product.increment('CartAdds', { by: 1, where: { ProductID: productId } });   // tính nhãn HOT
   if (same) same.qty += qty;
-  else {
-    if (cart.length >= MAX_LINES) { req.flash('error', `Giỏ thuê tối đa ${MAX_LINES} dòng.`); return res.redirect(back); }
-    cart.push({ key: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), productId, size, color, qty });
-  }
+  else cart.push({ key: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), productId, size, color, qty });
 
   // Mã giảm giá chọn ở trang chi tiết -> nhớ lại để giỏ thuê điền sẵn (khi đặt máy chủ vẫn kiểm tra lại)
   if (req.body.CouponCode !== undefined) {
@@ -81,13 +82,24 @@ exports.add = async (req, res) => {
     if (code) req.session.couponCode = code; else delete req.session.couponCode;
   }
 
-  if (req.body.buyNow) return res.redirect('/cart');
+  if (req.body.buyNow) {
+    // Thuê ngay khi chưa đăng nhập: đồ đã vào giỏ -> đăng nhập xong quay lại giỏ để đặt
+    if (!req.session.user) {
+      req.flash('error', `Vui lòng đăng nhập để thuê ngay. "${product.ProductName}" đã được thêm vào giỏ, đăng nhập xong bạn tiếp tục đặt thuê.`);
+      return res.redirect('/login?next=/cart/checkout');
+    }
+    return res.redirect('/cart/checkout');
+  }
+  if (wantsJson) {
+    return res.json({ ok: true, name: product.ProductName, size, color, qty, image: product.PathImage || '',
+      cartCount: cart.reduce((n, l) => n + l.qty, 0) });
+  }
   req.flash('success', `Đã thêm "${product.ProductName}" (size ${size} – ${color}) vào giỏ thuê.`);
   res.redirect(back);
 };
 
-// ===== Xem giỏ + đặt thuê (thanh toán) =====
-exports.view = async (req, res) => {
+// Dữ liệu chung cho bước 1 (giỏ thuê) và bước 2 (đặt thuê & giao nhận)
+async function cartData(req, res) {
   const { lines, removedCount } = await loadCart(req);
   if (removedCount) res.locals.error = [`${removedCount} món trong giỏ không còn cho thuê (hoặc không còn size / màu đã chọn) nên đã được bỏ ra.`];
   const old = req.session.checkoutOld || {};
@@ -104,7 +116,19 @@ exports.view = async (req, res) => {
     const u = await require('../models').User.findByPk(req.session.user.id, { attributes: ['phone', 'idCardNumber', 'address'] });
     if (u) profile = u.get({ plain: true });
   }
-  res.render('cart/index', { title: 'Giỏ thuê & đặt thuê', lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons, profile, savedCoupon: req.session.couponCode || '' });
+  return { lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons, profile, ZONES: require('../utils/shipping').ZONES, rentZone: req.session.rentZone || 'pickup', savedCoupon: req.session.couponCode || '' };
+}
+
+// ===== Bước 1: Giỏ thuê — xem lại món, số lượng (ai cũng xem được) =====
+exports.view = async (req, res) => {
+  res.render('cart/index', { title: 'Giỏ thuê', ...(await cartData(req, res)) });
+};
+
+// ===== Bước 2: Đặt thuê & giao nhận — ngày thuê, cách nhận đồ, thông tin, thanh toán (cần đăng nhập) =====
+exports.checkout = async (req, res) => {
+  const data = await cartData(req, res);
+  if (!data.lines.length) { req.flash('error', 'Giỏ thuê đang trống.'); return res.redirect('/cart'); }
+  res.render('cart/checkout', { title: 'Đặt thuê & giao nhận', ...data });
 };
 
 // ===== Đổi số lượng 1 dòng =====
@@ -139,8 +163,13 @@ exports.availability = async (req, res) => {
   const err = checkDates(start, end);
   if (err) return res.json({ ok: false, error: err, lines: {} });
   req.session.rentDates = { start, end };   // nhớ ngày khách đang chọn
+  // Khu vực nhận đồ: giao xa thì giữ đồ thêm ngày vận chuyển 2 đầu
+  const { zoneOf } = require('../utils/shipping');
+  const zone = zoneOf(req.query.zone);
+  const zoneErr = require('../utils/shipping').checkZoneDates(zone, start, end);
+  if (zoneErr) return res.json({ ok: false, error: zoneErr, lines: {} });
   const { lines, products } = await loadCart(req);
-  const avail = await productAvailability(products, start, end);
+  const avail = await productAvailability(products, start, end, { shipDays: zone.days });
   const need = needByVariant(lines);
   const result = {};
   for (const l of lines) {

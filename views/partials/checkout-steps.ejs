@@ -1,0 +1,12 @@
+<%# Thanh 3 bước đặt thuê: 1 Giỏ thuê → 2 Đặt thuê & giao nhận → 3 Hoàn tất. Truyền step = 1 | 2 | 3 %>
+<nav class="co-steps" aria-label="Các bước đặt thuê">
+  <% [['Giỏ thuê', '/cart'], ['Đặt thuê & giao nhận', '/cart/checkout'], ['Hoàn tất', null]].forEach(([text, href], i) => {
+       const n = i + 1, done = n < step, cur = n === step; %>
+    <% if (i) { %><i class="bi bi-chevron-right co-sep"></i><% } %>
+    <% if (done && href) { %>
+      <a href="<%= href %>" class="co-step done"><span><i class="bi bi-check-lg"></i></span><%= text %></a>
+    <% } else { %>
+      <div class="co-step <%= cur ? 'current' : '' %> <%= done ? 'done' : '' %>" <%= cur ? 'aria-current=step' : '' %>><span><%= done ? '✓' : n %></span><%= text %></div>
+    <% } %>
+  <% }) %>
+</nav>

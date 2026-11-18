@@ -29,12 +29,12 @@
     </div>
 
     <form method="POST" action="/rentals/<%= rental.RentalID %>/return" id="returnForm"
-          data-deposit="<%= Number(rental.Deposit) %>" data-late="<%= latePerDay %>" data-end="<%= rental.EndDate %>">
+          data-deposit="<%= Number(rental.Deposit) %>" data-late="<%= latePerDay %>" data-end="<%= graceEnd %>">
       <div class="card p-3 mb-3">
         <label class="form-label">Ngày trả thực tế</label>
-        <input type="date" name="ReturnDate" id="ReturnDate" class="form-control" style="max-width:220px" value="<%= today < rental.StartDate ? rental.StartDate : today %>"
-               min="<%= rental.StartDate %>" max="<%= today %>" required>
-        <small class="text-muted">Từ ngày nhận (<%= vi(rental.StartDate) %>) đến hôm nay. Trễ hơn hạn trả (<%= vi(rental.EndDate) %>) sẽ tự tính phí phạt.</small>
+        <input type="date" name="ReturnDate" id="ReturnDate" class="form-control" style="max-width:220px" value="<%= today %>"
+               min="<%= rental.ShippedAt && rental.ShippedAt < rental.StartDate ? rental.ShippedAt : rental.StartDate %>" max="<%= today %>" required>
+        <small class="text-muted">Từ ngày nhận (<%= vi(rental.StartDate) %>) đến hôm nay. Shop nhận sau ngày <%= vi(graceEnd) %> sẽ tự tính phí phạt.<% if (rental.ShipDays) { %> (Đơn giao xa: khách gửi trả ngày <%= vi(rental.EndDate) %>, cộng <%= rental.ShipDays %> ngày vận chuyển.)<% } %></small>
       </div>
 
       <!-- Kiểm tra từng món theo BẢNG NỘI QUY: nhập số bộ bị ảnh hưởng (0 = không có) -->

@@ -83,6 +83,8 @@ app.use((req, res, next) => {
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
   res.locals.path = req.path;
+  res.locals.SHIP = require('./utils/shipping');
+  res.locals.FLOW = require('./utils/rentalFlow');   // trạng thái đơn, thanh toán, giao — nhận (dùng trong view)   // khu vực giao + số ngày vận chuyển (dùng trong view)
   res.locals.reqUrl = req.originalUrl;   // để form (VD thả tim) quay lại đúng trang đang xem
   res.locals.cartCount = (req.session.cart || []).reduce((s, l) => s + l.qty, 0);
   next();
@@ -161,7 +163,7 @@ async function migrateSchema() {
     await User.update({ isActive: true }, { where: {}, hooks: false });
   }
   // Các cột mới khác (đều cho phép trống)
-  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds', 'SalePrice', 'SaleEnd']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt', 'CustomerAddress']], Users: [User, ['phone', 'email', 'address']] };
+  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds', 'SalePrice', 'SaleEnd']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt', 'CustomerAddress', 'DeliveryZone', 'ShipDays', 'Carrier', 'TrackingCode', 'ShippedAt', 'ReturnTrackingCode', 'ReturnSentDate', 'TransferClaimedAt']], Users: [User, ['phone', 'email', 'address']] };
   const added = [];
   for (const [table, [model, cols]] of Object.entries(NEW_COLUMNS)) {
     const desc = await qi.describeTable(table);

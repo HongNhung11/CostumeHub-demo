@@ -1,338 +1,102 @@
 <%
-  const pad = n => String(n).padStart(2,'0');
-  const d2s = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const today = new Date();
-  const tmr = new Date(Date.now()+86400000);
-  const maxEnd = new Date(Date.now()+(60+MAX_RENT_DAYS)*86400000);
-  const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
-  const o = (k, d = '') => (old && old[k] !== undefined ? old[k] : d);
-  const giao = o('DeliveryMethod') === 'Giao tận nơi';
+  // BƯỚC 1: GIỎ THUÊ — xem lại món, size, số lượng. Ngày thuê, cách nhận, thanh toán ở bước 2 (/cart/checkout)
+  const vnd = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
   let pricePerDay = 0, depositAll = 0, qtyAll = 0;
   lines.forEach(l => { pricePerDay += priceOf(l.product) * l.qty; depositAll += Number(l.product.DepositValue) * l.qty; qtyAll += l.qty; });
+  const next = currentUser ? '/cart/checkout' : '/login?next=/cart/checkout';
 %>
-<nav class="small text-muted mb-3"><a href="/products" class="text-muted">Sản phẩm</a> / <span>Giỏ thuê</span></nav>
-
-<h3 class="font-serif mb-3"><i class="bi bi-bag-check" style="color:var(--gold)"></i> Giỏ thuê & Đặt thuê</h3>
+<%- include('../partials/checkout-steps', { step: 1 }) %>
 
 <% if (!lines.length) { %>
-  <div class="card p-5 text-center text-muted">
-    <i class="bi bi-bag" style="font-size:2.5rem"></i>
-    <p class="mt-2 mb-3">Giỏ thuê đang trống. Chọn trang phục, size, màu rồi bấm <strong>Thêm vào giỏ</strong>.</p>
-    <div><a href="/products" class="btn btn-primary"><i class="bi bi-arrow-left"></i> Xem trang phục</a></div>
+  <div class="card p-5 text-center text-muted cart-empty">
+    <i class="bi bi-bag"></i>
+    <h5 class="font-serif mt-2">Giỏ thuê đang trống</h5>
+    <p class="mb-3">Chọn trang phục, size, màu rồi bấm <strong>Thêm vào giỏ</strong>.</p>
+    <div><a href="/products" class="btn btn-primary px-4"><i class="bi bi-arrow-left"></i> Xem trang phục</a></div>
   </div>
 <% } else { %>
-
-<!-- Danh sách món trong giỏ (form riêng cho sửa số lượng / bỏ món) -->
-<div class="card mb-4">
-  <div class="table-responsive">
-    <table class="table align-middle mb-0">
-      <thead><tr><th>Trang phục</th><th>Size / Màu</th><th class="text-end">Giá/ngày</th><th style="width:150px">Số lượng</th><th class="text-end">Cọc</th><th></th></tr></thead>
-      <tbody>
-      <% lines.forEach(l => { const p = l.product; %>
-        <tr data-key="<%= lineKey(l) %>" data-line="<%= l.key %>" data-price="<%= priceOf(p) %>" data-dep="<%= Number(p.DepositValue) %>">
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <% if (p.PathImage) { %><img src="<%= p.PathImage %>" style="width:44px;height:56px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
-              <div><a href="/products/<%= p.ProductID %>" class="text-dark fw-semibold"><%= p.ProductName %></a>
-                <div class="small text-muted"><%= p.ProductType %></div>
-                <div class="small avail-msg"></div></div>
-            </div>
-          </td>
-          <td class="small">Size <strong><%= l.size %></strong> · <%= l.color %></td>
-          <td class="text-end"><%= vnd(priceOf(p)) %><% if (saleOf(p) !== null) { %><div class="small"><s class="text-muted"><%= vnd(p.Price) %></s> <span class="text-danger">-<%= salePercent(p) %>%</span></div><% } %></td>
-          <td>
-            <%# Đổi số lượng bằng − / +: tự lưu, không tải lại trang (giữ nguyên thông tin đang điền bên dưới) %>
-            <form method="POST" action="/cart/<%= l.key %>/update" class="cart-qty-form">
-              <div class="qty-box qty-sm">
-                <button type="button" data-d="-1" aria-label="Giảm">−</button>
-                <input type="number" name="qty" value="<%= l.qty %>" min="1" max="<%= l.stock %>" data-last="<%= l.qty %>" aria-label="Số lượng">
-                <button type="button" data-d="1" aria-label="Tăng">+</button>
+<div class="row g-4">
+  <!-- Danh sách món -->
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="font-serif mb-0">Giỏ thuê <span class="text-muted fs-6">(<%= qtyAll %> món)</span></h5>
+      <a href="/products" class="small"><i class="bi bi-plus-lg"></i> Thêm món khác</a>
+    </div>
+    <div class="d-flex flex-column gap-3">
+      <% lines.forEach(l => { const p = l.product; const sale = saleOf(p) !== null; %>
+        <div class="cart-item">
+          <a href="/products/<%= p.ProductID %>" class="ci-img"><% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="<%= p.ProductName %>" onerror="this.style.display='none'"><% } %></a>
+          <div class="ci-main">
+            <div class="d-flex justify-content-between gap-2">
+              <div>
+                <a href="/products/<%= p.ProductID %>" class="ci-name"><%= p.ProductName %></a>
+                <div class="ci-chips"><span>Size <%= l.size %></span><span>Màu <%= l.color %></span><span class="text-muted"><%= p.ProductType %></span></div>
               </div>
-              <div class="small text-danger qty-err"></div>
-            </form>
-          </td>
-          <td class="text-end line-dep"><%= vnd(Number(p.DepositValue) * l.qty) %></td>
-          <td class="text-end">
-            <form method="POST" action="/cart/<%= l.key %>/remove" onsubmit="return confirm('Bỏ món này khỏi giỏ?')">
-              <button class="btn btn-sm btn-outline-danger" title="Bỏ khỏi giỏ"><i class="bi bi-trash"></i></button>
-            </form>
-          </td>
-        </tr>
+              <div class="ci-price">
+                <b><%= vnd(priceOf(p) * l.qty) %></b><small>/ ngày</small>
+                <% if (sale) { %><div><s><%= vnd(Number(p.Price) * l.qty) %></s> <span class="text-danger">-<%= salePercent(p) %>%</span></div><% } %>
+              </div>
+            </div>
+            <div class="ci-foot">
+              <form method="POST" action="/cart/<%= l.key %>/update" class="cart-qty-form">
+                <div class="qty-box qty-sm">
+                  <button type="button" data-d="-1" aria-label="Giảm">−</button>
+                  <input type="number" name="qty" value="<%= l.qty %>" min="1" max="<%= l.stock %>" data-last="<%= l.qty %>" aria-label="Số lượng">
+                  <button type="button" data-d="1" aria-label="Tăng">+</button>
+                </div>
+              </form>
+              <span class="small text-muted">Cọc <%= vnd(Number(p.DepositValue) * l.qty) %></span>
+              <form method="POST" action="/cart/<%= l.key %>/remove" class="ms-auto" onsubmit="return confirm('Bỏ món này khỏi giỏ?')">
+                <button class="ci-remove"><i class="bi bi-trash3"></i> Xóa</button>
+              </form>
+            </div>
+            <div class="small text-danger qty-err"></div>
+          </div>
+        </div>
       <% }) %>
-      </tbody>
-    </table>
+    </div>
   </div>
-  <div class="p-2 px-3 small d-flex justify-content-between border-top">
-    <a href="/products"><i class="bi bi-plus"></i> Thêm món khác</a>
-    <span class="text-muted"><span id="qtyAll"><%= qtyAll %></span> món</span>
+
+  <!-- Tóm tắt -->
+  <div class="col-lg-4">
+    <div class="card p-4 co-summary">
+      <h5 class="font-serif mb-3">Tóm tắt giỏ thuê</h5>
+      <div class="cs-row"><span>Giá thuê / ngày</span><b><%= vnd(pricePerDay) %></b></div>
+      <div class="cs-row"><span>Tiền cọc <small class="text-muted">(hoàn lại)</small></span><b><%= vnd(depositAll) %></b></div>
+      <div class="cs-note"><i class="bi bi-info-circle"></i> Số ngày thuê, cách nhận đồ và mã giảm giá chọn ở bước tiếp theo.</div>
+      <a href="<%= next %>" class="btn btn-dark btn-lg w-100 co-cta"><i class="bi bi-lock-fill"></i> <%= currentUser ? 'Tiến hành đặt thuê' : 'Đăng nhập để đặt thuê' %></a>
+      <% if (!currentUser) { %><div class="small text-muted text-center mt-2">Chưa có tài khoản? <a href="/register?next=/cart/checkout">Đăng ký miễn phí</a> — giỏ thuê vẫn được giữ.</div><% } %>
+      <a href="/products" class="d-block text-center small mt-3"><i class="bi bi-arrow-left"></i> Tiếp tục chọn đồ</a>
+      <hr>
+      <div class="cs-trust">
+        <div><i class="bi bi-stars"></i> Giặt hấp miễn phí trước khi giao</div>
+        <div><i class="bi bi-arrow-left-right"></i> Đổi size miễn phí (tự lấy / nội thành)</div>
+        <div><i class="bi bi-shield-check"></i> Hoàn cọc khi trả đồ nguyên vẹn</div>
+      </div>
+    </div>
   </div>
 </div>
 
-<form method="POST" action="/rentals" enctype="multipart/form-data" id="bookForm" novalidate>
-  <input type="hidden" id="pricePerDay" value="<%= pricePerDay %>">
-  <input type="hidden" id="depositAll" value="<%= depositAll %>">
-  <div class="row g-4">
-
-    <!-- Cột trái: thông tin đặt thuê -->
-    <div class="col-lg-7">
-      <div class="card p-3 mb-3">
-        <h6 class="font-serif mb-3"><i class="bi bi-calendar-range"></i> Thời gian thuê (chung cho cả đơn)</h6>
-        <div class="row g-2">
-          <div class="col-6">
-            <label class="form-label small text-muted">Ngày nhận <span class="text-danger">*</span></label>
-            <input type="date" name="StartDate" id="StartDate" class="form-control" value="<%= o('StartDate', rentDates ? rentDates.start : d2s(today)) %>" min="<%= d2s(today) %>" max="<%= d2s(maxEnd) %>" required>
-          </div>
-          <div class="col-6">
-            <label class="form-label small text-muted">Ngày trả <span class="text-danger">*</span></label>
-            <input type="date" name="EndDate" id="EndDate" class="form-control" value="<%= o('EndDate', rentDates ? rentDates.end : d2s(tmr)) %>" min="<%= d2s(tmr) %>" max="<%= d2s(maxEnd) %>" required>
-            <div class="invalid-feedback">Ngày trả phải sau ngày nhận (tối đa <%= MAX_RENT_DAYS %> ngày).</div>
-          </div>
-        </div>
-        <div id="availBox" class="small mt-2"></div>
-      </div>
-
-      <div class="card p-3 mb-3">
-        <h6 class="font-serif mb-3"><i class="bi bi-person"></i> Thông tin khách hàng</h6>
-        <div class="row g-2">
-          <div class="col-md-6">
-            <label class="form-label small text-muted">Họ tên <span class="text-danger">*</span></label>
-            <input name="CustomerName" class="form-control" required minlength="2" maxlength="100" value="<%= o('CustomerName', currentUser.fullName || '') %>">
-            <div class="invalid-feedback">Vui lòng nhập họ tên.</div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small text-muted">Số điện thoại <span class="text-danger">*</span></label>
-            <input type="tel" name="CustomerPhone" id="CustomerPhone" class="form-control" required inputmode="tel"
-                   placeholder="VD: 0912345678" maxlength="15" value="<%= o('CustomerPhone', profile.phone || '') %>">
-            <div class="invalid-feedback">Gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.</div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small text-muted">Số CCCD <span class="text-danger">*</span></label>
-            <input name="CustomerIDCard" id="CustomerIDCard" class="form-control" required inputmode="numeric"
-                   placeholder="12 chữ số trên thẻ CCCD" maxlength="12" value="<%= o('CustomerIDCard', profile.idCardNumber || '') %>">
-            <div class="invalid-feedback">CCCD gồm đúng 12 chữ số (3 số đầu là mã tỉnh 001–096).</div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small text-muted">Ảnh chụp CCCD</label>
-            <input type="file" name="IDCardImage" accept="image/*" class="form-control">
-            <small class="text-muted">Dùng để xác minh danh tính khi thuê.</small>
-          </div>
-          <div class="col-12">
-            <label class="form-label small text-muted" for="CustomerAddress">Địa chỉ <span class="text-danger">*</span></label>
-            <input name="CustomerAddress" id="CustomerAddress" class="form-control" required minlength="10" maxlength="255"
-                   placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP" value="<%= o('CustomerAddress', profile.address || '') %>">
-            <div class="invalid-feedback">Vui lòng nhập địa chỉ (ít nhất 10 ký tự).</div>
-          </div>
-        </div>
-        <% if (!profile.phone || !profile.address) { %><div class="small text-muted mt-2"><i class="bi bi-lightbulb"></i> Lưu SĐT, CCCD, địa chỉ ở <a href="/account#thong-tin">Tài khoản của tôi</a> để lần sau tự điền.</div><% } %>
-      </div>
-
-      <div class="card p-3 mb-3">
-        <h6 class="font-serif mb-3"><i class="bi bi-truck"></i> Hình thức nhận đồ</h6>
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Tự đến lấy" id="pickup" <%= giao ? '' : 'checked' %>>
-          <label class="form-check-label" for="pickup">Tự đến lấy tại cửa hàng <span class="text-muted small">(miễn phí)</span></label>
-        </div>
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="DeliveryMethod" value="Giao tận nơi" id="delivery" <%= giao ? 'checked' : '' %>>
-          <label class="form-check-label" for="delivery">Giao tận nơi</label>
-        </div>
-        <div class="mt-2" id="addrBox" style="display:<%= giao ? 'block' : 'none' %>">
-          <label class="form-label small text-muted">Địa chỉ nhận hàng <span class="text-danger">*</span></label>
-          <input name="DeliveryAddress" id="DeliveryAddress" class="form-control" minlength="10" maxlength="255" <%= giao ? 'required' : '' %>
-                 value="<%= o('DeliveryAddress') %>" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP">
-          <div class="invalid-feedback">Nhập địa chỉ đầy đủ (ít nhất 10 ký tự).</div>
-        </div>
-      </div>
-
-      <div class="card p-3">
-        <h6 class="font-serif mb-3"><i class="bi bi-credit-card"></i> Hình thức thanh toán cọc</h6>
-        <select name="method" class="form-select">
-          <% ['Tiền mặt', 'Chuyển khoản', 'Ví điện tử'].forEach(m => { %><option <%= o('method') === m ? 'selected' : '' %>><%= m %></option><% }) %>
-        </select>
-      </div>
-    </div>
-
-    <!-- Cột phải: tóm tắt đơn -->
-    <div class="col-lg-5">
-      <div class="card p-3" style="position:sticky;top:90px">
-        <h6 class="font-serif mb-3">Tóm tắt đơn thuê</h6>
-        <div class="small mb-2 pb-2 border-bottom">
-          <% lines.forEach(l => { %>
-            <div class="d-flex justify-content-between py-1" data-sum="<%= l.key %>">
-              <span><%= l.product.ProductName %> <span class="text-muted">(<%= [l.size, l.color].filter(Boolean).join(' · ') %>) × <span class="sum-qty"><%= l.qty %></span></span></span>
-              <span class="text-nowrap ms-2"><span class="sum-line"><%= vnd(priceOf(l.product) * l.qty) %></span>/ngày</span>
-            </div>
-          <% }) %>
-        </div>
-        <div class="d-flex justify-content-between small py-1"><span>Số ngày thuê</span><span id="sumDays">1</span></div>
-        <div class="d-flex justify-content-between small py-1"><span>Tiền thuê</span><span id="sumRent">0 đ</span></div>
-        <div class="d-flex justify-content-between small py-1 text-success d-none" id="discRow"><span>Giảm giá (<span id="discCode"></span>)</span><span id="sumDisc">0 đ</span></div>
-
-        <!-- Mã giảm giá: kiểm tra trước bằng API, máy chủ kiểm tra lại khi đặt -->
-        <div class="py-2">
-          <div class="input-group input-group-sm">
-            <span class="input-group-text"><i class="bi bi-ticket-perforated"></i></span>
-            <input name="CouponCode" id="CouponCode" class="form-control text-uppercase" maxlength="30" placeholder="Mã giảm giá" value="<%= o('CouponCode', savedCoupon) %>" autocomplete="off">
-            <button type="button" class="btn btn-outline-primary" id="btnCoupon">Áp dụng</button>
-          </div>
-          <div class="small mt-1" id="couponMsg"></div>
-          <% if (coupons.length) { %>
-            <div class="small text-muted mt-2">Mã đang có:</div>
-            <div class="d-flex flex-column gap-1 mt-1">
-              <% coupons.forEach(c => { %>
-                <button type="button" class="coupon-pick text-start" data-code="<%= c.code %>" title="<%= c.summary %>">
-                  <span class="coupon-code"><%= c.code %></span> <span class="small text-muted"><%= c.text %></span>
-                </button>
-              <% }) %>
-            </div>
-          <% } %>
-        </div>
-        <div class="d-flex justify-content-between small py-1"><span>Tiền cọc (hoàn lại)</span><span id="sumDeposit">0 đ</span></div>
-        <hr class="my-2">
-        <div class="d-flex justify-content-between fw-bold mb-3"><span>Tổng tạm tính</span><span class="price-tag" id="sumTotal">0 đ</span></div>
-        <div class="form-check mb-3 small">
-          <input class="form-check-input" type="checkbox" name="agree" value="1" id="agree" required <%= o('agree') === '1' ? 'checked' : '' %>>
-          <label class="form-check-label" for="agree">
-            Tôi đã đọc và đồng ý <a href="/noi-quy" target="_blank" rel="noopener">nội quy thuê đồ &amp; bảng trừ phí</a>
-            (trả trễ, vệ sinh, hư hỏng, mất đồ, hủy đơn).
-          </label>
-          <div class="invalid-feedback">Vui lòng đọc và đồng ý nội quy trước khi đặt.</div>
-        </div>
-        <button class="btn btn-gold btn-lg w-100" id="btnBook"><i class="bi bi-check2-circle"></i> Đặt thuê &amp; giữ chỗ</button>
-        <p class="small text-muted text-center mt-2 mb-0">Đơn được giữ chỗ 24 giờ để bạn cọc (chuyển khoản / ví / tiền mặt tại cửa hàng). Cửa hàng xác nhận đã nhận tiền thì đơn chuyển sang "Đã cọc".</p>
-      </div>
-    </div>
-  </div>
-</form>
-
 <script>
-(function(){
-  const s=document.getElementById('StartDate'), e=document.getElementById('EndDate'),
-        MAXD=<%= MAX_RENT_DAYS %>;
-  const vnd=n=>n.toLocaleString('vi-VN')+' đ';
-  const days=()=>{ const d=Math.round((new Date(e.value)-new Date(s.value))/86400000); return d>=1?d:0; };
-  let price=+document.getElementById('pricePerDay').value, dep=+document.getElementById('depositAll').value;
-  let disc=0;   // số tiền giảm của mã đang áp dụng (tính lại khi đổi ngày)
-  function calc(){
-    const d=days();
-    document.getElementById('sumDays').textContent=d;
-    document.getElementById('sumRent').textContent=vnd(price*d);
-    document.getElementById('sumDeposit').textContent=vnd(dep);
-    document.getElementById('discRow').classList.toggle('d-none',!disc);
-    document.getElementById('sumDisc').textContent='- '+vnd(disc);
-    document.getElementById('sumTotal').textContent=vnd(price*d-disc+dep);
-  }
-
-  // Mã giảm giá
-  const cIn=document.getElementById('CouponCode'), cMsg=document.getElementById('couponMsg');
-  async function applyCode(){
-    const code=cIn.value.trim().toUpperCase(); cIn.value=code;
-    disc=0; document.getElementById('discCode').textContent=code;
-    if(!code){ cMsg.textContent=''; calc(); return; }
-    try{
-      const r=await (await fetch(`/cart/coupon?code=${encodeURIComponent(code)}&start=${s.value}&end=${e.value}`)).json();
-      if(r.ok){ disc=r.discount; cMsg.className='small mt-1 text-success'; cMsg.innerHTML=`<i class="bi bi-check-circle"></i> Đã áp dụng ${r.code}: giảm ${vnd(r.discount)} tiền thuê.`; }
-      else { cMsg.className='small mt-1 text-danger'; cMsg.innerHTML=`<i class="bi bi-exclamation-circle"></i> ${r.error}`; }
-    }catch(_){ cMsg.textContent=''; }
-    calc();
-  }
-  document.getElementById('btnCoupon').addEventListener('click',applyCode);
-  cIn.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); applyCode(); } });
-  cIn.addEventListener('input',()=>{ if(disc){ disc=0; cMsg.textContent='Bấm "Áp dụng" để kiểm tra mã.'; cMsg.className='small mt-1 text-muted'; calc(); } });
-  document.querySelectorAll('.coupon-pick').forEach(b=>b.addEventListener('click',()=>{ cIn.value=b.dataset.code; applyCode(); }));
-  if(cIn.value) applyCode();
-
-  // Kiểm tra còn trống theo ngày (chống trùng lịch)
-  const box=document.getElementById('availBox');
-  let availOk=true;
-  async function checkAvail(){
-    document.querySelectorAll('.avail-msg').forEach(m=>m.textContent='');
-    if(!s.value||!e.value) return;
-    try{
-      const r=await (await fetch(`/cart/availability?start=${s.value}&end=${e.value}`)).json();
-      availOk=r.ok;
-      if(r.error){ box.innerHTML=`<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ${r.error}</span>`; availOk=false; return; }
-      // Mỗi dòng giỏ = 1 size × màu -> báo còn trống đúng size đó
-      document.querySelectorAll('tr[data-key]').forEach(tr=>{
-        const info=r.lines[tr.dataset.key], m=tr.querySelector('.avail-msg');
-        if(!info||!m) return;
-        m.className='small avail-msg '+(info.need<=info.available?'text-success':'text-danger');
-        m.textContent= info.available===0 ? `Size ${info.size} đã có khách thuê trong những ngày này`
-          : info.need<=info.available ? `Size ${info.size}: còn trống` : `Size ${info.size}: không đủ số bộ trống cho số lượng bạn chọn — giảm số lượng hoặc đổi ngày`;
-      });
-      box.innerHTML = r.ok ? '<span class="text-success"><i class="bi bi-check-circle"></i> Tất cả các món còn trống trong khoảng ngày này.</span>'
-        : '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Có món không đủ bộ trống — vui lòng đổi ngày hoặc giảm số lượng.</span>';
-    }catch(_){ availOk=true; box.textContent=''; }
-  }
-  [s,e].forEach(el=>el.addEventListener('change',()=>{ calc(); checkDates(); checkAvail(); if(cIn.value) applyCode(); }));
-  calc(); checkAvail();
-
-  // Số lượng từng món: − / + hoặc gõ số -> tự lưu vào giỏ (fetch), cập nhật tiền ngay, không tải lại trang
-  function recount(){
-    price=0; dep=0; let n=0;
-    document.querySelectorAll('tr[data-line]').forEach(tr=>{
-      const q=+tr.querySelector('input[name="qty"]').dataset.last;
-      price+=q*+tr.dataset.price; dep+=q*+tr.dataset.dep; n+=q;
-      tr.querySelector('.line-dep').textContent=vnd(q*+tr.dataset.dep);
-      const row=document.querySelector(`[data-sum="${tr.dataset.line}"]`);
-      if(row){ row.querySelector('.sum-qty').textContent=q; row.querySelector('.sum-line').textContent=vnd(q*+tr.dataset.price); }
-    });
-    document.getElementById('qtyAll').textContent=n;
-    calc();
-  }
-  document.querySelectorAll('.cart-qty-form').forEach(f=>{
-    const inp=f.querySelector('input[name="qty"]'), err=f.querySelector('.qty-err'), tr=f.closest('tr');
-    let timer;
-    async function save(){
-      const max=+inp.max||99, q=Math.min(max, Math.max(1, parseInt(inp.value)||1));
-      inp.value=q;
-      if(String(q)===inp.dataset.last){ err.textContent=''; return; }
-      try{
-        const r=await (await fetch(f.action,{method:'POST',headers:{'X-Requested-With':'fetch','Content-Type':'application/x-www-form-urlencoded'},body:'qty='+q})).json();
-        if(r.ok){ inp.dataset.last=r.qty; err.textContent=''; recount(); checkAvail(); if(cIn.value) applyCode(); }
-        else { inp.value=inp.dataset.last; err.textContent=r.error; }
-      }catch(_){ inp.value=inp.dataset.last; err.textContent='Không lưu được, thử lại.'; }
-    }
-    f.querySelectorAll('button[data-d]').forEach(b=>b.addEventListener('click',()=>{
-      const max=+inp.max||99;
-      inp.value=Math.min(max, Math.max(1,(parseInt(inp.value)||1)+ +b.dataset.d));
-      clearTimeout(timer); timer=setTimeout(save,350);      // bấm liên tục thì chỉ lưu 1 lần
-    }));
-    inp.addEventListener('change',save);
-    f.addEventListener('submit',ev=>{ ev.preventDefault(); save(); });
-  });
-
-  // Hiện/ẩn ô địa chỉ theo hình thức nhận
-  const addrBox=document.getElementById('addrBox'), addr=document.getElementById('DeliveryAddress');
-  document.querySelectorAll('input[name="DeliveryMethod"]').forEach(r=>{
-    r.addEventListener('change',()=>{
-      const giao=document.getElementById('delivery').checked;
-      addrBox.style.display=giao?'block':'none';
-      addr.required=giao;
-    });
-  });
-
-  // Quy định SĐT và CCCD (máy chủ cũng kiểm tra lại)
-  const phone=document.getElementById('CustomerPhone'), cccd=document.getElementById('CustomerIDCard');
-  const normPhone=v=>{ v=v.replace(/[\s.\-()]/g,''); if(v.startsWith('+84')) v='0'+v.slice(3); else if(/^84\d{9}$/.test(v)) v='0'+v.slice(2); return v; };
-  const checkPhone=()=>phone.setCustomValidity(/^0(3|5|7|8|9)\d{8}$/.test(normPhone(phone.value))?'':'invalid');
-  const checkCCCD=()=>{ const v=cccd.value, p=parseInt(v.slice(0,3),10);
-    cccd.setCustomValidity(/^\d{12}$/.test(v)&&p>=1&&p<=96?'':'invalid'); };
-  function checkDates(){ const d=Math.round((new Date(e.value)-new Date(s.value))/86400000);
-    e.setCustomValidity(d>=1&&d<=MAXD?'':'invalid'); }
-  cccd.addEventListener('input',()=>{ cccd.value=cccd.value.replace(/\D/g,'').slice(0,12); checkCCCD(); });
-  phone.addEventListener('input',checkPhone);
-
-  const form=document.getElementById('bookForm');
-  form.addEventListener('submit',ev=>{
-    checkPhone(); checkCCCD(); checkDates();
-    if(!form.checkValidity() || !availOk){
-      ev.preventDefault();
-      form.classList.add('was-validated');
-      const first=form.querySelector(':invalid');
-      if(first) first.focus(); else box.scrollIntoView({block:'center'});
-    }
-  });
-})();
+// Đổi số lượng: lưu vào giỏ rồi tải lại để cập nhật tiền (bước này chưa có gì phải điền nên không mất dữ liệu)
+document.querySelectorAll('.cart-qty-form').forEach(f => {
+  const inp = f.querySelector('input[name="qty"]'), err = f.closest('.ci-main').querySelector('.qty-err');
+  let timer;
+  const save = async () => {
+    const max = +inp.max || 99, q = Math.min(max, Math.max(1, parseInt(inp.value) || 1));
+    inp.value = q;
+    if (String(q) === inp.dataset.last) return;
+    try {
+      const r = await (await fetch(f.action, { method: 'POST', headers: { 'X-Requested-With': 'fetch', 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'qty=' + q })).json();
+      if (r.ok) location.reload(); else { inp.value = inp.dataset.last; err.textContent = r.error; }
+    } catch (_) { inp.value = inp.dataset.last; err.textContent = 'Không lưu được, thử lại.'; }
+  };
+  f.querySelectorAll('button[data-d]').forEach(b => b.addEventListener('click', () => {
+    inp.value = Math.min(+inp.max || 99, Math.max(1, (parseInt(inp.value) || 1) + +b.dataset.d));
+    clearTimeout(timer); timer = setTimeout(save, 400);
+  }));
+  inp.addEventListener('change', save);
+  f.addEventListener('submit', ev => { ev.preventDefault(); save(); });
+});
 </script>
 <% } %>

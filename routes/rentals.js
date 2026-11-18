@@ -9,9 +9,17 @@ router.post('/', requireLogin, uploadIDCard.single('IDCardImage'), c.create);
 
 // Danh sách đơn (cần đăng nhập)
 router.get('/', requireLogin, c.index);
+// Nhân viên: việc cần làm hôm nay (đóng đơn, giao, thu hồi, giặt)
+router.get('/today', requireStaff, c.today);
 
 // Nhân viên: giao đồ / nhận trả
 router.post('/:id/handover', requireStaff, c.handover);
+router.post('/:id/ship', requireStaff, c.ship);                // đã đóng đơn, giao shipper (nhập mã vận đơn)
+router.get('/:id/slip', requireStaff, c.slip);                 // phiếu đơn để in
+// Khách (chủ đơn) hoặc nhân viên: đã nhận đồ / đã gửi trả (kiểm tra quyền trong controller)
+router.post('/:id/delivered', requireLogin, c.delivered);
+router.post('/:id/sent-back', requireLogin, c.sentBack);
+router.post('/:id/paid', requireLogin, c.claimTransfer);       // khách: "Tôi đã chuyển khoản"
 router.post('/:id/deposit', requireStaff, c.confirmDeposit);   // xác nhận đã nhận cọc (Chờ cọc -> Đã cọc)
 router.get('/:id/return', requireStaff, c.returnForm);
 router.post('/:id/return', requireStaff, c.receiveReturn);

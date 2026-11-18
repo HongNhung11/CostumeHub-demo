@@ -1,0 +1,286 @@
+<%
+  // BƯỚC 2: ĐẶT THUÊ & GIAO NHẬN — ngày thuê (lịch), người thuê, nhận đồ, mã giảm giá, thanh toán
+  const pad = n => String(n).padStart(2, '0');
+  const d2s = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  const vnd = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
+  const o = (k, d = '') => (old && old[k] !== undefined ? old[k] : d);
+  const zoneSel = ZONES[o('DeliveryZone', rentZone)] ? o('DeliveryZone', rentZone) : 'pickup';
+  const giao = ZONES[zoneSel].delivery;
+  let pricePerDay = 0, depositAll = 0, qtyAll = 0;
+  lines.forEach(l => { pricePerDay += priceOf(l.product) * l.qty; depositAll += Number(l.product.DepositValue) * l.qty; qtyAll += l.qty; });
+  const startV = o('StartDate', rentDates ? rentDates.start : ''), endV = o('EndDate', rentDates ? rentDates.end : '');
+%>
+<%- include('../partials/checkout-steps', { step: 2 }) %>
+
+<form method="POST" action="/rentals" enctype="multipart/form-data" id="bookForm" novalidate>
+  <input type="hidden" id="pricePerDay" value="<%= pricePerDay %>">
+  <input type="hidden" id="depositAll" value="<%= depositAll %>">
+  <div class="row g-4">
+
+    <!-- ===== Cột trái: sản phẩm thuê + ngày thuê + người thuê ===== -->
+    <div class="col-lg-7 col-xl-8">
+      <div class="card co-panel mb-4">
+        <div class="co-panel-head">
+          <h5 class="font-serif mb-0">Tất cả sản phẩm thuê <span class="text-muted fs-6">(<%= qtyAll %> món)</span></h5>
+          <a href="/cart" class="small"><i class="bi bi-pencil"></i> Sửa giỏ</a>
+        </div>
+
+        <!-- Ngày thuê: 1 lịch, bấm ngày nhận rồi ngày trả (chung cho cả đơn) -->
+        <div class="co-dates">
+          <div>
+            <div class="fw-semibold"><i class="bi bi-calendar-range"></i> Thời gian thuê</div>
+            <div class="small text-muted" id="datesHint">Chọn ngày nhận và ngày trả</div>
+          </div>
+          <div class="rp" id="coPicker" data-min="<%= d2s(new Date(Date.now() + ZONES[zoneSel].days * 864e5)) %>" data-max-days="<%= MAX_RENT_DAYS %>">
+            <input type="hidden" name="StartDate" id="StartDate" class="rp-start" value="<%= startV %>">
+            <input type="hidden" name="EndDate" id="EndDate" class="rp-end" value="<%= endV %>">
+            <button type="button" class="rp-trigger" aria-label="Chọn ngày nhận và ngày trả">
+              <span class="rp-label-start">Từ ngày</span><span class="rp-sep">–</span><span class="rp-label-end">Đến ngày</span>
+              <i class="bi bi-calendar3"></i>
+            </button>
+          </div>
+        </div>
+        <div id="availBox" class="small px-1"></div>
+
+        <!-- Các món -->
+        <% lines.forEach(l => { const p = l.product; const sale = saleOf(p) !== null; %>
+          <div class="co-item" data-key="<%= lineKey(l) %>">
+            <% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="" onerror="this.style.visibility='hidden'"><% } else { %><span class="co-noimg"></span><% } %>
+            <div class="flex-grow-1 min-w-0">
+              <div class="d-flex justify-content-between gap-2 flex-wrap">
+                <a href="/products/<%= p.ProductID %>" class="co-item-name"><%= p.ProductName %></a>
+                <b class="co-item-total"><%= vnd(priceOf(p) * l.qty) %><small>/ngày</small></b>
+              </div>
+              <div class="small mt-1">
+                Thuê: <% if (sale) { %><s class="text-muted"><%= vnd(p.Price) %></s> <% } %><b><%= vnd(priceOf(p)) %></b>/ngày
+                <span class="text-muted mx-1">|</span> Số lượng: <b><%= l.qty %></b>
+                <span class="text-muted mx-1">|</span> Cọc: <%= vnd(Number(p.DepositValue) * l.qty) %>
+              </div>
+              <div class="co-chips">
+                <span class="co-chip"><%= l.size %></span>
+                <span class="co-chip co-color" title="<%= l.color %>"><i style="background:<%= colorHex(l.color) %>"></i><%= l.color %></span>
+                <span class="co-chip co-range js-range">Chưa chọn ngày thuê</span>
+              </div>
+              <div class="small avail-msg"></div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+
+      <!-- Người thuê -->
+      <div class="card co-panel">
+        <div class="co-panel-head"><h5 class="font-serif mb-0">Thông tin người thuê</h5>
+          <% if (!profile.phone || !profile.address) { %><a href="/account#thong-tin" class="small">Lưu để lần sau tự điền</a><% } %></div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Họ tên <span class="text-danger">*</span></label>
+            <input name="CustomerName" class="form-control" required minlength="2" maxlength="100" value="<%= o('CustomerName', currentUser.fullName || '') %>">
+            <div class="invalid-feedback">Vui lòng nhập họ tên.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Số điện thoại <span class="text-danger">*</span></label>
+            <input type="tel" name="CustomerPhone" id="CustomerPhone" class="form-control" required inputmode="tel" placeholder="VD: 0912345678" maxlength="15" value="<%= o('CustomerPhone', profile.phone || '') %>">
+            <div class="invalid-feedback">Gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Số CCCD <span class="text-danger">*</span></label>
+            <input name="CustomerIDCard" id="CustomerIDCard" class="form-control" required inputmode="numeric" placeholder="12 chữ số trên thẻ CCCD" maxlength="12" value="<%= o('CustomerIDCard', profile.idCardNumber || '') %>">
+            <div class="invalid-feedback">CCCD gồm đúng 12 chữ số (3 số đầu là mã tỉnh 001–096).</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Ảnh chụp CCCD <span class="text-muted">(không bắt buộc)</span></label>
+            <input type="file" name="IDCardImage" accept="image/*" class="form-control">
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-muted" for="CustomerAddress">Địa chỉ <span class="text-danger">*</span></label>
+            <input name="CustomerAddress" id="CustomerAddress" class="form-control" required minlength="10" maxlength="255" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP" value="<%= o('CustomerAddress', profile.address || '') %>">
+            <div class="invalid-feedback">Vui lòng nhập địa chỉ (ít nhất 10 ký tự).</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-muted">Ghi chú cho đơn <span class="text-muted">(không bắt buộc)</span></label>
+            <textarea name="Note" class="form-control" rows="2" maxlength="500" placeholder="VD: giao giờ hành chính, gọi trước khi giao..."><%= o('Note') %></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Cột phải: nhận đồ, mã giảm giá, thanh toán, tổng tiền ===== -->
+    <div class="col-lg-5 col-xl-4">
+      <div class="card co-side">
+        <!-- Nhận đồ -->
+        <div class="co-sec">
+          <div class="co-label">Phương thức nhận đồ</div>
+          <div class="co-zones">
+            <% Object.entries(ZONES).forEach(([k, z]) => { %>
+              <input type="radio" class="btn-check" name="DeliveryZone" value="<%= k %>" id="zone-<%= k %>" data-days="<%= z.days %>" data-delivery="<%= z.delivery ? 1 : 0 %>" <%= zoneSel === k ? 'checked' : '' %>>
+              <label class="co-opt" for="zone-<%= k %>">
+                <i class="bi <%= k === 'pickup' ? 'bi-shop' : k === 'local' ? 'bi-scooter' : 'bi-truck' %>"></i>
+                <span><b><%= z.short %></b><small><%= z.note %></small></span>
+              </label>
+            <% }) %>
+          </div>
+          <div class="small mt-2" id="shipNote"></div>
+          <div class="mt-2" id="addrBox" style="display:<%= giao ? 'block' : 'none' %>">
+            <div class="co-label">Giao tới</div>
+            <input name="DeliveryAddress" id="DeliveryAddress" class="form-control" minlength="10" maxlength="255" <%= giao ? 'required' : '' %> value="<%= o('DeliveryAddress') %>" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP">
+            <div class="invalid-feedback">Nhập địa chỉ giao đầy đủ (ít nhất 10 ký tự).</div>
+          </div>
+        </div>
+
+        <!-- Mã giảm giá -->
+        <div class="co-sec">
+          <div class="co-label">Mã giảm giá</div>
+          <div class="input-group co-coupon">
+            <span class="input-group-text"><i class="bi bi-tag"></i></span>
+            <input name="CouponCode" id="CouponCode" class="form-control text-uppercase" maxlength="30" placeholder="Nhập mã khuyến mãi" value="<%= o('CouponCode', savedCoupon) %>" autocomplete="off">
+            <button type="button" class="btn btn-outline-secondary" id="btnCoupon">Áp dụng</button>
+          </div>
+          <div class="small mt-1" id="couponMsg"></div>
+          <% if (coupons.length) { %>
+            <div class="d-flex flex-wrap gap-1 mt-2">
+              <% coupons.forEach(c => { %><button type="button" class="coupon-pick" data-code="<%= c.code %>" title="<%= c.text %>"><span class="coupon-code"><%= c.code %></span></button><% }) %>
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Tiền thuê -->
+        <div class="co-sec">
+          <div class="cs-row"><span class="text-muted">Giá thuê <span id="sumDaysTxt"></span></span><b id="sumRent">0 đ</b></div>
+          <div class="cs-row"><span class="text-muted">Giảm giá <span id="discCode" class="small"></span></span><b id="sumDisc">0 đ</b></div>
+        </div>
+
+        <!-- Thanh toán -->
+        <div class="co-sec">
+          <div class="co-label">Hình thức thanh toán</div>
+          <div class="co-pays">
+            <input type="radio" class="btn-check" name="method" value="COD" id="pay-cod" <%= o('method', 'COD') !== 'Chuyển khoản' ? 'checked' : '' %>>
+            <label class="co-opt" for="pay-cod"><i class="bi bi-cash-stack"></i><span><b>Thanh toán khi nhận đồ (COD)</b><small>Trả tại cửa hàng hoặc cho shipper</small></span></label>
+            <input type="radio" class="btn-check" name="method" value="Chuyển khoản" id="pay-bank" <%= o('method') === 'Chuyển khoản' ? 'checked' : '' %>>
+            <label class="co-opt" for="pay-bank"><i class="bi bi-bank"></i><span><b>Chuyển khoản</b><small>Chuyển trong 5 phút sau khi đặt</small></span></label>
+          </div>
+        </div>
+
+        <!-- Tổng -->
+        <div class="co-sec co-total">
+          <div class="cs-row"><span>Tổng tiền thuê</span><b class="co-accent" id="sumRentNet">0 đ</b></div>
+          <div class="cs-row"><span>Tổng tiền cọc <small class="text-muted">(hoàn lại)</small></span><b class="co-accent" id="sumDeposit">0 đ</b></div>
+          <div class="cs-row co-grand"><span>Tổng thanh toán</span><b id="sumTotal">0 đ</b></div>
+          <div class="form-check small my-3">
+            <input class="form-check-input" type="checkbox" name="agree" value="1" id="agree" required <%= o('agree') === '1' ? 'checked' : '' %>>
+            <label class="form-check-label" for="agree">Tôi đồng ý <a href="/noi-quy" target="_blank" rel="noopener">nội quy thuê đồ &amp; bảng trừ phí</a>.</label>
+            <div class="invalid-feedback">Vui lòng đồng ý nội quy trước khi đặt.</div>
+          </div>
+          <button class="btn btn-dark btn-lg w-100 co-cta" id="btnBook">Đặt thuê</button>
+          <div class="text-center small text-muted mt-2"><i class="bi bi-shield-check"></i> Tiền cọc hoàn lại khi trả đồ nguyên vẹn</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script src="/js/range-picker.js"></script>
+<script>
+(function(){
+  const s=document.getElementById('StartDate'), e=document.getElementById('EndDate'), picker=document.getElementById('coPicker'), MAXD=<%= MAX_RENT_DAYS %>;
+  const vnd=n=>n.toLocaleString('vi-VN')+' đ';
+  const viD=v=>v?v.split('-').reverse().join('/'):'';
+  const days=()=>{ if(!s.value||!e.value) return 0; const d=Math.round((new Date(e.value)-new Date(s.value))/86400000); return d>=1?d:0; };
+  const price=+document.getElementById('pricePerDay').value, dep=+document.getElementById('depositAll').value;
+  let disc=0;   // số tiền giảm của mã đang áp dụng (tính lại khi đổi ngày)
+  function calc(){
+    const d=days();
+    document.getElementById('sumDaysTxt').textContent=d?`(${vnd(price)} × ${d} ngày)`:'(chưa chọn ngày)';
+    document.getElementById('sumRent').textContent=vnd(price*d);
+    document.getElementById('sumDisc').textContent=(disc?'- ':'')+vnd(disc);
+    document.getElementById('sumRentNet').textContent=vnd(price*d-disc);
+    document.getElementById('sumDeposit').textContent=vnd(dep);
+    document.getElementById('sumTotal').textContent=vnd(price*d-disc+dep);
+    const txt=d?`Thuê từ ${viD(s.value)} đến ${viD(e.value)}`:'Chưa chọn ngày thuê';
+    document.querySelectorAll('.js-range').forEach(c=>{ c.textContent=txt; c.classList.toggle('is-empty',!d); });
+    document.getElementById('datesHint').textContent=d?`${d} ngày thuê`:'Chọn ngày nhận và ngày trả';
+  }
+
+  // Mã giảm giá (chỉ giảm tiền thuê, không đụng tiền cọc)
+  const cIn=document.getElementById('CouponCode'), cMsg=document.getElementById('couponMsg');
+  async function applyCode(){
+    const code=cIn.value.trim().toUpperCase(); cIn.value=code;
+    disc=0; document.getElementById('discCode').textContent=code?`(${code})`:'';
+    if(!code){ cMsg.textContent=''; calc(); return; }
+    if(!days()){ cMsg.className='small mt-1 text-muted'; cMsg.textContent='Chọn ngày thuê để tính giảm giá.'; calc(); return; }
+    try{
+      const r=await (await fetch(`/cart/coupon?code=${encodeURIComponent(code)}&start=${s.value}&end=${e.value}`)).json();
+      if(r.ok){ disc=r.discount; cMsg.className='small mt-1 text-success'; cMsg.innerHTML=`<i class="bi bi-check-circle"></i> Đã áp dụng ${r.code}: giảm ${vnd(r.discount)} tiền thuê.`; }
+      else { cMsg.className='small mt-1 text-danger'; cMsg.innerHTML=`<i class="bi bi-exclamation-circle"></i> ${r.error}`; }
+    }catch(_){ cMsg.textContent=''; }
+    calc();
+  }
+  document.getElementById('btnCoupon').addEventListener('click',applyCode);
+  cIn.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); applyCode(); } });
+  cIn.addEventListener('input',()=>{ if(disc){ disc=0; cMsg.textContent='Bấm "Áp dụng" để kiểm tra mã.'; cMsg.className='small mt-1 text-muted'; calc(); } });
+  document.querySelectorAll('.coupon-pick').forEach(b=>b.addEventListener('click',()=>{ cIn.value=b.dataset.code; applyCode(); }));
+
+  // Còn trống theo ngày + nơi nhận (chống trùng lịch, có tính ngày vận chuyển)
+  const box=document.getElementById('availBox');
+  let availOk=true;
+  async function checkAvail(){
+    document.querySelectorAll('.avail-msg').forEach(m=>m.textContent='');
+    box.innerHTML='';
+    if(!days()) return;
+    try{
+      const zone=(document.querySelector('input[name="DeliveryZone"]:checked')||{}).value||'pickup';
+      const r=await (await fetch(`/cart/availability?start=${s.value}&end=${e.value}&zone=${zone}`)).json();
+      availOk=r.ok;
+      if(r.error){ box.innerHTML=`<div class="co-alert is-bad"><i class="bi bi-exclamation-circle"></i> ${r.error}</div>`; availOk=false; return; }
+      document.querySelectorAll('.co-item[data-key]').forEach(it=>{
+        const info=r.lines[it.dataset.key], m=it.querySelector('.avail-msg');
+        if(!info||!m) return;
+        const okL=info.need<=info.available;
+        m.className='small avail-msg '+(okL?'text-success':'text-danger');
+        m.innerHTML=okL?'<i class="bi bi-check-circle"></i> Còn trống':(info.available===0?'<i class="bi bi-x-circle"></i> Đã có khách thuê trong những ngày này':'<i class="bi bi-x-circle"></i> Không đủ số bộ trống — giảm số lượng hoặc đổi ngày');
+      });
+      if(!r.ok) box.innerHTML='<div class="co-alert is-bad"><i class="bi bi-exclamation-circle"></i> Có món không đủ bộ trống — vui lòng đổi ngày hoặc sửa giỏ.</div>';
+    }catch(_){ availOk=true; }
+  }
+
+  // Nơi nhận đồ: ô địa chỉ giao, ngày nhận sớm nhất (lịch tự khóa), giải thích ngày gửi / trả
+  const addrBox=document.getElementById('addrBox'), addr=document.getElementById('DeliveryAddress'), shipNote=document.getElementById('shipNote');
+  const TODAY='<%= d2s(today) %>';
+  const addD=(v,n)=>{ const [y,m,d]=v.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,d+n)); return t.toISOString().slice(0,10); };
+  function onZone(){
+    const z=document.querySelector('input[name="DeliveryZone"]:checked'); if(!z) return;
+    const days_=+z.dataset.days, deli=z.dataset.delivery==='1';
+    addrBox.style.display=deli?'block':'none'; addr.required=deli;
+    const home=document.getElementById('CustomerAddress');
+    if(deli && !addr.value.trim() && home && home.value.trim()) addr.value=home.value.trim();
+    picker.dataset.min=addD(TODAY,days_);          // lịch khóa những ngày không kịp giao
+    shipNote.className='small mt-2 '+(days_?'ship-note':'text-muted');
+    shipNote.innerHTML = !days_ ? 'Nhận và trả đồ tại cửa hàng (8:00 – 21:00).'
+      : `<i class="bi bi-info-circle"></i> Vận chuyển ${days_} ngày mỗi chiều${s.value?`: shop gửi đồ ngày <b>${viD(addD(s.value,-days_))}</b>`:''}. Ngày trả là ngày bạn <b>gửi đồ đi</b>. Ngày nhận sớm nhất: <b>${viD(addD(TODAY,days_))}</b>.`;
+  }
+  document.querySelectorAll('input[name="DeliveryZone"]').forEach(r=>r.addEventListener('change',()=>{ onZone(); checkAvail(); }));
+  picker.addEventListener('rp:change',()=>{ calc(); onZone(); checkAvail(); if(cIn.value) applyCode(); });
+  calc(); onZone(); checkAvail(); if(cIn.value) applyCode();
+
+  // SĐT, CCCD (máy chủ cũng kiểm tra lại)
+  const phone=document.getElementById('CustomerPhone'), cccd=document.getElementById('CustomerIDCard');
+  const normPhone=v=>{ v=v.replace(/[\s.\-()]/g,''); if(v.startsWith('+84')) v='0'+v.slice(3); else if(/^84\d{9}$/.test(v)) v='0'+v.slice(2); return v; };
+  const checkPhone=()=>phone.setCustomValidity(/^0(3|5|7|8|9)\d{8}$/.test(normPhone(phone.value))?'':'invalid');
+  const checkCCCD=()=>{ const v=cccd.value, p=parseInt(v.slice(0,3),10); cccd.setCustomValidity(/^\d{12}$/.test(v)&&p>=1&&p<=96?'':'invalid'); };
+  cccd.addEventListener('input',()=>{ cccd.value=cccd.value.replace(/\D/g,'').slice(0,12); checkCCCD(); });
+  phone.addEventListener('input',checkPhone);
+
+  const form=document.getElementById('bookForm');
+  form.addEventListener('submit',ev=>{
+    checkPhone(); checkCCCD();
+    const d=days(), noDates=!d||d>MAXD;
+    picker.classList.toggle('is-invalid',noDates);
+    if(noDates || !form.checkValidity() || !availOk){
+      ev.preventDefault();
+      form.classList.add('was-validated');
+      if(noDates){ box.innerHTML='<div class="co-alert is-bad"><i class="bi bi-calendar-x"></i> Vui lòng chọn ngày nhận và ngày trả.</div>'; picker.scrollIntoView({block:'center'}); return; }
+      const first=form.querySelector(':invalid'); if(first) first.focus(); else box.scrollIntoView({block:'center'});
+    }
+  });
+})();
+</script>

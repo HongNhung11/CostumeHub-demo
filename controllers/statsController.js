@@ -11,7 +11,7 @@ const { todayStr } = require('../utils/dates');
 const num = (v) => Number(v) || 0;
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => { const t = new Date(d); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`; };
-const STATUSES = ['Chờ cọc', 'Đã cọc', 'Đang thuê', 'Hoàn tất', 'Đã hủy'];
+const STATUSES = require('../utils/rentalFlow').ORDER;
 
 exports.index = async (req, res) => {
   const rentals = await Rental.findAll({ include: [{ model: RentalItem, as: 'items' }] });

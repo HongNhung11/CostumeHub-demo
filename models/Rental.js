@@ -13,6 +13,15 @@ const Rental = sequelize.define('Rental', {
   CustomerIDCard: { type: DataTypes.STRING },             // số CCCD (sau này OCR tự điền)
   IDCardImage: { type: DataTypes.STRING },                // ảnh chụp CCCD
   DeliveryMethod: { type: DataTypes.STRING, defaultValue: 'Tự đến lấy' }, // Tự đến lấy / Giao tận nơi
+  DeliveryZone: { type: DataTypes.STRING(20), allowNull: true },  // pickup | local | province (utils/shipping.js)
+  ShipDays: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 0 },   // số ngày vận chuyển mỗi chiều (lưu lại lúc đặt)
+  // Giao — nhận đồ (đơn giao tận nơi)
+  Carrier: { type: DataTypes.STRING(50), allowNull: true },             // đơn vị vận chuyển chiều đi
+  TrackingCode: { type: DataTypes.STRING(50), allowNull: true },        // mã vận đơn chiều đi
+  ShippedAt: { type: DataTypes.DATEONLY, allowNull: true },             // ngày giao cho shipper
+  ReturnTrackingCode: { type: DataTypes.STRING(50), allowNull: true },  // mã vận đơn khách gửi trả
+  ReturnSentDate: { type: DataTypes.DATEONLY, allowNull: true },        // ngày khách gửi trả (tính trễ theo ngày này)
+  TransferClaimedAt: { type: DataTypes.DATE, allowNull: true },         // lúc khách bấm "Tôi đã chuyển khoản"
   DeliveryAddress: { type: DataTypes.STRING },            // địa chỉ nhận (nếu giao tận nơi)
   CustomerAddress: { type: DataTypes.STRING(255), allowNull: true },   // địa chỉ liên hệ của khách (bắt buộc khi đặt)
 

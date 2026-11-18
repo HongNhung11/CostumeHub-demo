@@ -104,27 +104,8 @@
       <% if (!canRent) { %>
         <div class="alert alert-warning">Sản phẩm hiện <strong><%= product.Status %></strong>, chưa thể đặt thuê. Vui lòng chọn mẫu khác.</div>
       <% } else { %>
-        <!-- Ô chọn lịch thuê: chỉ báo còn trống / đã kín khi khách chọn ngày -->
-        <form method="GET" action="/products/<%= product.ProductID %>" class="pd-rentbox">
-          <div class="pd-rentbox-left">
-            <div class="fw-semibold"><i class="bi bi-calendar-range"></i> Chọn lịch thuê</div>
-            <% if (dates && avail) { %>
-              <% if (avail.free > 0) { %>
-                <div class="small text-success"><i class="bi bi-check-circle-fill"></i> <%= sizes.length > 1 ? 'Còn size ' + avail.freeSizes.join(', ') : 'Còn trống' %></div>
-              <% } else { %>
-                <div class="small text-danger"><i class="bi bi-x-circle-fill"></i> Đã kín lịch, chọn ngày khác</div>
-              <% } %>
-            <% } else { %>
-              <div class="small text-muted">Xem size nào còn trống</div>
-            <% } %>
-          </div>
-          <div class="pd-range">
-            <input type="date" name="start" id="cStart" min="<%= ymd(new Date()) %>" value="<%= dates ? dates.start : '' %>" required aria-label="Từ ngày">
-            <span>–</span>
-            <input type="date" name="end" id="cEnd" min="<%= ymd(new Date(Date.now() + 864e5)) %>" value="<%= dates ? dates.end : '' %>" required aria-label="Đến ngày">
-            <button class="pd-range-btn" title="Kiểm tra lịch trống" aria-label="Kiểm tra lịch trống"><i class="bi bi-search"></i></button>
-          </div>
-        </form>
+        <!-- Form kiểm tra lịch (GET): ô lịch nằm dưới "Số lượng", các ô nhập gắn vào form này qua thuộc tính form="rentForm" -->
+        <form method="GET" action="/products/<%= product.ProductID %>" id="rentForm" hidden></form>
 
         <!-- Chọn màu / size / số lượng rồi thêm vào giỏ thuê -->
         <form method="POST" action="/cart/add" id="addCartForm" novalidate>
@@ -171,10 +152,44 @@
             </div>
           </div>
 
+          <!-- Ô chọn lịch thuê (ngay dưới Số lượng): chỉ báo còn trống / đã kín khi khách chọn ngày.
+               Các ô nhập thuộc form GET #rentForm (thuộc tính form="rentForm"), không gửi kèm khi thêm vào giỏ -->
+          <div class="pd-rentbox">
+            <div class="pd-rentbox-left">
+              <div class="fw-semibold"><i class="bi bi-calendar-range"></i> Chọn lịch thuê</div>
+              <% if (tooSoon) { %>
+                <div class="small text-danger"><i class="bi bi-exclamation-circle-fill"></i> <%= tooSoon %></div>
+              <% } else if (dates && avail) { %>
+                <%# Size nào hết lịch thì nút size mờ đi + dấu ×; chỉ báo ở đây khi kín hết %>
+                <% if (avail.free <= 0) { %><div class="small text-danger"><i class="bi bi-x-circle-fill"></i> Đã kín lịch, chọn ngày khác</div><% } %>
+              <% } else { %>
+                <div class="small text-muted">Chọn ngày để xem size còn trống</div>
+              <% } %>
+            </div>
+            <%# 1 lịch: bấm ngày nhận rồi ngày trả, "Áp dụng" -> gửi #rentForm (public/js/range-picker.js) %>
+            <div class="rp pd-range" data-min="<%= ymd(new Date(Date.now() + SHIP.ZONES[zoneKey].days * 864e5)) %>" data-max-days="<%= MAX_RENT_DAYS %>" data-submit="1" data-form="rentForm">
+              <input type="hidden" name="start" form="rentForm" id="cStart" class="rp-start" value="<%= dates ? dates.start : '' %>">
+              <input type="hidden" name="end" form="rentForm" id="cEnd" class="rp-end" value="<%= dates ? dates.end : '' %>">
+              <button type="button" class="rp-trigger" aria-label="Chọn ngày nhận và ngày trả">
+                <span class="rp-label-start">Từ ngày</span><span class="rp-sep">–</span><span class="rp-label-end">Đến ngày</span>
+                <i class="bi bi-calendar3"></i>
+              </button>
+            </div>
+            <%# Nơi nhận đồ: giao xa thì lịch tự cộng ngày vận chuyển + khóa ngày không kịp giao %>
+            <div class="pd-zone">
+              <span class="pd-zone-label">Nhận đồ:</span>
+              <% Object.entries(SHIP.ZONES).forEach(([k, z]) => { %>
+                <input type="radio" class="btn-check" name="zone" form="rentForm" value="<%= k %>" id="pz-<%= k %>" <%= zoneKey === k ? 'checked' : '' %>>
+                <label class="pd-zone-opt" for="pz-<%= k %>" title="<%= z.note %>"><%= z.short %><% if (z.days) { %> <small>+<%= z.days %> ngày</small><% } %></label>
+              <% }) %>
+            </div>
+          </div>
+
           <div class="pd-buy-row">
             <button class="btn pd-btn pd-btn-add need-combo"><i class="bi bi-bag-plus"></i> Thêm vào giỏ</button>
             <button class="btn pd-btn pd-btn-buy need-combo" name="buyNow" value="1">Thuê ngay</button>
           </div>
+          <% if (!currentUser) { %><div class="small text-muted mt-2"><i class="bi bi-info-circle"></i> Thêm vào giỏ không cần đăng nhập · <strong>Thuê ngay / đặt thuê cần <a href="/login?next=<%= encodeURIComponent(reqUrl) %>">đăng nhập</a></strong></div><% } %>
           <% if (inCart) { %><div class="small text-muted mt-2"><i class="bi bi-bag-check"></i> Giỏ đã có <%= inCart %> <%= product.Unit %> mẫu này · <a href="/cart">Xem giỏ</a></div><% } %>
         </form>
       <% } %>
@@ -185,7 +200,7 @@
         <div class="pd-steps-row">
           <% [
             ['bi-calendar-check', 'Chọn ngày & size'],
-            ['bi-wallet2', 'Cọc giữ chỗ trong 24h'],
+            ['bi-wallet2', 'Thanh toán COD / chuyển khoản'],
             ['bi-bag-heart', 'Nhận đồ, thử ngay'],
             ['bi-arrow-repeat', 'Trả đồ, nhận lại cọc'],
           ].forEach(([icon, text], i) => { %>
@@ -336,18 +351,13 @@
 <% if (canRent) { %>
 <script>
 (function () {
-  // Ngày trả luôn sau ngày nhận, tối đa <%= MAX_RENT_DAYS %> ngày
-  const s = document.getElementById('cStart'), e = document.getElementById('cEnd');
-  const add = (v, n) => { const d = new Date(v); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-  s.addEventListener('change', () => {
-    if (!s.value) return;
-    e.min = add(s.value, 1); e.max = add(s.value, <%= MAX_RENT_DAYS %>);
-    if (!e.value || e.value <= s.value || e.value > e.max) e.value = add(s.value, 1);
-  });
+  // Chọn ngày: xem lịch ở public/js/range-picker.js
+  // Đổi nơi nhận đồ -> tải lại trang để tính lịch trống có ngày vận chuyển (giữ ngày đã chọn)
+  document.querySelectorAll('.pd-zone input[name="zone"]').forEach(r => r.addEventListener('change', () => document.getElementById('rentForm').submit()));
 
   // Tồn kho theo size × màu: chọn size -> chỉ bật màu còn bộ của size đó (và ngược lại)
   const STOCK = <%- JSON.stringify(stock).replace(/</g, '\\u003c') %>;
-  const unit = <%- JSON.stringify(product.Unit).replace(/</g, '\\u003c') %>, hasDates = <%= dates ? 'true' : 'false' %>, STAFF = <%= staff ? 'true' : 'false' %>;
+  const unit = <%- JSON.stringify(product.Unit).replace(/</g, '\\u003c') %>, hasDates = <%= dates && !tooSoon ? 'true' : 'false' %>, STAFF = <%= staff ? 'true' : 'false' %>;
   const PRICE = '<%= vnd(priceOf(product)) %>';
   const form = document.getElementById('addCartForm');
   const qty = document.getElementById('qtyInput'), info = document.getElementById('comboInfo');
@@ -406,3 +416,5 @@
 </script>
 <% } %>
 </div><!-- /.pd-wrap -->
+
+<% if (canRent) { %><script src="/js/range-picker.js"></script><% } %>

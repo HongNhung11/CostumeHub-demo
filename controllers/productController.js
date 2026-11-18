@@ -212,11 +212,20 @@ exports.show = async (req, res) => {
   if (!product) return res.status(404).render('404', { title: 'Không tìm thấy' });
   const variants = await ProductVariant.findAll({ where: { ProductID: product.ProductID } });
   // Không hiện lịch đã thuê khi xem bình thường; khách chọn ngày thì mới báo còn trống / đã kín (theo size × màu)
+  // Khu vực nhận đồ khách chọn ngay trên ô lịch (nhớ trong phiên, giỏ thuê chọn sẵn theo)
+  const { ZONES, zoneKeyOf } = require('../utils/shipping');
+  if (req.query.zone) req.session.rentZone = zoneKeyOf(req.query.zone);
+  const zoneKey = zoneKeyOf(req.session.rentZone);
   const { dates, error: dateError } = rentDatesFrom(req);
   if (dateError) res.locals.error = [dateError];
-  const avail = dates && product.Status === 'Còn trống'
-    ? (await productAvailability([product], dates.start, dates.end))[product.ProductID]
+  // Giao xa mà ngày nhận quá sớm (không kịp gửi đồ) -> báo, không tính lịch trống
+  // (sai khu vực: không kịp gửi đồ / thuê ít hơn số ngày tối thiểu)
+  const tooSoon = dates ? require('../utils/shipping').checkZoneDates(ZONES[zoneKey], dates.start, dates.end) : null;
+  const avail = dates && !tooSoon && product.Status === 'Còn trống'
+    ? (await productAvailability([product], dates.start, dates.end, { shipDays: ZONES[zoneKey].days }))[product.ProductID]
     : null;
+  res.locals.zoneKey = zoneKey;
+  res.locals.tooSoon = tooSoon;
   // Bảng size × màu cho trang: số bộ shop có, số bộ còn trống (nếu đã chọn ngày), số bộ đã có trong giỏ
   const cart = req.session.cart || [];
   const freeOf = avail ? Object.fromEntries(avail.variants.map(v => [`${v.Size}|${v.Color}`, v.free])) : null;

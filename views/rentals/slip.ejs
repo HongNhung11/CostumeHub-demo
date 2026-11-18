@@ -1,0 +1,100 @@
+<%
+  const vnd = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
+  const vi = s => s ? s.split('-').reverse().join('/') : '';
+  const deli = FLOW.isDelivery(rental), cod = rental.PaymentMethod === FLOW.PAY.COD && !FLOW.isPaid(rental);
+  const zone = SHIP.zoneOf(rental.DeliveryZone || (deli ? 'local' : 'pickup'));
+%>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phiếu đơn #<%= rental.RentalID %> — CostumeHub</title>
+  <style>
+    *{ box-sizing:border-box; }
+    body{ font-family:Arial, Helvetica, sans-serif; color:#222; background:#f2f2f2; margin:0; padding:24px; font-size:14px; }
+    .slip{ max-width:720px; margin:0 auto; background:#fff; padding:28px 32px; border:1px solid #ddd; }
+    h1{ font-size:22px; letter-spacing:3px; margin:0; }
+    .head{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #222; padding-bottom:12px; margin-bottom:16px; }
+    .code{ font-size:28px; font-weight:700; text-align:right; }
+    .muted{ color:#666; font-size:12px; }
+    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    .box{ border:1px solid #ccc; padding:10px 12px; }
+    .box b.t{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#666; margin-bottom:4px; }
+    table{ width:100%; border-collapse:collapse; margin-bottom:16px; }
+    th, td{ border:1px solid #ccc; padding:7px 9px; text-align:left; }
+    th{ background:#f5f5f5; font-size:12px; }
+    td.c{ text-align:center; } td.chk{ width:70px; text-align:center; }
+    .cod{ border:2px solid #222; padding:10px 12px; font-size:18px; font-weight:700; text-align:center; margin-bottom:16px; }
+    .back{ background:#f7f7f7; border:1px dashed #999; padding:10px 14px; }
+    .back ol{ margin:6px 0 0; padding-left:18px; } .back li{ margin-bottom:3px; }
+    .actions{ max-width:720px; margin:0 auto 12px; display:flex; gap:8px; }
+    .actions button, .actions a{ padding:8px 16px; border:1px solid #222; background:#fff; cursor:pointer; text-decoration:none; color:#222; font-size:14px; }
+    @media print{ body{ background:#fff; padding:0; } .slip{ border:0; padding:0; } .actions{ display:none; } }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <button onclick="window.print()">🖨 In phiếu</button>
+    <a href="/rentals/<%= rental.RentalID %>">← Quay lại đơn</a>
+  </div>
+  <div class="slip">
+    <div class="head">
+      <div>
+        <h1>COSTUMEHUB</h1>
+        <div class="muted">Cho thuê trang phục · Hà Nội · Hotline 0123 456 789</div>
+      </div>
+      <div>
+        <div class="code">#<%= rental.RentalID %></div>
+        <div class="muted"><%= zone.label %></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="box">
+        <b class="t">Người nhận</b>
+        <strong><%= rental.CustomerName %></strong><br>
+        SĐT: <%= rental.CustomerPhone %><br>
+        <%= deli ? (rental.DeliveryAddress || rental.CustomerAddress || '') : 'Nhận tại cửa hàng' %>
+      </div>
+      <div class="box">
+        <b class="t">Thời gian thuê</b>
+        Nhận đồ: <strong><%= vi(rental.StartDate) %></strong><br>
+        <%= deli ? 'Gửi trả' : 'Trả đồ' %>: <strong><%= vi(rental.EndDate) %></strong> (<%= rental.RentDays %> ngày)<br>
+        <% if (deli) { %><span class="muted">Shop gửi đi: <%= vi(FLOW.shipDay(rental)) %><% if (rental.TrackingCode) { %> · <%= rental.Carrier %> <%= rental.TrackingCode %><% } %></span><% } %>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Trang phục</th><th>Size</th><th>Màu</th><th class="c">SL</th><th class="chk">Đã kiểm</th></tr></thead>
+      <tbody>
+        <% rental.items.forEach(it => { %>
+          <tr><td><%= it.ProductName %></td><td><%= it.Size || '—' %></td><td><%= it.Color || '—' %></td><td class="c"><%= it.Quantity %></td><td class="chk">☐</td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <% if (cod) { %>
+      <div class="cod">THU HỘ (COD): <%= vnd(FLOW.amountDue(rental)) %></div>
+    <% } else { %>
+      <div class="muted" style="margin-bottom:16px">Đã thanh toán <%= vnd(FLOW.amountDue(rental)) %> (tiền thuê + tiền cọc) — không thu thêm.</div>
+    <% } %>
+
+    <div class="back">
+      <strong>Hướng dẫn trả đồ</strong>
+      <ol>
+        <% if (deli) { %>
+          <li>Ngày <strong><%= vi(rental.EndDate) %></strong>: cho đồ vào lại túi / hộp này, kèm đủ phụ kiện.</li>
+          <li><%= zone.days > 1 ? 'Gọi đơn vị vận chuyển tới lấy hoặc gửi tại bưu cục' : 'Gọi shop để shipper tới lấy' %> — gửi tới: CostumeHub, Hà Nội · 0123 456 789.</li>
+          <li>Nhập <strong>mã vận đơn gửi trả</strong> trên trang đơn (costumehub → Đơn thuê → #<%= rental.RentalID %>) để không bị tính trễ.</li>
+        <% } else { %>
+          <li>Mang đồ đến cửa hàng trước 21:00 ngày <strong><%= vi(rental.EndDate) %></strong>, kèm đủ phụ kiện.</li>
+        <% } %>
+        <li>Không tự giặt, ủi hay sửa đồ — shop giặt hấp chuyên dụng.</li>
+        <li>Shop kiểm tra rồi hoàn cọc <strong><%= vnd(rental.Deposit) %></strong> (trừ phí trễ / hư hỏng nếu có).</li>
+      </ol>
+    </div>
+    <p class="muted" style="margin-top:14px">Người đóng gói: ____________ · Ngày: ____/____/______</p>
+  </div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 <%
   const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
-  const stCls = s => s==='Hoàn tất'?'success':(s==='Đã hủy'?'danger':(s==='Đang thuê'?'warning text-dark':(s==='Đã cọc'?'info text-dark':'secondary')));
+  const stCls = s => FLOW.cls(s);
   const vi = s => s ? s.split('-').reverse().join('/') : '';
   const link = (o) => {
     const p = new URLSearchParams();
@@ -12,13 +12,16 @@
     const s = p.toString();
     return '/rentals' + (s ? '?' + s : '');
   };
-  const tabs = [['', 'Tất cả', counts.all], ...STATUS_TABS.map(s => [s, s, counts[s]]), ['quahan', 'Quá hạn', counts.overdue]];
+  const tabs = [['', 'Tất cả', counts.all], ...STATUS_TABS.map(s => [s, FLOW.label(s), counts[s]]), ['quahan', 'Quá hạn', counts.overdue]];
 %>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h3 class="font-serif mb-0"><i class="bi bi-receipt" style="color:var(--gold)"></i> <%= isStaff ? 'Quản lý đơn thuê' : 'Đơn thuê của tôi' %>
     <span class="badge badge-soft"><%= counts.all %></span>
   </h3>
-  <a href="/products" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Thuê thêm</a>
+  <div class="d-flex gap-2">
+    <% if (isStaff) { %><a href="/rentals/today" class="btn btn-primary btn-sm"><i class="bi bi-list-check"></i> Việc hôm nay</a><% } %>
+    <a href="/products" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Thuê thêm</a>
+  </div>
 </div>
 
 <% if (counts.overdue) { %>
@@ -53,7 +56,7 @@
     <thead>
       <tr>
         <th>Mã</th><th>Trang phục</th><th>Khách</th><th>Thuê → Trả</th>
-        <th class="text-end">Tiền thuê</th><th class="text-end">Cọc</th><th>Trạng thái</th><th style="width:170px">Thao tác</th>
+        <th class="text-end">Tiền thuê</th><th class="text-end">Cọc</th><th>Trạng thái</th><th style="width:190px">Thao tác</th>
       </tr>
     </thead>
     <tbody>
@@ -74,7 +77,8 @@
           <td class="text-end"><%= vnd(Number(r.RentFee) - (Number(r.Discount) || 0)) %><% if (Number(r.Discount)) { %><div class="small text-success" title="Đã giảm <%= vnd(r.Discount) %>"><i class="bi bi-ticket-perforated"></i> <%= r.CouponCode %></div><% } %></td>
           <td class="text-end"><%= vnd(r.Deposit) %></td>
           <td>
-            <span class="badge bg-<%= stCls(r.Status) %>"><%= r.Status %></span>
+            <span class="badge bg-<%= stCls(r.Status) %>"><%= FLOW.label(r.Status) %></span>
+            <div class="small text-muted"><i class="bi <%= FLOW.isDelivery(r) ? 'bi-truck' : 'bi-shop' %>"></i> <%= r.PaymentMethod === FLOW.PAY.COD && !FLOW.isPaid(r) ? 'COD' : (FLOW.isPaid(r) ? 'Đã thanh toán' : 'Chưa thanh toán') %></div>
             <% if (r.alert) { %>
               <div class="small mt-1 fw-semibold text-<%= r.alert.level === 'info' ? 'primary' : r.alert.level %>">
                 <i class="bi <%= r.alert.overdue ? 'bi-exclamation-triangle-fill' : 'bi-bell' %>"></i> <%= r.alert.text %>
@@ -84,18 +88,28 @@
           <td>
             <a href="/rentals/<%= r.RentalID %>" class="btn btn-sm btn-outline-info" title="Xem"><i class="bi bi-eye"></i></a>
             <% if (isStaff && r.Status==='Chờ cọc') { %>
-              <form method="POST" action="/rentals/<%= r.RentalID %>/deposit" class="d-inline" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(r.Deposit) %> tiền cọc của đơn #<%= r.RentalID %>?')">
+              <form method="POST" action="/rentals/<%= r.RentalID %>/deposit" class="d-inline" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(FLOW.amountDue(r)) %> của đơn #<%= r.RentalID %>?')">
                 <input type="hidden" name="back" value="<%= reqUrl %>">
-                <button class="btn btn-sm btn-outline-success" title="Xác nhận đã nhận cọc"><i class="bi bi-cash-coin"></i> Nhận cọc</button>
+                <button class="btn btn-sm btn-outline-success" title="Xác nhận đã nhận tiền"><i class="bi bi-cash-coin"></i> Nhận tiền</button>
               </form>
             <% } %>
-            <% if (isStaff && r.Status==='Đã cọc' && r.StartDate <= today) { %>
+            <% if (isStaff && r.Status==='Đã cọc' && !FLOW.isDelivery(r) && r.StartDate <= today) { %>
               <form method="POST" action="/rentals/<%= r.RentalID %>/handover" class="d-inline">
-                <button class="btn btn-sm btn-outline-primary" title="Giao đồ"><i class="bi bi-box-arrow-up"></i> Giao</button>
+                <input type="hidden" name="back" value="<%= reqUrl %>">
+                <button class="btn btn-sm btn-outline-primary" title="Khách đã lấy đồ"><i class="bi bi-box-arrow-up"></i> Giao</button>
               </form>
             <% } %>
-            <% if (isStaff && r.Status==='Đang thuê') { %>
-              <a href="/rentals/<%= r.RentalID %>/return" class="btn btn-sm btn-outline-success" title="Nhận trả"><i class="bi bi-box-arrow-in-down"></i> Nhận trả</a>
+            <% if (isStaff && r.Status==='Đã cọc' && FLOW.isDelivery(r) && FLOW.shipDay(r) <= today) { %>
+              <a href="/rentals/<%= r.RentalID %>#giao-shipper" class="btn btn-sm btn-outline-primary" title="Đóng đơn, giao shipper"><i class="bi bi-truck"></i> Gửi đi</a>
+            <% } %>
+            <% if (isStaff && r.Status==='Đang giao') { %>
+              <form method="POST" action="/rentals/<%= r.RentalID %>/delivered" class="d-inline">
+                <input type="hidden" name="back" value="<%= reqUrl %>">
+                <button class="btn btn-sm btn-outline-primary" title="Khách đã nhận đồ"><i class="bi bi-check2"></i> Đã nhận</button>
+              </form>
+            <% } %>
+            <% if (isStaff && (r.Status==='Đang thuê' || r.Status==='Đang gửi trả')) { %>
+              <a href="/rentals/<%= r.RentalID %>/return" class="btn btn-sm btn-outline-success" title="Nhận lại đồ"><i class="bi bi-box-arrow-in-down"></i> Nhận trả</a>
             <% } %>
           </td>
         </tr>
@@ -119,6 +133,7 @@
 </div>
 
 <div class="alert alert-light border mt-3 small">
-  <strong>Luồng trạng thái:</strong> <span class="badge bg-secondary">Chờ cọc</span> (giữ chỗ 24 giờ, quá hạn tự hủy) → <span class="badge bg-info text-dark">Đã cọc</span> (nhân viên xác nhận đã nhận tiền) → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-success">Hoàn tất</span> · hoặc <span class="badge bg-danger">Đã hủy</span>.
-  <% if (isStaff) { %> Nhân viên bấm <em>Giao</em> khi giao đồ, <em>Nhận trả</em> khi khách trả.<% } %>
+  <strong>Tự đến lấy:</strong> <span class="badge bg-secondary">Chờ thanh toán</span> → <span class="badge bg-info text-dark">Chờ giao đồ</span> → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-success">Hoàn tất</span><br>
+  <strong>Giao tận nơi:</strong> <span class="badge bg-secondary">Chờ thanh toán</span> → <span class="badge bg-info text-dark">Chờ giao đồ</span> → <span class="badge bg-primary">Đang giao</span> → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-dark">Đang gửi trả</span> → <span class="badge bg-success">Hoàn tất</span><br>
+  Thanh toán COD: bỏ qua bước "Chờ thanh toán", thu tiền khi giao đồ. Chuyển khoản: giữ chỗ 5 phút — khách bấm "Tôi đã chuyển khoản" thì chờ nhân viên xác nhận, không bấm thì tự hủy.
 </div>

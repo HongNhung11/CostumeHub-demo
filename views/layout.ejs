@@ -79,7 +79,17 @@
             <li class="nav-item"><a class="nav-link <%= path==='/contact' ? 'active' : '' %>" href="/contact"><i class="bi bi-telephone me-1"></i>Liên hệ</a></li>
           <% } %>
           <% if (currentUser) { %>
-            <li class="nav-item"><a class="nav-link <%= path.startsWith('/rentals') ? 'active' : '' %>" href="/rentals"><i class="bi bi-receipt"></i> Đơn thuê</a></li>
+            <% if (currentUser.role === 'admin' || currentUser.role === 'nhanvien') { %>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle <%= path.startsWith('/rentals') ? 'active' : '' %>" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-receipt"></i> Đơn thuê</a>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item <%= path === '/rentals/today' ? 'active' : '' %>" href="/rentals/today"><i class="bi bi-list-check me-2"></i>Việc hôm nay</a></li>
+                  <li><a class="dropdown-item <%= path === '/rentals' ? 'active' : '' %>" href="/rentals"><i class="bi bi-receipt me-2"></i>Tất cả đơn thuê</a></li>
+                </ul>
+              </li>
+            <% } else { %>
+              <li class="nav-item"><a class="nav-link <%= path.startsWith('/rentals') ? 'active' : '' %>" href="/rentals"><i class="bi bi-receipt"></i> Đơn thuê</a></li>
+            <% } %>
           <% } %>
           <% if (isStaff && currentUser.role !== 'admin') { %>
             <%# Nhân viên chỉ quản lý sản phẩm -> link thẳng, không cần menu xổ %>
@@ -174,7 +184,7 @@
         </div>
         <div class="col-md-4">
           <h6 class="mb-3">Liên hệ</h6>
-          <p class="small mb-1"><i class="bi bi-geo-alt me-2"></i>Cửa hàng CostumeHub</p>
+          <p class="small mb-1"><i class="bi bi-geo-alt me-2"></i>Cửa hàng CostumeHub, Hà Nội</p>
           <p class="small mb-1"><i class="bi bi-telephone me-2"></i>0123 456 789</p>
           <p class="small mb-0"><i class="bi bi-clock me-2"></i>8:00 – 21:00 hằng ngày</p>
         </div>

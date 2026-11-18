@@ -18,7 +18,7 @@
 
 <div class="row g-4">
   <!-- ===== CỘT LỌC BÊN TRÁI ===== -->
-  <aside class="col-lg-3 col-xxl-2">
+  <aside class="col-lg-3 col-xxl-2 shop-aside">
     <button class="btn btn-light border w-100 d-lg-none mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#filters"><i class="bi bi-funnel"></i> Bộ lọc</button>
     <div class="collapse d-lg-block shop-filters" id="filters">
       <!-- Danh mục -->
@@ -44,11 +44,11 @@
         <% hidden(['free']).forEach(([k, v]) => { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }) %>
         <div class="filter-title"><i class="bi bi-calendar-range" style="color:var(--gold)"></i> Ngày thuê</div>
         <div class="row g-2">
-          <div class="col-6 col-lg-12 col-xl-6">
+          <div class="col-6 col-lg-12">
             <label class="form-label small text-muted mb-0" for="fStart">Ngày nhận</label>
             <input type="date" name="start" id="fStart" class="form-control form-control-sm" min="<%= todayYmd %>" value="<%= dates ? dates.start : '' %>" required>
           </div>
-          <div class="col-6 col-lg-12 col-xl-6">
+          <div class="col-6 col-lg-12">
             <label class="form-label small text-muted mb-0" for="fEnd">Ngày trả</label>
             <input type="date" name="end" id="fEnd" class="form-control form-control-sm" min="<%= tmrYmd %>" value="<%= dates ? dates.end : '' %>" required>
           </div>
@@ -114,7 +114,7 @@
   </aside>
 
   <!-- ===== LƯỚI SẢN PHẨM ===== -->
-  <section class="col-lg-9 col-xxl-10">
+  <section class="col-lg-9 col-xxl-10 shop-main">
     <h4 class="mb-3 font-serif"><%= title %><% if (q) { %> <small class="text-muted fs-6 fw-normal">— kết quả cho "<%= q %>"</small><% } %></h4>
     <!-- Tìm kiếm + Sắp xếp cùng 1 hàng -->
     <div class="shop-toolbar mb-3">

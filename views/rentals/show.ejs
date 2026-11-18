@@ -1,8 +1,18 @@
 <%
   const vnd = n => Number(n||0).toLocaleString('vi-VN') + ' đ';
   const st = rental.Status;
-  const stCls = st==='Hoàn tất'?'success':(st==='Đã hủy'?'danger':(st==='Đang thuê'?'warning text-dark':(st==='Đã cọc'?'info text-dark':'secondary')));
+  const stCls = FLOW.cls(st);
+  const deli = FLOW.isDelivery(rental), due = FLOW.amountDue(rental), paid = FLOW.isPaid(rental);
+  const cod = rental.PaymentMethod === FLOW.PAY.COD, vi = s => s ? s.split('-').reverse().join('/') : '';
 %>
+<% if (isNew) { %>
+  <%- include('../partials/checkout-steps', { step: 3 }) %>
+  <div class="text-center mb-4 co-done">
+    <i class="bi bi-check-circle-fill"></i>
+    <h3 class="font-serif mb-1">Đặt thuê thành công!</h3>
+    <p class="text-muted mb-0"><%= rental.Status === 'Chờ cọc' ? 'Chuyển khoản trong 5 phút bên dưới để giữ chỗ.' : 'Đơn đã được giữ chỗ. Chi tiết đơn thuê bên dưới.' %></p>
+  </div>
+<% } %>
 <div class="row justify-content-center">
   <div class="col-lg-8">
 
@@ -12,8 +22,14 @@
           <h3 class="font-serif mb-0" style="color:var(--primary)">Hóa đơn thuê</h3>
           <small class="text-muted">Mã đơn: #<%= rental.RentalID %> · Ngày tạo: <%= new Date(rental.createdAt).toLocaleDateString('vi-VN') %></small>
         </div>
-        <span class="badge bg-<%= stCls %> fs-6"><%= st %></span>
+        <span class="badge bg-<%= stCls %> fs-6"><%= FLOW.label(st) %></span>
       </div>
+      <!-- Tiến trình đơn: tự lấy 4 bước, giao tận nơi 6 bước -->
+      <% if (st !== 'Đã hủy') { %>
+        <ol class="order-steps">
+          <% FLOW.steps(rental).forEach(stp => { %><li class="<%= stp.done ? 'done' : '' %> <%= stp.current ? 'current' : '' %>"><span></span><%= stp.text %></li><% }) %>
+        </ol>
+      <% } %>
       <% if (rental.alert) { %>
         <div class="alert alert-<%= rental.alert.level %> py-2 small"><i class="bi <%= rental.alert.overdue ? 'bi-exclamation-triangle-fill' : 'bi-bell' %>"></i> <strong><%= rental.alert.text %></strong></div>
       <% } %>
@@ -25,13 +41,18 @@
           <p class="mb-1 small"><i class="bi bi-telephone"></i> <%= rental.CustomerPhone %></p>
           <% if (rental.CustomerIDCard) { %><p class="mb-1 small"><i class="bi bi-person-vcard"></i> CCCD: <%= rental.CustomerIDCard %></p><% } %>
           <% if (rental.CustomerAddress) { %><p class="mb-1 small"><i class="bi bi-house"></i> <%= rental.CustomerAddress %></p><% } %>
-          <p class="mb-1 small"><i class="bi bi-truck"></i> <%= rental.DeliveryMethod %><% if (rental.DeliveryAddress) { %>: <%= rental.DeliveryAddress %><% } %></p>
+          <% const zone = SHIP.zoneOf(rental.DeliveryZone), sd = Number(rental.ShipDays) || 0;
+             const shift = (v, n) => { const [y, m, d] = v.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10).split('-').reverse().join('/'); }; %>
+          <p class="mb-1 small"><i class="bi bi-truck"></i> <%= rental.DeliveryZone ? zone.label : rental.DeliveryMethod %><% if (rental.DeliveryAddress) { %>: <%= rental.DeliveryAddress %><% } %></p>
+          <% if (sd) { %><p class="mb-1 small text-muted"><i class="bi bi-calendar-week"></i> Shop gửi đồ ngày <%= shift(rental.StartDate, -sd) %> · khách gửi trả ngày <%= shift(rental.EndDate, 0) %> · shop nhận lại khoảng <%= shift(rental.EndDate, sd) %></p><% } %>
+          <% if (rental.TrackingCode) { %><p class="mb-1 small"><i class="bi bi-upc-scan"></i> Gửi đi: <%= rental.Carrier %> · <strong><%= rental.TrackingCode %></strong></p><% } %>
+          <% if (rental.ReturnTrackingCode) { %><p class="mb-1 small"><i class="bi bi-upc-scan"></i> Gửi trả <%= vi(rental.ReturnSentDate) %>: <strong><%= rental.ReturnTrackingCode %></strong></p><% } %>
           <% if (rental.IDCardImage) { %><p class="mb-0 small"><i class="bi bi-image"></i> Ảnh CCCD: <a href="/rentals/<%= rental.RentalID %>/cccd" target="_blank" rel="noopener">xem</a></p><% } %>
         </div>
         <div class="col-md-5">
           <h6 class="text-muted small text-uppercase">Thời gian thuê</h6>
-          <p class="mb-1 small">Nhận: <strong><%= rental.StartDate %></strong></p>
-          <p class="mb-1 small">Trả: <strong><%= rental.EndDate %></strong></p>
+          <p class="mb-1 small">Nhận: <strong><%= vi(rental.StartDate) %></strong></p>
+          <p class="mb-1 small"><%= deli ? 'Gửi trả' : 'Trả' %>: <strong><%= vi(rental.EndDate) %></strong></p>
           <p class="mb-0 small">Số ngày: <strong><%= rental.RentDays %></strong></p>
         </div>
       </div>
@@ -120,12 +141,12 @@
             <div class="d-flex justify-content-between py-1 fw-bold"><span>Hoàn lại</span><span class="text-success"><%= vnd(rental.RefundAmount) %></span></div>
           <% } else { %>
             <hr class="my-1">
-            <div class="d-flex justify-content-between py-1 fw-bold"><span>Tổng (thuê + cọc)</span><span class="price-tag"><%= vnd(rentPay + Number(rental.Deposit)) %></span></div>
-            <div class="d-flex justify-content-between small text-muted"><span>Thanh toán</span><span><%= rental.PaymentStatus %><%= rental.PaymentMethod ? ' · '+rental.PaymentMethod : '' %></span></div>
+            <div class="d-flex justify-content-between py-1 fw-bold"><span>Tổng thanh toán (thuê + cọc)</span><span class="price-tag"><%= vnd(due) %></span></div>
+            <div class="d-flex justify-content-between small text-muted"><span><%= FLOW.payLabel(rental.PaymentMethod) %></span><span class="<%= paid ? 'text-success' : '' %>"><%= rental.PaymentStatus === 'Đã cọc' ? 'Đã cọc (đơn cũ: tiền thuê trả khi nhận đồ)' : paid ? 'Đã thanh toán' : (cod ? 'Thanh toán khi nhận đồ' : 'Chưa thanh toán') %></span></div>
           <% } %>
         </div>
       </div>
-      <% if (swap.reason && ['Chờ cọc', 'Đã cọc', 'Đang thuê'].includes(rental.Status)) { %>
+      <% if (swap.reason && ['Chờ cọc', 'Đã cọc', 'Đang giao', 'Đang thuê'].includes(rental.Status)) { %>
         <div class="small text-muted mt-2 d-print-none"><i class="bi bi-arrow-left-right"></i> Đổi size: <%= swap.reason %> <a href="/doi-size">Chính sách đổi size</a></div>
       <% } else if (swap.ok) { %>
         <div class="small text-muted mt-2 d-print-none"><i class="bi bi-arrow-left-right"></i> Không vừa size? Bấm "Đổi size / màu" dưới từng món — miễn phí, theo <a href="/doi-size">chính sách đổi size</a>.</div>
@@ -139,43 +160,156 @@
       </p>
     </div>
 
-    <!-- Hành động theo trạng thái -->
-    <% if (st==='Chờ cọc') { %>
-      <div class="card p-3 border-warning d-print-none">
-        <div class="fw-semibold text-warning-emphasis mb-2"><i class="bi bi-hourglass-split"></i> Đơn đang chờ cọc — giữ chỗ đến <strong><%= deadline %></strong></div>
-        <% if (rental.PaymentMethod === 'Tiền mặt') { %>
-          <p class="small mb-2">Vui lòng đến cửa hàng (8:00 – 21:00) đóng cọc <strong><%= vnd(rental.Deposit) %></strong> trước thời hạn trên. Mang theo CCCD.</p>
+    <!-- Hành động theo trạng thái (quy trình: utils/rentalFlow.js) -->
+    <% if (st === 'Chờ cọc') { const claimed = FLOW.transferClaimed(rental); %>
+      <div class="card p-3 border-warning d-print-none mb-3">
+        <% if (claimed) { %>
+          <div class="fw-semibold mb-2"><i class="bi bi-hourglass-split text-warning"></i> Khách đã báo chuyển khoản lúc <%= new Date(rental.TransferClaimedAt).toLocaleString('vi-VN') %> — cửa hàng đang kiểm tra tài khoản.</div>
+          <p class="small text-muted mb-2">Đơn vẫn được giữ chỗ. Cửa hàng xác nhận đã nhận <strong><%= vnd(due) %></strong> thì bạn nhận được thông báo.</p>
         <% } else { %>
-          <p class="small mb-1">Vui lòng chuyển <strong><%= vnd(rental.Deposit) %></strong> tiền cọc trước thời hạn trên:</p>
-          <div class="small p-2 rounded mb-2" style="background:var(--cream-2)">
-            Ngân hàng: <strong><%= SHOP_BANK.bank %></strong> · Số tài khoản: <strong><%= SHOP_BANK.account %></strong> · Chủ tài khoản: <strong><%= SHOP_BANK.owner %></strong><br>
-            Nội dung chuyển khoản: <strong class="coupon-code">COC <%= rental.RentalID %> <%= rental.CustomerPhone %></strong>
-            <% if (SHOP_BANK.demo) { %><div class="text-muted mt-1">(Thông tin tài khoản dùng để demo.)</div><% } %>
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="fw-semibold text-warning-emphasis"><i class="bi bi-stopwatch"></i> Chuyển khoản trong <%= FLOW.PAY_MINUTES %> phút để giữ chỗ</div>
+            <div class="pay-countdown" id="payCountdown" data-deadline="<%= FLOW.paymentDeadline(rental).getTime() %>">--:--</div>
           </div>
         <% } %>
-        <p class="small text-muted mb-2">Cửa hàng xác nhận đã nhận tiền thì đơn chuyển sang <strong>Đã cọc</strong> và bạn nhận được thông báo. Quá <%= DEPOSIT_HOLD_HOURS %> giờ chưa cọc, đơn tự hủy (không mất phí).</p>
+        <!-- Quét mã QR (VietQR) hoặc chuyển tay theo thông tin bên cạnh -->
+        <div class="qr-pay">
+          <div class="qr-box">
+            <img src="<%= qrUrl %>" alt="Mã QR chuyển khoản đơn #<%= rental.RentalID %>" loading="lazy" onerror="this.closest('.qr-box').classList.add('is-off')">
+            <div class="qr-fallback small text-muted">Không tải được mã QR — chuyển tay theo thông tin bên cạnh.</div>
+            <a href="<%= qrUrl %>" download="QR-don-<%= rental.RentalID %>.png" target="_blank" rel="noopener" class="small"><i class="bi bi-download"></i> Lưu ảnh QR</a>
+          </div>
+          <div class="qr-info">
+            <div class="qi-row"><span>Ngân hàng</span><b><%= SHOP_BANK.bank %></b></div>
+            <div class="qi-row"><span>Chủ tài khoản</span><b><%= SHOP_BANK.owner %></b></div>
+            <div class="qi-row"><span>Số tài khoản</span><b class="mono"><%= SHOP_BANK.account %></b><button type="button" class="qi-copy" data-copy="<%= SHOP_BANK.account.replace(/\s/g, '') %>" title="Sao chép"><i class="bi bi-copy"></i></button></div>
+            <div class="qi-row"><span>Số tiền</span><b class="price-tag"><%= vnd(due) %></b></div>
+            <div class="qi-row"><span>Nội dung CK</span><b class="mono">CH<%= rental.RentalID %></b><button type="button" class="qi-copy" data-copy="CH<%= rental.RentalID %>" title="Sao chép"><i class="bi bi-copy"></i></button></div>
+            <div class="small text-muted mt-2"><i class="bi bi-phone"></i> Mở app ngân hàng → Quét QR (hoặc chọn ảnh QR đã lưu). App tự điền số tiền và nội dung.</div>
+            <% if (SHOP_BANK.demo) { %><div class="qr-demo"><i class="bi bi-flask"></i> <b>Chế độ thử nghiệm:</b> tài khoản mẫu, không chuyển tiền thật — bấm "Tôi đã chuyển khoản" để xem tiếp quy trình.</div><% } %>
+          </div>
+        </div>
+        <script>
+        document.querySelectorAll('.qi-copy').forEach(b => b.addEventListener('click', async () => {
+          try { await navigator.clipboard.writeText(b.dataset.copy); b.innerHTML = '<i class="bi bi-check2"></i>'; setTimeout(() => { b.innerHTML = '<i class="bi bi-copy"></i>'; }, 1500); } catch (_) {}
+        }));
+        </script>
+        <% if (!claimed) { %><p class="small text-muted mb-2">Chuyển xong bấm <strong>"Tôi đã chuyển khoản"</strong>. Quá <%= FLOW.PAY_MINUTES %> phút chưa bấm, đơn tự hủy (không mất phí) để nhường lịch cho khách khác.</p><% } %>
         <div class="d-flex gap-2 flex-wrap">
-          <% if (isStaff) { %>
-            <form method="POST" action="/rentals/<%= rental.RentalID %>/deposit" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(rental.Deposit) %> tiền cọc?')">
-              <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
-              <button class="btn btn-success btn-sm"><i class="bi bi-cash-coin"></i> Xác nhận đã nhận cọc</button>
+          <% if (!claimed && (isOwner || isStaff)) { %>
+            <form method="POST" action="/rentals/<%= rental.RentalID %>/paid" id="claimForm">
+              <button class="btn btn-primary btn-sm"><i class="bi bi-check2-circle"></i> Tôi đã chuyển khoản</button>
             </form>
           <% } %>
-          <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Đơn chưa cọc nên không mất phí.')">
+          <% if (isStaff) { %>
+            <form method="POST" action="/rentals/<%= rental.RentalID %>/deposit" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(due) %>?')">
+              <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
+              <button class="btn btn-success btn-sm"><i class="bi bi-cash-coin"></i> Đã nhận tiền</button>
+            </form>
+          <% } %>
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Đơn chưa thanh toán nên không mất phí.')">
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
+          </form>
+        </div>
+      </div>
+      <% if (!claimed) { %>
+      <script>
+      // Đếm ngược thời gian giữ chỗ; hết giờ thì tải lại trang (đơn tự hủy phía máy chủ)
+      (function () {
+        const el = document.getElementById('payCountdown'); if (!el) return;
+        const end = +el.dataset.deadline;
+        const tick = () => {
+          const s = Math.max(0, Math.round((end - Date.now()) / 1000));
+          el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+          el.classList.toggle('is-low', s <= 60);
+          if (s <= 0) { clearInterval(t); el.textContent = 'Hết giờ'; const f = document.getElementById('claimForm'); if (f) f.querySelector('button').disabled = true; setTimeout(() => location.reload(), 4000); }
+        };
+        const t = setInterval(tick, 1000); tick();
+      })();
+      </script>
+      <% } %>
+    <% } %>
+
+    <% if (st === 'Đã cọc') { %>
+      <div class="card p-3 mb-3 d-print-none">
+        <div class="mb-2">
+          <i class="bi bi-check-circle-fill text-success"></i>
+          Đơn đã được giữ chỗ<%= rental.PaymentStatus === 'Đã cọc' ? ', đã cọc ' + vnd(rental.Deposit) : paid ? ', đã thanh toán ' + vnd(due) : '' %>.
+          <% if (deli) { %>Shop gửi đồ ngày <strong><%= vi(FLOW.shipDay(rental)) %></strong>, bạn nhận ngày <strong><%= vi(rental.StartDate) %></strong><%= !paid ? ' và thanh toán ' + vnd(due) + ' cho shipper' : '' %>.
+          <% } else { %>Mời bạn đến cửa hàng nhận đồ ngày <strong><%= vi(rental.StartDate) %></strong> (8:00 – 21:00), mang theo CCCD<%= !paid ? ', thanh toán ' + vnd(due) + ' tại shop' : '' %>.<% } %>
+        </div>
+        <% if (isStaff && deli) { %>
+          <!-- Nhân viên: đóng đơn, giao shipper -->
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/ship" class="ship-form" id="giao-shipper">
+            <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
+            <div class="fw-semibold mb-2"><i class="bi bi-truck"></i> Đóng đơn & giao shipper <span class="text-muted small fw-normal">(từ ngày <%= vi(FLOW.shipDay(rental)) %>)</span></div>
+            <div class="d-flex flex-wrap gap-2 align-items-end">
+              <div>
+                <label class="form-label small text-muted mb-0">Đơn vị vận chuyển</label>
+                <select name="Carrier" class="form-select form-select-sm" required>
+                  <% FLOW.CARRIERS.forEach(c => { %><option <%= (rental.ShipDays > 1 ? 'GHN' : 'Ahamove') === c ? 'selected' : '' %>><%= c %></option><% }) %>
+                </select>
+              </div>
+              <div style="min-width:220px">
+                <label class="form-label small text-muted mb-0">Mã vận đơn / SĐT shipper</label>
+                <input name="TrackingCode" class="form-control form-control-sm" required minlength="3" maxlength="50">
+              </div>
+              <button class="btn btn-primary btn-sm" <%= today < FLOW.shipDay(rental) ? 'disabled title="Chưa tới ngày gửi đồ"' : '' %>><i class="bi bi-send"></i> Đã gửi shipper</button>
+              <a href="/rentals/<%= rental.RentalID %>/slip" target="_blank" rel="noopener" class="btn btn-light btn-sm"><i class="bi bi-printer"></i> In phiếu đơn</a>
+            </div>
+          </form>
+        <% } else if (isStaff) { %>
+          <div class="d-flex gap-2 flex-wrap">
+            <form method="POST" action="/rentals/<%= rental.RentalID %>/handover" onsubmit="return confirm('Giao đồ cho khách<%= !paid ? ' và thu ' + vnd(due) : '' %>?')">
+              <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
+              <button class="btn btn-primary btn-sm" <%= today < rental.StartDate ? 'disabled title="Chưa tới ngày nhận"' : '' %>><i class="bi bi-box-arrow-up"></i> Khách đã lấy đồ<%= !paid ? ' (thu ' + vnd(due) + ')' : '' %></button>
+            </form>
+            <a href="/rentals/<%= rental.RentalID %>/slip" target="_blank" rel="noopener" class="btn btn-light btn-sm"><i class="bi bi-printer"></i> In phiếu đơn</a>
+          </div>
+        <% } %>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+          <small class="text-muted">Chính sách hủy (đơn đã thanh toán): ≥3 ngày trước ngày nhận hoàn 100% · 1–2 ngày giữ 50% tiền cọc · trong ngày mất tiền cọc.</small>
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này?')">
             <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
           </form>
         </div>
       </div>
     <% } %>
-    <% if (st==='Đã cọc') { %>
-      <div class="card p-3">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <span class="text-success"><i class="bi bi-check-circle-fill"></i> Đã cọc <%= vnd(rental.Deposit) %> (<%= rental.PaymentMethod %><%= rental.DepositPaidAt ? ', xác nhận lúc ' + new Date(rental.DepositPaidAt).toLocaleString('vi-VN') : '' %>). Vui lòng đến nhận đồ đúng hẹn.</span>
-          <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Phí hủy tính theo thời điểm hủy.')">
-            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
+
+    <% if (st === 'Đang giao') { %>
+      <div class="card p-3 mb-3 d-print-none">
+        <div class="mb-2"><i class="bi bi-truck text-primary"></i> Shop đã gửi đồ ngày <strong><%= vi(rental.ShippedAt) %></strong> qua <strong><%= rental.Carrier %></strong> — mã vận đơn <strong class="coupon-code"><%= rental.TrackingCode %></strong>.
+          Bạn nhận đồ ngày <strong><%= vi(rental.StartDate) %></strong><%= !paid ? ', thanh toán ' + vnd(due) + ' cho shipper' : '' %>. Nhớ quay video lúc mở gói hàng.</div>
+        <form method="POST" action="/rentals/<%= rental.RentalID %>/delivered" onsubmit="return confirm('Xác nhận đã nhận được đồ?')">
+          <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
+          <button class="btn btn-primary btn-sm"><i class="bi bi-check2-circle"></i> <%= isStaff ? 'Khách đã nhận đồ' : 'Tôi đã nhận được đồ' %></button>
+        </form>
+      </div>
+    <% } %>
+
+    <% if (st === 'Đang thuê') { %>
+      <div class="card p-3 mb-3 d-print-none">
+        <% if (deli) { %>
+          <div class="mb-2"><i class="bi bi-arrow-return-left text-primary"></i> Ngày <strong><%= vi(rental.EndDate) %></strong> vui lòng gửi trả đồ (<%= rental.ShipDays > 1 ? 'gọi đơn vị vận chuyển tới lấy hoặc gửi tại bưu cục' : 'gọi shop để shipper tới lấy' %>) về <strong>CostumeHub, Hà Nội · 0123 456 789</strong>, rồi nhập mã vận đơn bên dưới. Tính trễ theo ngày bạn gửi.</div>
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/sent-back" class="d-flex flex-wrap gap-2 align-items-end">
+            <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
+            <div style="min-width:240px">
+              <label class="form-label small text-muted mb-0">Mã vận đơn gửi trả / SĐT shipper</label>
+              <input name="ReturnTrackingCode" class="form-control form-control-sm" required minlength="3" maxlength="50">
+            </div>
+            <button class="btn btn-primary btn-sm"><i class="bi bi-send-check"></i> <%= isStaff ? 'Khách đã gửi trả' : 'Tôi đã gửi trả' %></button>
           </form>
-        </div>
-        <small class="text-muted d-block mt-2">Chính sách hủy: ≥3 ngày trước ngày nhận hoàn 100% · 1–2 ngày giữ 50% · trong ngày mất cọc.</small>
+        <% } else { %>
+          <div><i class="bi bi-shop text-primary"></i> Mang đồ đến cửa hàng trả trước 21:00 ngày <strong><%= vi(rental.EndDate) %></strong>.</div>
+        <% } %>
+        <% if (isStaff) { %><a href="/rentals/<%= rental.RentalID %>/return" class="btn btn-success btn-sm mt-2"><i class="bi bi-box-arrow-in-down"></i> Nhận lại đồ & hoàn cọc</a><% } %>
+      </div>
+    <% } %>
+
+    <% if (st === 'Đang gửi trả') { %>
+      <div class="card p-3 mb-3 d-print-none">
+        <div><i class="bi bi-arrow-return-left text-primary"></i> Đã gửi trả ngày <strong><%= vi(rental.ReturnSentDate) %></strong> — mã vận đơn <strong class="coupon-code"><%= rental.ReturnTrackingCode %></strong>. Dự kiến về shop <strong><%= vi(FLOW.backDay(rental)) %></strong>; shop kiểm tra xong sẽ hoàn cọc.</div>
+        <% if (isStaff) { %><a href="/rentals/<%= rental.RentalID %>/return" class="btn btn-success btn-sm mt-2"><i class="bi bi-box-arrow-in-down"></i> Nhận lại đồ & hoàn cọc</a><% } %>
       </div>
     <% } %>
 
