@@ -72,32 +72,7 @@ docker compose -p chregress -f docker-compose.test.yml down
 
 ---
 
-## Muốn sửa code
 
-Sửa xong đẩy lên git được, vẫn chạy bằng Docker. Cần 2 thứ:
-
-- Lấy project bằng **`git clone`**. **Bản ZIP chỉ để dùng thử, không push được.**
-- Được chủ repo mời (*Settings → Collaborators → Add people*) và đã bấm nhận lời mời. Không thì bấm Fork.
-
-```bash
-git clone https://github.com/HongNhung11/CostumeHub-demo.git    # chỉ lần đầu
-cd CostumeHub-demo
-git pull                                  # luôn lấy bản mới nhất trước khi sửa
-
-# ... sửa code ...
-
-docker compose up -d --build              # xem kết quả ở http://localhost:3001
-docker compose -p chregress -f docker-compose.test.yml run --build --rm test    # phải "fail 0"
-
-git add duong-dan/file-da-sua             # chỉ add file mình đã sửa
-git commit -m "Sửa gì, để làm gì"
-git pull --rebase
-git push
-```
-
-Việc lớn hoặc muốn bạn khác xem trước thì làm trên nhánh rồi mở Pull Request: [HUONG_DAN_NHOM.md](HUONG_DAN_NHOM.md). Máy đã chạy web bản cũ thì chạy `CHAY_WEB.cmd` một lần trước.
-
----
 
 ## 🚀 Cách chạy
 
