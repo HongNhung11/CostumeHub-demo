@@ -22,7 +22,7 @@
     <div class="col-lg-7 col-xl-8">
       <div class="card co-panel mb-4">
         <div class="co-panel-head">
-          <h5 class="font-serif mb-0">Tất cả sản phẩm thuê <span class="text-muted fs-6">(<%= qtyAll %> món)</span></h5>
+          <h5 class="font-serif mb-0">Sản phẩm đã chọn để thuê <span class="text-muted fs-6">(<%= qtyAll %> món)</span></h5>
           <a href="/cart" class="small"><i class="bi bi-pencil"></i> Sửa giỏ</a>
         </div>
 
@@ -80,7 +80,7 @@
           </div>
           <div class="col-md-6">
             <label class="form-label small text-muted">Số điện thoại <span class="text-danger">*</span></label>
-            <input type="tel" name="CustomerPhone" id="CustomerPhone" class="form-control" required inputmode="tel" placeholder="VD: 0912345678" maxlength="15" value="<%= o('CustomerPhone', profile.phone || '') %>">
+            <input type="tel" name="CustomerPhone" id="CustomerPhone" class="form-control" required inputmode="tel" placeholder="VD: 0912345678" maxlength="20" value="<%= o('CustomerPhone', profile.phone || '') %>">
             <div class="invalid-feedback">Gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.</div>
           </div>
           <div class="col-md-6">
@@ -268,7 +268,14 @@
   const checkPhone=()=>phone.setCustomValidity(/^0(3|5|7|8|9)\d{8}$/.test(normPhone(phone.value))?'':'invalid');
   const checkCCCD=()=>{ const v=cccd.value, p=parseInt(v.slice(0,3),10); cccd.setCustomValidity(/^\d{12}$/.test(v)&&p>=1&&p<=96?'':'invalid'); };
   cccd.addEventListener('input',()=>{ cccd.value=cccd.value.replace(/\D/g,'').slice(0,12); checkCCCD(); });
-  phone.addEventListener('input',checkPhone);
+  // Chỉ nhận tối đa 10 chữ số; dán số có khoảng trắng / +84 thì tự đổi về 0xxxxxxxxx
+  const limitPhone=()=>{
+    const v=phone.value; if(['+','+8','+84'].includes(v)) return;   // đang gõ dở đầu +84
+    const at=normPhone(v.slice(0,phone.selectionStart)).replace(/\D/g,'').length, next=normPhone(v).replace(/\D/g,'').slice(0,10);
+    if(next!==v){ phone.value=next; if(document.activeElement===phone) phone.setSelectionRange(Math.min(at,next.length),Math.min(at,next.length)); }
+  };
+  limitPhone();
+  phone.addEventListener('input',()=>{ limitPhone(); checkPhone(); });
 
   const form=document.getElementById('bookForm');
   form.addEventListener('submit',ev=>{

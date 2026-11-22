@@ -133,7 +133,7 @@
           <% if (currentUser) { %>
             <!-- Tài khoản: tên + menu (thay cho dòng tên / đăng xuất ở thanh trên cùng) -->
             <div class="dropdown">
-              <button class="btn btn-light btn-sm dropdown-toggle <%= path.startsWith('/account') ? 'active' : '' %>" data-bs-toggle="dropdown" aria-expanded="false">
+              <button class="btn btn-light btn-sm dropdown-toggle <%= path.startsWith('/account') ? 'active' : '' %>" data-bs-toggle="dropdown" aria-expanded="false" title="<%= currentUser.fullName || currentUser.username %>">
                 <i class="bi bi-person-circle"></i> <span class="acc-name nav-btn-text"><%= currentUser.fullName || currentUser.username %></span>
               </button>
               <ul class="dropdown-menu dropdown-menu-end">

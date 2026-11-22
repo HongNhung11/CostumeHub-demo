@@ -107,14 +107,14 @@
             <td data-col="ProductType"><span class="chip"><%= p.ProductType %></span></td>
             <td data-col="Quantity"><%= p.Quantity %></td>
             <td data-col="Unit"><%= p.Unit %></td>
-            <td data-col="Price"><%= Number(p.Price).toLocaleString('vi-VN') %> đ<% if (saleOf(p) !== null) { %><div class="small text-danger">Sale <%= priceOf(p).toLocaleString('vi-VN') %> đ (-<%= salePercent(p) %>%)</div><% } %></td>
-            <td data-col="DepositValue"><%= Number(p.DepositValue).toLocaleString('vi-VN') %> đ</td>
+            <td data-col="Price" class="text-nowrap"><%= Number(p.Price).toLocaleString('vi-VN') %> đ<% if (saleOf(p) !== null) { %><div class="small text-danger">Sale <%= priceOf(p).toLocaleString('vi-VN') %> đ (-<%= salePercent(p) %>%)</div><% } %></td>
+            <td data-col="DepositValue" class="text-nowrap"><%= Number(p.DepositValue).toLocaleString('vi-VN') %> đ</td>
             <td data-col="Status">
               <% const cls = p.Status==='Còn trống'?'success':'secondary'; %>
               <span class="badge bg-<%= cls %>"><%= p.Status %></span>
             </td>
             <td data-col="Description" class="text-muted small"><%= (p.Description||'').slice(0,40) %></td>
-            <td>
+            <td class="act-cell">
               <a href="/products/<%= p.ProductID %>" class="btn btn-sm btn-outline-info" title="Chi tiết"><i class="bi bi-eye"></i></a>
               <a href="/products/<%= p.ProductID %>/edit" class="btn btn-sm btn-outline-warning" title="Sửa"><i class="bi bi-pencil"></i></a>
               <% if (currentUser && currentUser.role === 'admin') { %>

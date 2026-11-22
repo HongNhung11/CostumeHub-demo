@@ -17,15 +17,17 @@
         <div class="col-6 mt-1"><span class="text-muted">Tiền cọc:</span> <strong><%= vnd(rental.Deposit) %></strong></div>
         <div class="col-6 mt-1"><span class="text-muted">Phí trễ/ngày (cả đơn):</span> <strong><%= vnd(latePerDay) %></strong></div>
       </div>
-      <table class="table table-sm small mt-2 mb-0">
-        <thead><tr><th>Món cần nhận lại</th><th class="text-center">SL</th><th class="text-end">Phí trễ/ngày/bộ</th></tr></thead>
-        <tbody>
-          <% rental.items.forEach(it => { %>
-            <tr><td><%= it.ProductName %><% if (it.Size || it.Color) { %> <span class="text-muted">(<%= [it.Size, it.Color].filter(Boolean).join(' · ') %>)</span><% } %></td>
-              <td class="text-center"><%= it.Quantity %></td><td class="text-end"><%= vnd(it.LateFeePerDay) %></td></tr>
-          <% }) %>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="table table-sm small mt-2 mb-0">
+          <thead><tr><th>Món cần nhận lại</th><th class="text-center">SL</th><th class="text-end">Phí trễ/ngày/bộ</th></tr></thead>
+          <tbody>
+            <% rental.items.forEach(it => { %>
+              <tr><td><%= it.ProductName %><% if (it.Size || it.Color) { %> <span class="text-muted">(<%= [it.Size, it.Color].filter(Boolean).join(' · ') %>)</span><% } %></td>
+                <td class="text-center"><%= it.Quantity %></td><td class="text-end"><%= vnd(it.LateFeePerDay) %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <form method="POST" action="/rentals/<%= rental.RentalID %>/return" id="returnForm"
@@ -48,20 +50,22 @@
           <div class="border rounded-3 p-2 mb-2">
             <div class="fw-semibold small mb-1"><%= it.ProductName %>
               <span class="text-muted fw-normal">(<%= [it.Size, it.Color].filter(Boolean).join(' · ') || '—' %>) × <%= it.Quantity %> bộ</span></div>
-            <table class="table table-sm small align-middle mb-0">
-              <tbody>
-                <% FEES.DAMAGE_RULES.forEach(r => { const unit = r.amount ?? FEES.lossAmount(it, it.Product); %>
-                  <tr>
-                    <td><%= r.label %></td>
-                    <td class="text-end text-nowrap text-muted"><%= vnd(unit) %>/bộ<% if (!r.amount) { %><div style="font-size:.7rem"><%= Number(it.Product && it.Product.ProductValue) > 0 ? 'giá trị SP' : 'chưa có giá trị SP → mất cọc/bộ' %></div><% } %></td>
-                    <td style="width:90px">
-                      <input type="number" class="form-control form-control-sm fee-n" name="fee_<%= it.ItemID %>_<%= r.code %>"
-                             value="0" min="0" max="<%= it.Quantity %>" step="1" data-unit="<%= unit %>">
-                    </td>
-                  </tr>
-                <% }) %>
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-sm small align-middle mb-0">
+                <tbody>
+                  <% FEES.DAMAGE_RULES.forEach(r => { const unit = r.amount ?? FEES.lossAmount(it, it.Product); %>
+                    <tr>
+                      <td><%= r.label %></td>
+                      <td class="text-end text-nowrap text-muted"><%= vnd(unit) %>/bộ<% if (!r.amount) { %><div style="font-size:.7rem"><%= Number(it.Product && it.Product.ProductValue) > 0 ? 'giá trị SP' : 'chưa có giá trị SP → mất cọc/bộ' %></div><% } %></td>
+                      <td style="width:90px">
+                        <input type="number" class="form-control form-control-sm fee-n" name="fee_<%= it.ItemID %>_<%= r.code %>"
+                               value="0" min="0" max="<%= it.Quantity %>" step="1" data-unit="<%= unit %>">
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
           </div>
         <% }) %>
         <div class="row g-2 mt-1">

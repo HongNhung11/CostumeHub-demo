@@ -116,25 +116,27 @@
       <% if (!topProducts.length) { %>
         <p class="text-muted mb-0">Chưa có lượt thuê nào.</p>
       <% } else { %>
-      <table class="table table-sm align-middle mb-0 small">
-        <thead><tr><th style="width:28px">#</th><th>Trang phục</th><th style="width:40%">Số bộ đã thuê</th><th class="text-end">Tiền thuê</th></tr></thead>
-        <tbody>
-          <% topProducts.forEach((p, i) => { %>
-            <tr>
-              <td class="text-muted"><%= i + 1 %></td>
-              <td><% if (p.id) { %><a href="/products/<%= p.id %>" class="text-dark"><%= p.name %></a><% } else { %><%= p.name %> <span class="text-muted">(đã xóa)</span><% } %>
-                <div class="text-muted"><%= p.orders %> đơn</div></td>
-              <td>
-                <div class="d-flex align-items-center gap-2">
-                  <div class="flex-grow-1 top-track"><div class="top-bar" style="width:<%= p.qty / maxTop * 100 %>%"></div></div>
-                  <span class="fw-semibold" style="min-width:2ch"><%= p.qty %></span>
-                </div>
-              </td>
-              <td class="text-end text-nowrap"><%= vnd(p.rent) %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 small">
+          <thead><tr><th style="width:28px">#</th><th>Trang phục</th><th style="width:40%">Số bộ đã thuê</th><th class="text-end">Tiền thuê</th></tr></thead>
+          <tbody>
+            <% topProducts.forEach((p, i) => { %>
+              <tr>
+                <td class="text-muted"><%= i + 1 %></td>
+                <td><% if (p.id) { %><a href="/products/<%= p.id %>" class="text-dark"><%= p.name %></a><% } else { %><%= p.name %> <span class="text-muted">(đã xóa)</span><% } %>
+                  <div class="text-muted"><%= p.orders %> đơn</div></td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="flex-grow-1 top-track"><div class="top-bar" style="width:<%= p.qty / maxTop * 100 %>%"></div></div>
+                    <span class="fw-semibold" style="min-width:2ch"><%= p.qty %></span>
+                  </div>
+                </td>
+                <td class="text-end text-nowrap"><%= vnd(p.rent) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
       <% } %>
     </div>
   </div>

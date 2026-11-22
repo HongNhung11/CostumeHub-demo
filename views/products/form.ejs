@@ -288,22 +288,43 @@
   });
 })();
 
-// Ô tiền: tự thêm dấu chấm ngăn cách khi bấm Enter hoặc rời ô (145000 -> 145.000)
+// Ô tiền: tự chèn dấu chấm ngăn cách hàng nghìn ngay khi gõ (145000 -> 145.000), máy chủ tự bỏ dấu chấm
 (function () {
-  const fmt = (n) => n.toLocaleString('vi-VN');
+  const MAX_DIGITS = 12;   // cột tiền trong CSDL là DECIMAL(12,0)
+  const digits = (s) => s.replace(/\D/g, '');
+  const group = (s) => s.replace(/\B(?=(\d{3})+$)/g, '.');
   document.querySelectorAll('.money-input').forEach(el => {
-    const check = () => {
-      const raw = el.value.replace(/[^\d]/g, '');
-      const n = raw ? Number(raw) : null, min = +el.dataset.min || 0;
-      el.value = n === null ? '' : fmt(n);
-      el.setCustomValidity(n === null ? '' : (n < min || n % 1000 !== 0 ? 'Số tiền phải tròn nghìn' + (min ? ' và từ ' + fmt(min) + ' đ' : '') : ''));
+    const min = +el.dataset.min || 0;
+    const validate = () => {
+      const d = digits(el.value), n = Number(d);
+      el.setCustomValidity(d && (n < min || n % 1000 !== 0) ? 'Số tiền phải tròn nghìn' + (min ? ' và từ ' + group(String(min)) + ' đ' : '') : '');
     };
-    el.addEventListener('blur', check);
-    el.addEventListener('keydown', e => { if (e.key === 'Enter') { check(); } });
-    el.addEventListener('input', () => { el.value = el.value.replace(/[^\d.]/g, ''); el.setCustomValidity(''); });
-    check();
+    // Rời ô / Enter mới bỏ số 0 ở đầu: đang sửa 1.000 thành 2.000 (xóa "1" còn "000") thì không được mất các số 0
+    const tidy = () => {
+      const d = digits(el.value);
+      el.value = d ? group(String(Number(d))) : '';
+      validate();
+    };
+    el.addEventListener('input', () => {
+      const before = digits(el.value.slice(0, el.selectionStart)).length;   // số chữ số đứng trước con trỏ
+      el.value = group(digits(el.value).slice(0, MAX_DIGITS));
+      let pos = 0;
+      for (let seen = 0; seen < before && pos < el.value.length; pos++) if (el.value[pos] !== '.') seen++;
+      el.setSelectionRange(pos, pos);
+      validate();
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') return tidy();
+      const p = el.selectionStart;
+      if (p !== el.selectionEnd) return;
+      // Xóa trúng dấu chấm: bước qua dấu chấm để xóa chữ số bên cạnh
+      if (e.key === 'Backspace' && el.value[p - 1] === '.') el.setSelectionRange(p - 1, p - 1);
+      if (e.key === 'Delete' && el.value[p] === '.') el.setSelectionRange(p + 1, p + 1);
+    });
+    el.addEventListener('blur', tidy);
+    tidy();
   });
-  // Trước khi gửi: định dạng lại lần cuối để báo lỗi tròn nghìn (máy chủ tự bỏ dấu chấm)
+  // Trước khi gửi: chuẩn hóa lần cuối (Alt+S không làm ô mất focus)
   document.getElementById('productForm').addEventListener('submit', () => {
     document.querySelectorAll('.money-input').forEach(el => { el.dispatchEvent(new Event('blur')); });
   }, true);

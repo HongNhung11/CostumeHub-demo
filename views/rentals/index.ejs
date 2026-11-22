@@ -74,8 +74,8 @@
           </td>
           <td><%= r.CustomerName %><div class="small text-muted"><%= r.CustomerPhone %></div></td>
           <td class="small text-nowrap"><%= vi(r.StartDate) %><br><%= vi(r.EndDate) %> (<%= r.RentDays %> ngày)</td>
-          <td class="text-end"><%= vnd(Number(r.RentFee) - (Number(r.Discount) || 0)) %><% if (Number(r.Discount)) { %><div class="small text-success" title="Đã giảm <%= vnd(r.Discount) %>"><i class="bi bi-ticket-perforated"></i> <%= r.CouponCode %></div><% } %></td>
-          <td class="text-end"><%= vnd(r.Deposit) %></td>
+          <td class="text-end text-nowrap"><%= vnd(Number(r.RentFee) - (Number(r.Discount) || 0)) %><% if (Number(r.Discount)) { %><div class="small text-success" title="Đã giảm <%= vnd(r.Discount) %>"><i class="bi bi-ticket-perforated"></i> <%= r.CouponCode %></div><% } %></td>
+          <td class="text-end text-nowrap"><%= vnd(r.Deposit) %></td>
           <td>
             <span class="badge bg-<%= stCls(r.Status) %>"><%= FLOW.label(r.Status) %></span>
             <div class="small text-muted"><i class="bi <%= FLOW.isDelivery(r) ? 'bi-truck' : 'bi-shop' %>"></i> <%= r.PaymentMethod === FLOW.PAY.COD && !FLOW.isPaid(r) ? 'COD' : (FLOW.isPaid(r) ? 'Đã thanh toán' : 'Chưa thanh toán') %></div>
@@ -85,7 +85,7 @@
               </div>
             <% } %>
           </td>
-          <td>
+          <td class="act-cell">
             <a href="/rentals/<%= r.RentalID %>" class="btn btn-sm btn-outline-info" title="Xem"><i class="bi bi-eye"></i></a>
             <% if (isStaff && r.Status==='Chờ cọc') { %>
               <form method="POST" action="/rentals/<%= r.RentalID %>/deposit" class="d-inline" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(FLOW.amountDue(r)) %> của đơn #<%= r.RentalID %>?')">

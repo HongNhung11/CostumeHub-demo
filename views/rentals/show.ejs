@@ -58,60 +58,62 @@
       </div>
 
       <!-- Sản phẩm -->
-      <table class="table align-middle">
-        <thead class="table-light"><tr><th>Trang phục</th><th class="text-center">SL</th><th class="text-end">Giá/ngày</th><th class="text-end">Thành tiền thuê</th></tr></thead>
-        <tbody>
-          <% rental.items.forEach(it => { const p = it.Product; %>
-          <tr>
-            <td class="d-flex align-items-center gap-2">
-              <% if (p && p.PathImage) { %><img src="<%= p.PathImage %>" style="width:44px;height:44px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
-              <div><strong><%= it.ProductName %></strong>
-                <div class="small text-muted"><%= p ? p.ProductType : '' %><% if (it.Size) { %> · Size <%= it.Size %><% } %><% if (it.Color) { %> · Màu <%= it.Color %><% } %></div></div>
-            </td>
-            <td class="text-center"><%= it.Quantity %></td>
-            <td class="text-end"><%= vnd(it.PricePerDay) %></td>
-            <td class="text-end"><%= vnd(Number(it.PricePerDay) * it.Quantity * rental.RentDays) %></td>
-          </tr>
-          <% const opts = swapOptions[it.ItemID]; if (swap.ok && opts) { %>
-          <tr class="d-print-none swap-row">
-            <td colspan="4" class="pt-0 border-top-0">
-              <details class="small">
-                <summary class="text-primary"><i class="bi bi-arrow-left-right"></i> Đổi size / màu</summary>
-                <% if (!opts.length) { %>
-                  <div class="text-muted mt-1">Mẫu này không có size / màu khác.</div>
-                <% } else { %>
-                  <form method="POST" action="/rentals/<%= rental.RentalID %>/size" class="d-flex flex-wrap align-items-end gap-2 mt-2">
-                    <input type="hidden" name="ItemID" value="<%= it.ItemID %>">
-                    <div>
-                      <label class="form-label small text-muted mb-0">Đổi sang</label>
-                      <select name="Target" class="form-select form-select-sm" required>
-                        <option value="">-- Chọn size · màu --</option>
-                        <% opts.forEach(v => { %>
-                          <option value="<%= v.Size %>|<%= v.Color %>" <%= v.free < 1 ? 'disabled' : '' %>>Size <%= v.Size %> · <%= v.Color %> — <%= v.free > 0 ? (isStaff ? 'còn ' + v.free + ' bộ' : 'còn trống') : 'hết lịch' %></option>
-                        <% }) %>
-                      </select>
-                    </div>
-                    <% if (it.Quantity > 1) { %>
-                      <div style="width:90px">
-                        <label class="form-label small text-muted mb-0">Số bộ</label>
-                        <input type="number" name="Qty" class="form-control form-control-sm" min="1" max="<%= it.Quantity %>" value="<%= it.Quantity %>">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead class="table-light"><tr><th>Trang phục</th><th class="text-center">SL</th><th class="text-end">Giá/ngày</th><th class="text-end">Thành tiền thuê</th></tr></thead>
+          <tbody>
+            <% rental.items.forEach(it => { const p = it.Product; %>
+            <tr>
+              <td class="d-flex align-items-center gap-2">
+                <% if (p && p.PathImage) { %><img src="<%= p.PathImage %>" style="width:44px;height:44px;object-fit:cover" class="rounded" onerror="this.style.display='none'"><% } %>
+                <div><strong><%= it.ProductName %></strong>
+                  <div class="small text-muted"><%= p ? p.ProductType : '' %><% if (it.Size) { %> · Size <%= it.Size %><% } %><% if (it.Color) { %> · Màu <%= it.Color %><% } %></div></div>
+              </td>
+              <td class="text-center"><%= it.Quantity %></td>
+              <td class="text-end"><%= vnd(it.PricePerDay) %></td>
+              <td class="text-end"><%= vnd(Number(it.PricePerDay) * it.Quantity * rental.RentDays) %></td>
+            </tr>
+            <% const opts = swapOptions[it.ItemID]; if (swap.ok && opts) { %>
+            <tr class="d-print-none swap-row">
+              <td colspan="4" class="pt-0 border-top-0">
+                <details class="small">
+                  <summary class="text-primary"><i class="bi bi-arrow-left-right"></i> Đổi size / màu</summary>
+                  <% if (!opts.length) { %>
+                    <div class="text-muted mt-1">Mẫu này không có size / màu khác.</div>
+                  <% } else { %>
+                    <form method="POST" action="/rentals/<%= rental.RentalID %>/size" class="d-flex flex-wrap align-items-end gap-2 mt-2">
+                      <input type="hidden" name="ItemID" value="<%= it.ItemID %>">
+                      <div>
+                        <label class="form-label small text-muted mb-0">Đổi sang</label>
+                        <select name="Target" class="form-select form-select-sm" required>
+                          <option value="">-- Chọn size · màu --</option>
+                          <% opts.forEach(v => { %>
+                            <option value="<%= v.Size %>|<%= v.Color %>" <%= v.free < 1 ? 'disabled' : '' %>>Size <%= v.Size %> · <%= v.Color %> — <%= v.free > 0 ? (isStaff ? 'còn ' + v.free + ' bộ' : 'còn trống') : 'hết lịch' %></option>
+                          <% }) %>
+                        </select>
                       </div>
-                    <% } %>
-                    <button class="btn btn-sm btn-outline-primary" onclick="return confirm('Đổi size cho món này? Giá thuê và tiền cọc giữ nguyên.')">Đổi size</button>
-                  </form>
-                <% } %>
-              </details>
-            </td>
-          </tr>
-          <% } %>
-          <% if (rental.Status === 'Hoàn tất' && isOwner && it.ProductID && p && !reviewed.has(it.ProductID)) { %>
-          <tr class="d-print-none"><td colspan="4" class="pt-0 border-top-0 small">
-            <a href="/products/<%= it.ProductID %>#reviewBox"><i class="bi bi-star"></i> Đánh giá mẫu này (kèm ảnh)</a>
-          </td></tr>
-          <% } %>
-          <% }) %>
-        </tbody>
-      </table>
+                      <% if (it.Quantity > 1) { %>
+                        <div style="width:90px">
+                          <label class="form-label small text-muted mb-0">Số bộ</label>
+                          <input type="number" name="Qty" class="form-control form-control-sm" min="1" max="<%= it.Quantity %>" value="<%= it.Quantity %>">
+                        </div>
+                      <% } %>
+                      <button class="btn btn-sm btn-outline-primary" onclick="return confirm('Đổi size cho món này? Giá thuê và tiền cọc giữ nguyên.')">Đổi size</button>
+                    </form>
+                  <% } %>
+                </details>
+              </td>
+            </tr>
+            <% } %>
+            <% if (rental.Status === 'Hoàn tất' && isOwner && it.ProductID && p && !reviewed.has(it.ProductID)) { %>
+            <tr class="d-print-none"><td colspan="4" class="pt-0 border-top-0 small">
+              <a href="/products/<%= it.ProductID %>#reviewBox"><i class="bi bi-star"></i> Đánh giá mẫu này (kèm ảnh)</a>
+            </td></tr>
+            <% } %>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
 
       <!-- Tổng tiền -->
       <div class="row justify-content-end">

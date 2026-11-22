@@ -141,8 +141,9 @@ kbd{ background:var(--ink); border-radius:6px; padding:1px 7px; font-size:.78rem
 /* ===== Hiệu ứng ===== */
 @keyframes fadeUp{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:translateY(0); } }
 @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
-.hero,.card,.stat,.cat-card,.toolbar{ animation:fadeUp .5s ease both; }
-.prod-card{ animation:fadeUp .5s ease both; }
+/* backwards (không dùng both): chạy xong phải nhả transform, nếu không menu xổ / lịch trong khung bị khung bên dưới che */
+.hero,.card,.stat,.cat-card,.toolbar{ animation:fadeUp .5s ease backwards; }
+.prod-card{ animation:fadeUp .5s ease backwards; }
 main > .row .col-6:nth-child(2) .prod-card,.col-md-4:nth-child(2n) .prod-card{ animation-delay:.05s; }
 .section-title,.hero h1,.hero p{ animation:fadeIn .7s ease both; }
 .btn{ transition:transform .15s ease, box-shadow .2s ease, background .2s ease; }
@@ -151,7 +152,7 @@ main > .row .col-6:nth-child(2) .prod-card,.col-md-4:nth-child(2n) .prod-card{ a
 .btn-gold:hover{ box-shadow:0 6px 18px rgba(201,169,166,.35); }
 .nav-link{ transition:color .2s ease; }
 a{ transition:color .18s ease; }
-.alert{ animation:fadeUp .4s ease both; }
+.alert{ animation:fadeUp .4s ease backwards; }
 .badge{ transition:transform .15s ease; }
 .chip{ transition:all .2s ease; }
 img{ transition:transform .5s ease; }
@@ -305,7 +306,7 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
 .rev-gridline{ position:absolute; left:0; right:0; border-top:1px solid var(--line); }
 .rev-gridline span{ position:absolute; right:100%; margin-right:8px; transform:translateY(-50%); font-size:.72rem; color:var(--muted); white-space:nowrap; }
 .rev-bars{ position:absolute; inset:0 0 0 0; display:flex; gap:2px; }
-.rev-col{ position:relative; flex:1; display:flex; flex-direction:column; justify-content:flex-end; padding:0 18%; padding-bottom:24px; cursor:default; outline:none; }
+.rev-col{ position:relative; flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end; padding:0 1.5%; padding-bottom:24px; cursor:default; outline:none; }
 .rev-bar{ background:var(--primary); border-radius:4px 4px 0 0; min-height:0; transition:opacity .15s; }
 .rev-col:hover .rev-bar, .rev-col:focus-visible .rev-bar{ opacity:.8; }
 .rev-col:focus-visible{ box-shadow:inset 0 0 0 2px var(--gold); border-radius:4px; }
@@ -314,7 +315,7 @@ tr.row-new{ background:rgba(25,135,84,.10)!important; box-shadow:inset 3px 0 0 #
 .rev-tip{ position:absolute; top:-8px; z-index:5; background:#fff; border:1px solid var(--line); box-shadow:var(--shadow); border-radius:10px; padding:.5rem .7rem; font-size:.78rem; color:var(--ink); pointer-events:none; white-space:nowrap; transform:translateY(-100%); }
 .top-track{ height:8px; background:var(--cream-2); border-radius:4px; overflow:hidden; }
 .top-bar{ height:100%; background:var(--primary); border-radius:0 4px 4px 0; }
-@media (max-width:576px){ .rev-chart{ height:200px; margin-left:38px; } .rev-col{ padding:0 8%; padding-bottom:24px; } }
+@media (max-width:576px){ .rev-chart{ height:200px; margin-left:38px; } .rev-col{ padding:0 .6%; padding-bottom:24px; } }
 
 /* Bảng nội quy trừ phí */
 .fee-table thead th{ background:var(--cream-2)!important; }
@@ -1170,15 +1171,15 @@ html, body{ overflow-x:clip; }
 .rp-day.is-off{ color:#cfc8c3; background:#f6f3f1; font-weight:400; cursor:not-allowed; }
 .rp-day.is-today{ border-color:var(--primary); border-radius:8px; }
 /* Cả khoảng nhận → trả là 1 dải cùng màu (các ngày thuê), bo tròn 2 đầu */
-.rp-day.is-in{ background:#f3e1dc; }
-.rp-day.is-start, .rp-day.is-end{ background:#f3e1dc; }
+.rp-day.is-in{ background:#eac5bf; }
+.rp-day.is-start, .rp-day.is-end{ background:#eac5bf; }
 .rp-day.is-start{ border-radius:8px 0 0 8px; }
 .rp-day.is-end{ border-radius:0 8px 8px 0; }
 .rp-day.is-start.is-end, .rp-day.is-start:not(.is-in){ border-radius:8px; }
 
 .rp-legend{ display:grid; grid-template-columns:1fr 1fr; gap:.35rem .8rem; margin:.9rem 0 .2rem; font-size:.86rem; color:var(--ink); }
 .rp-legend i{ display:inline-block; width:14px; height:14px; border-radius:3px; margin-right:.4rem; vertical-align:-2px; }
-.lg-today{ border:1.5px solid var(--primary); } .lg-range{ background:#f3e1dc; }
+.lg-today{ border:1.5px solid var(--primary); } .lg-range{ background:#eac5bf; }
 .rp-foot{ display:flex; justify-content:space-between; align-items:center; gap:.6rem; margin-top:.8rem; padding-top:.8rem; border-top:1px solid var(--line); }
 .rp-hint{ font-size:.86rem; color:var(--muted); }
 .rp-hint b{ color:var(--ink); }
@@ -1418,3 +1419,42 @@ a.co-step:hover{ color:var(--primary); }
 .qi-copy{ border:1px solid var(--line); background:#fff; border-radius:6px; width:28px; height:28px; color:var(--primary); padding:0; }
 .qr-demo{ margin-top:.7rem; background:#e8f4fd; color:#1d5f8a; border-radius:8px; padding:.5rem .7rem; font-size:.85rem; }
 @media (max-width: 575px){ .qr-box{ flex:1 1 100%; max-width:260px; margin:0 auto; } }
+
+/* ===== CHỐNG TRÀN VIỀN khi thu nhỏ / phóng to ===== */
+/* 1200–1279px: chỗ hẹp nhất của menu ngang */
+@media (min-width: 1200px) and (max-width: 1279.98px){
+  .ch-nav .navbar-brand{ font-size:1.45rem !important; margin-right:.5rem; }
+  .ch-nav .nav-link{ margin:0; letter-spacing:0; padding-left:.4rem !important; padding-right:.4rem !important; }
+}
+/* 1400–1499px: cỡ chữ gốc lên 18px nên phải thu menu lại */
+@media (min-width: 1399.02px) and (max-width: 1499.98px){
+  .ch-nav .navbar-brand{ font-size:1.6rem !important; }
+  .ch-nav .nav-link{ margin:0 .1rem; font-size:14px; letter-spacing:.3px; }
+}
+/* 1500–1759px: giữ tên tài khoản, nút Giỏ thuê / Thêm chỉ còn icon, menu gọn lại */
+@media (min-width: 1499.02px) and (max-width: 1759.98px){
+  .ch-nav .nav-btn-text:not(.acc-name){ display:none; }
+  .ch-nav .acc-name{ max-width:110px; }
+  .ch-nav .navbar-brand{ font-size:1.6rem !important; }
+  .ch-nav .nav-link{ margin:0 .1rem; font-size:14px; letter-spacing:.3px; }
+  .ch-nav .btn-sm{ font-size:14px; padding:.4rem .7rem; }
+  .ch-nav .navbar-collapse > .d-flex{ gap:.4rem !important; }
+}
+/* Menu ☰ cao hơn màn hình (zoom lớn, điện thoại xoay ngang): cuộn bên trong menu */
+@media (max-width: 1199.98px){
+  .ch-nav .navbar-collapse.show{ max-height:calc(100vh - 90px); max-height:calc(100dvh - 90px); overflow:hidden auto; overscroll-behavior:contain; }
+}
+@media (max-width: 575.98px){
+  .topbar span{ white-space:normal; }
+  .rp-pop{ max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); overflow-y:auto; }
+  .ci-main > .d-flex{ flex-wrap:wrap; }
+}
+.pagination{ flex-wrap:wrap; row-gap:4px; }
+/* Cột thao tác: các nút nằm cùng một hàng */
+@media (min-width: 1200px){ .act-cell{ white-space:nowrap; } }
+.act-cell .btn{ padding-left:.65rem; padding-right:.65rem; }
+/* Lịch: dải ngày thuê liền nhau, rê chuột / trùng hôm nay cũng không bị đứt */
+.rp-day.is-in:hover:not(:disabled){ background:#e2b5ae; }
+.rp-day.is-mid, .rp-day.is-mid:hover:not(:disabled){ border-radius:0; }
+.rp-day.is-start:not(.is-end).is-in, .rp-day.is-start:not(.is-end).is-in:hover:not(:disabled){ border-radius:8px 0 0 8px; }
+.rp-day.is-end:not(.is-start), .rp-day.is-end:not(.is-start):hover:not(:disabled){ border-radius:0 8px 8px 0; }
