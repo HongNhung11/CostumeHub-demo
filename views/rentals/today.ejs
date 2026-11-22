@@ -45,7 +45,11 @@
             </div>
             <!-- Thao tác nhanh -->
             <div class="col-lg-3 d-flex flex-wrap gap-1 justify-content-lg-end">
-              <% if (r.Status === 'Chờ cọc') { %>
+              <% if (g.key === 'cod') { %>
+                <form method="POST" action="/rentals/<%= r.RentalID %>/cod-collected" onsubmit="return confirm('Đã thật sự nhận <%= vnd(FLOW.amountDue(r)) %>?')">
+                  <input type="hidden" name="back" value="/rentals/today"><button class="btn btn-sm btn-success"><i class="bi bi-wallet2"></i> Đã thu COD</button>
+                </form>
+              <% } else if (r.Status === 'Chờ cọc') { %>
                 <form method="POST" action="/rentals/<%= r.RentalID %>/deposit" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(FLOW.amountDue(r)) %>?')">
                   <input type="hidden" name="back" value="/rentals/today"><button class="btn btn-sm btn-success"><i class="bi bi-cash-coin"></i> Đã nhận tiền</button>
                 </form>
@@ -59,7 +63,7 @@
                   </form>
                 <% } else { %><a href="/rentals/<%= r.RentalID %>/slip" target="_blank" rel="noopener" class="btn btn-sm btn-light"><i class="bi bi-printer"></i> In phiếu</a><% } %>
               <% } else if (r.Status === 'Đang giao') { %>
-                <form method="POST" action="/rentals/<%= r.RentalID %>/delivered" onsubmit="return confirm('Khách đã nhận đồ<%= cod ? ' và đã trả ' + vnd(FLOW.amountDue(r)) + ' cho shipper' : '' %>?')">
+                <form method="POST" action="/rentals/<%= r.RentalID %>/delivered" onsubmit="return confirm('Khách đã nhận đồ?<%= cod ? ' Tiền COD xác nhận riêng khi đã thu được.' : '' %>')">
                   <input type="hidden" name="back" value="/rentals/today"><button class="btn btn-sm btn-primary"><i class="bi bi-check2"></i> Khách đã nhận</button>
                 </form>
               <% } else if (r.Status === 'Đang thuê' || r.Status === 'Đang gửi trả') { %>

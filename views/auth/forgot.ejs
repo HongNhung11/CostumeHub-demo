@@ -1,0 +1,18 @@
+<div class="row justify-content-center my-md-4">
+  <div class="col-md-8 col-lg-5">
+    <div class="card p-4">
+      <h3 class="font-serif mb-1" style="color:var(--primary)">Quên mật khẩu</h3>
+      <% if (mailOn) { %>
+        <p class="text-muted small">Nhập email đã đăng ký, cửa hàng gửi liên kết để bạn đặt mật khẩu mới.</p>
+        <form method="POST" action="/quen-mat-khau">
+          <label class="form-label small text-muted" for="forgotEmail">Email</label>
+          <input id="forgotEmail" name="email" type="email" class="form-control mb-3" required maxlength="150" autocomplete="email" autofocus>
+          <button class="btn btn-primary w-100"><i class="bi bi-envelope"></i> Gửi liên kết</button>
+        </form>
+      <% } else { %>
+        <div class="alert alert-warning small my-3">Cửa hàng chưa bật gửi email. Vui lòng <a href="/contact">liên hệ cửa hàng</a> để được đặt lại mật khẩu.</div>
+      <% } %>
+      <a href="/login" class="small mt-3"><i class="bi bi-arrow-left"></i> Về trang đăng nhập</a>
+    </div>
+  </div>
+</div>

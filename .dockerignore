@@ -1,6 +1,9 @@
 node_modules
 .env
+.env.*
+!.env.example
 data
+backups
 public/uploads/*
 npm-debug.log
 .git

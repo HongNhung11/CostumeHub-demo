@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const home = require('../controllers/homeController');
 const auth = require('../controllers/authController');
+const { limits } = require('../middlewares/security');
 const productRoutes = require('./products');
 const rentalRoutes = require('./rentals');
 
@@ -17,10 +18,17 @@ router.post('/contact', require('../controllers/contactController').submit);
 
 // Auth
 router.get('/login', auth.loginForm);
-router.post('/login', auth.login);
+router.post('/login', limits.login, auth.login);
 router.get('/register', auth.registerForm);
-router.post('/register', auth.register);
+router.post('/register', limits.register, auth.register);
 router.get('/logout', auth.logout);
+{
+  const pw = require('../controllers/passwordController');
+  router.get('/quen-mat-khau', pw.forgotForm);
+  router.post('/quen-mat-khau', limits.forgot, pw.forgot);
+  router.get('/dat-lai-mat-khau/:token', pw.resetForm);
+  router.post('/dat-lai-mat-khau/:token', pw.reset);
+}
 
 // Module Trang phục
 router.use('/products', productRoutes);
@@ -31,7 +39,7 @@ router.use('/products', productRoutes);
   const { requireLogin } = require('../middlewares/auth');
   router.get('/account', requireLogin, account.show);
   router.post('/account/profile', requireLogin, account.updateProfile);
-  router.post('/account/password', requireLogin, account.changePassword);
+  router.post('/account/password', requireLogin, limits.passwordChange, account.changePassword);
   // Thông báo của tôi
   const noti = require('../controllers/notificationController');
   router.get('/notifications', requireLogin, noti.index);
@@ -61,6 +69,18 @@ router.use('/products', productRoutes);
   router.get('/admin/contacts', requireStaff, contacts.index);
   router.post('/admin/contacts/:id', requireStaff, contacts.update);
   router.post('/admin/contacts/:id/delete', requireAdmin, contacts.remove);
+}
+
+// Combo / thuê nhóm (khách) + sổ hoàn cọc (nhân viên): đặt trước router /admin
+{
+  const { requireStaff } = require('../middlewares/auth');
+  const bundles = require('../controllers/bundleController');
+  router.get('/combo', bundles.index);
+  router.post('/combo/:id/add', bundles.add);
+  const money = require('../controllers/moneyController');
+  router.get('/admin/money', requireStaff, money.index);
+  router.post('/admin/money/ledger/:id', requireStaff, money.settle);
+  router.post('/admin/money/payments/:id', requireStaff, money.resolve);
 }
 
 // Khu vực quản trị (chỉ admin): thống kê, mã giảm giá, quản lý tài khoản

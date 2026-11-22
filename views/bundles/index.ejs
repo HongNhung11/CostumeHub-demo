@@ -1,0 +1,66 @@
+<% const vnd = n => Number(n || 0).toLocaleString('vi-VN') + ' đ'; %>
+<div class="text-center mb-4">
+  <h2 class="font-serif mb-1">Combo &amp; thuê theo nhóm</h2>
+  <p class="text-muted mb-0">Kỷ yếu, bê tráp, đi tiệc cùng hội: nhập số bộ cho từng size, đưa cả nhóm vào giỏ một lần.</p>
+</div>
+
+<% if (!list.length) { %>
+  <div class="card p-5 text-center text-muted">
+    <p class="mb-3">Hiện chưa có ưu đãi combo hay thuê nhóm.</p>
+    <div><a href="/products" class="btn btn-primary">Xem trang phục</a></div>
+  </div>
+<% } %>
+
+<% list.forEach(({ bundle: b, products }) => { const combo = b.Kind === 'combo'; %>
+  <form class="card p-3 p-md-4 mb-4 bd-form" method="POST" action="/combo/<%= b.BundleID %>/add" data-kind="<%= b.Kind %>" data-min="<%= b.MinQty %>">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+      <div>
+        <h4 class="font-serif mb-1"><i class="bi <%= combo ? 'bi-gift' : 'bi-people' %>"></i> <%= b.Name %></h4>
+        <% if (b.Description) { %><p class="small text-muted mb-0"><%= b.Description %></p><% } %>
+      </div>
+      <span class="bd-off">Giảm <%= b.Percent %>%<%= combo ? ' khi thuê đủ combo' : ' từ ' + b.MinQty + ' bộ' %></span>
+    </div>
+    <div class="bd-grid">
+      <% products.forEach(p => { %>
+        <div class="bd-product" data-price="<%= priceOf(p) %>">
+          <% if (p.PathImage) { %><img src="<%= p.PathImage %>" alt="" loading="lazy"><% } %>
+          <div class="flex-grow-1" style="min-width:0">
+            <a href="/products/<%= p.ProductID %>" class="fw-semibold text-dark"><%= p.ProductName %></a>
+            <div class="small text-muted mb-2"><%= vnd(priceOf(p)) %>/ngày</div>
+            <div class="bd-sizes">
+              <% p.variants.filter(v => v.Quantity > 0).forEach(v => { %>
+                <label><span><%= v.Size %> · <%= v.Color %></span>
+                  <input class="form-control form-control-sm" type="number" name="qty_<%= v.VariantID %>" min="0" max="<%= v.Quantity %>" step="1" placeholder="0" inputmode="numeric">
+                </label>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+      <span class="small text-muted bd-summary" role="status"></span>
+      <button class="btn btn-primary" disabled><i class="bi bi-bag-plus"></i> Đưa vào giỏ</button>
+    </div>
+  </form>
+<% }) %>
+
+<script>
+document.querySelectorAll('.bd-form').forEach(f => {
+  const min = +f.dataset.min, combo = f.dataset.kind === 'combo';
+  function update() {
+    let qty = 0, day = 0, missing = 0;
+    f.querySelectorAll('.bd-product').forEach(p => {
+      const n = [...p.querySelectorAll('input')].reduce((s, i) => s + (Math.max(0, parseInt(i.value) || 0)), 0);
+      qty += n; day += n * +p.dataset.price; if (!n) missing++;
+    });
+    const ready = combo ? !missing : qty >= min;
+    f.querySelector('button').disabled = !ready;
+    f.querySelector('.bd-summary').textContent = ready
+      ? `${qty} bộ · ${day.toLocaleString('vi-VN')} đ/ngày trước ưu đãi`
+      : combo ? `Còn ${missing} mẫu chưa chọn size` : `Đã chọn ${qty}/${min} bộ`;
+  }
+  f.addEventListener('input', update);
+  update();
+});
+</script>

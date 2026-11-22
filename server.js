@@ -8,10 +8,22 @@ const methodOverride = require('method-override');
 const expressLayouts = require('express-ejs-layouts');
 
 const { sequelize } = require('./models');
+const ENV = require('./utils/env');
+const security = require('./middlewares/security');
+const { DbStore, TTL_MS } = require('./config/sessionStore');
+const passwordVersion = require('./utils/passwordVersion');
+
+const SECRET = process.env.SESSION_SECRET || '';
+if (SECRET.length < 32) {
+  console.error('❌ Thiếu SESSION_SECRET (tối thiểu 32 ký tự). Chạy: node scripts/setup-env.js');
+  process.exit(1);
+}
 const routes = require('./routes');
 const seed = require('./seed/seed');
 
 const app = express();
+app.disable('x-powered-by');
+if (ENV.TRUST_PROXY) app.set('trust proxy', ENV.TRUST_PROXY);
 const PORT = process.env.PORT || 3000;
 
 // View engine
@@ -22,19 +34,32 @@ app.set('layout', 'layout');
 app.locals.FEES = require('./utils/fees');   // bảng nội quy trừ phí, dùng trong mọi view
 app.locals.colorHex = require('./utils/colors').colorHex;   // chấm màu cạnh tên màu
 Object.assign(app.locals, require('./utils/pricing'));   // saleOf / priceOf / salePercent: giá sale trong mọi view
+app.locals.IDCARD_KEEP_DAYS = ENV.IDCARD_KEEP_DAYS;
+app.locals.SEPAY_ON = ENV.SEPAY.enabled;
+app.locals.SHOW_DEMO_ACCOUNTS = ENV.SHOW_DEMO_ACCOUNTS;
 app.locals.unreadCount = 0;                  // số thông báo chưa đọc (ghi đè cho từng người ở middleware bên dưới)
 app.locals.CAT_GROUPS = require('./utils/categories').menuGroups();   // danh mục con trên menu "Danh mục"
 
 // Middlewares
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(methodOverride('_method'));
+app.use(security.headers);
+app.get('/healthz', async (req, res) => {
+  try { await sequelize.authenticate(); res.json({ ok: true }); } catch (_) { res.status(503).json({ ok: false }); }
+});
+app.use('/webhooks', require('./routes/webhooks'));   // trước body parser / session / CSRF
 app.use(express.static(path.join(__dirname, 'public')));
-
+app.use(security.csrf);
+app.use(express.urlencoded({ extended: true, limit: '200kb' }));
+app.use(express.json({ limit: '100kb' }));
+app.use(methodOverride('_method'));
+const store = new DbStore();
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret',
+  name: 'ch.sid',
+  secret: SECRET,
+  store,
   resave: false,
+  rolling: true,
   saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'lax', secure: 'auto', maxAge: TTL_MS },
 }));
 app.use(flash());
 
@@ -43,14 +68,20 @@ app.use(async (req, res, next) => {
   const su = req.session.user;
   if (!su) return next();
   const { User } = require('./models');
-  const u = await User.findByPk(su.id, { attributes: ['id', 'username', 'fullName', 'role', 'isActive'] });
+  const u = await User.findByPk(su.id, { attributes: ['id', 'username', 'password', 'fullName', 'role', 'isActive'] });
   if (!u || u.isActive === false) {
     delete req.session.user;
     req.session.cart = [];
     req.flash('error', 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cửa hàng.');
     return res.redirect('/login');
   }
-  req.session.user = { id: u.id, username: u.username, fullName: u.fullName, role: u.role };
+  // Đổi / đặt lại mật khẩu -> mọi phiên cũ bị đăng xuất
+  if (su.pv !== passwordVersion(u.password)) {
+    delete req.session.user;
+    req.flash('error', 'Mật khẩu đã thay đổi, vui lòng đăng nhập lại.');
+    return res.redirect('/login');
+  }
+  req.session.user = { id: u.id, username: u.username, fullName: u.fullName, role: u.role, pv: su.pv };
   next();
 });
 
@@ -99,8 +130,15 @@ app.use((req, res) => res.status(404).render('404', { title: 'Không tìm thấy
 const multer = require('multer');
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.name === 'SequelizeOptimisticLockError') {
+    req.flash('error', 'Đơn vừa được cập nhật bởi thao tác khác (VD tiền vừa về). Vui lòng xem lại rồi thao tác tiếp.');
+    const id = req.originalUrl.match(/^\/rentals\/(\d+)/);
+    return res.redirect(id ? '/rentals/' + id[1] : '/rentals');
+  }
+  if (err.type === 'entity.too.large') return res.status(413).type('text/plain').send('Dữ liệu gửi lên quá lớn.');
+  if (err.type === 'entity.parse.failed') return res.status(400).type('text/plain').send('Dữ liệu gửi lên không hợp lệ.');
   const userError =
-    err instanceof multer.MulterError ? (err.code === 'LIMIT_FILE_SIZE' ? 'File quá lớn (tối đa 5MB với ảnh, 10MB với file import).'
+    err instanceof multer.MulterError ? (err.code === 'LIMIT_FILE_SIZE' ? 'File quá lớn (tối đa 5MB với ảnh, 8MB với ảnh tình trạng đồ, 10MB với file import).'
       : ['LIMIT_FILE_COUNT', 'LIMIT_UNEXPECTED_FILE'].includes(err.code) ? 'Chọn quá nhiều ảnh (sản phẩm: tối đa 6 ảnh phụ · đánh giá: tối đa 3 ảnh).' : 'File tải lên không hợp lệ.')
     : err.code === 'INVALID_FILE_TYPE' ? err.message
     : null;
@@ -154,7 +192,7 @@ async function migrateRentalsToItems() {
 
 // Bổ sung cột mới cho bảng đã có (sync() không tự thêm cột) + chuyển trạng thái SP cũ
 async function migrateSchema() {
-  const { User, Product, Rental } = require('./models');
+  const { User, Product, Rental, Notification } = require('./models');
   const { LEGACY_STATUS } = require('./utils/constants');
   const qi = sequelize.getQueryInterface();
   const users = await qi.describeTable('Users');
@@ -163,12 +201,16 @@ async function migrateSchema() {
     await User.update({ isActive: true }, { where: {}, hooks: false });
   }
   // Các cột mới khác (đều cho phép trống)
-  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds', 'SalePrice', 'SaleEnd']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt', 'CustomerAddress', 'DeliveryZone', 'ShipDays', 'Carrier', 'TrackingCode', 'ShippedAt', 'ReturnTrackingCode', 'ReturnSentDate', 'TransferClaimedAt']], Users: [User, ['phone', 'email', 'address']] };
+  const NEW_COLUMNS = { Products: [Product, ['ProductValue', 'SizeChart', 'Material', 'Style', 'Length', 'Occasion', 'CareGuide', 'CartAdds', 'SalePrice', 'SaleEnd']], Rentals: [Rental, ['DamageDetails', 'TermsAcceptedAt', 'CouponCode', 'Discount', 'DepositPaidAt', 'CustomerAddress', 'DeliveryZone', 'ShipDays', 'Carrier', 'TrackingCode', 'ShippedAt', 'ReturnTrackingCode', 'ReturnSentDate', 'TransferClaimedAt', 'PayCode', 'PaidVia', 'IDCardDeletedAt', 'BundleName', 'BundleDiscount']], Users: [User, ['phone', 'email', 'address', 'ResetHash', 'ResetExpires']], Notifications: [Notification, ['EmailedAt', 'EmailTries']] };
   const added = [];
+  const rentalCols = await qi.describeTable('Rentals');
+  if (!rentalCols.version) await qi.addColumn('Rentals', 'version', { type: require('sequelize').INTEGER, allowNull: false, defaultValue: 0 });
   for (const [table, [model, cols]] of Object.entries(NEW_COLUMNS)) {
     const desc = await qi.describeTable(table);
     for (const c of cols) if (!desc[c]) { await qi.addColumn(table, c, { type: model.rawAttributes[c].type, allowNull: true }); added.push(c); }
   }
+  const indexes = await qi.showIndex('Rentals');
+  if (!indexes.some(i => i.name === 'rentals_pay_code')) await qi.addIndex('Rentals', ['PayCode'], { name: 'rentals_pay_code', unique: true });
   // Vừa thêm cột thông tin chi tiết -> điền gợi ý từ tên / mô tả (nhân viên sửa lại sau)
   if (added.includes('Material')) {
     const { guessDetails } = require('./utils/details');
@@ -220,6 +262,21 @@ async function migrateVariants() {
   if (n) console.log(`🔁 Đã tạo số lượng theo size × màu cho ${n} sản phẩm.`);
 }
 
+// Tiền thật mà admin / nhân viên còn mật khẩu mẫu (có trong README) -> không bật chuyển khoản:
+// ai cũng đăng nhập được rồi tự bấm "Xác nhận tay" hoặc ghi sổ hoàn tiền.
+async function guardLivePayments() {
+  if (ENV.SEPAY.mode !== 'live' || !ENV.SEPAY.enabled) return;
+  const { User } = require('./models');
+  const weak = [];
+  for (const u of await User.findAll({ where: { role: ['admin', 'nhanvien'], isActive: true } })) {
+    if (await u.checkPassword('admin123') || await u.checkPassword('123456')) weak.push(u.username);
+  }
+  if (!weak.length) return;
+  ENV.SEPAY.enabled = false;
+  ENV.SEPAY.problems.push(`Đổi mật khẩu mẫu của "${weak.join('", "')}" rồi khởi động lại mới bật được tiền thật`);
+  app.locals.SEPAY_ON = false;
+}
+
 // Khởi động
 (async () => {
   try {
@@ -230,6 +287,10 @@ async function migrateVariants() {
     await migrateRentalsToItems();     // chuyển dữ liệu đơn thuê cũ (nếu có)
     await seed();                      // nạp dữ liệu mẫu nếu rỗng
     await migrateVariants();           // số lượng theo size × màu cho SP chưa có
+    await guardLivePayments();
+    require('./utils/jobs').start({ store });
+    if (ENV.SEPAY.enabled) console.log(`💳 SePay: ${ENV.SEPAY.mode} · webhook ${ENV.SEPAY.secret ? 'bật' : 'tắt'} · đối soát ${ENV.SEPAY.token ? 'bật' : 'tắt'}`);
+    else console.log('💳 Chuyển khoản đang TẮT: ' + ENV.SEPAY.problems.join('; '));
     app.listen(PORT, () => {
       console.log(`🚀 CostumeHub chạy tại: http://localhost:${PORT}`);
     });

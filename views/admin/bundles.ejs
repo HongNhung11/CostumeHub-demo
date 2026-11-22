@@ -1,0 +1,72 @@
+<% const o = (k, d = '') => old[k] ?? d, picked = new Set(old.ids || []); %>
+<h3 class="font-serif mb-3"><i class="bi bi-gift" style="color:var(--gold)"></i> Combo &amp; thuê theo nhóm</h3>
+<div class="row g-4">
+  <div class="col-lg-5">
+    <form method="POST" action="/admin/bundles" class="card p-3 p-md-4">
+      <h6 class="font-serif mb-3">Tạo ưu đãi</h6>
+      <label class="form-label small text-muted" for="bKind">Kiểu</label>
+      <select name="Kind" id="bKind" class="form-select mb-2">
+        <option value="combo">Combo: thuê đủ các mẫu được chọn</option>
+        <option value="group" <%= o('Kind') === 'group' ? 'selected' : '' %>>Nhóm: đủ số bộ trong các mẫu được chọn</option>
+      </select>
+      <label class="form-label small text-muted" for="bName">Tên</label>
+      <input name="Name" id="bName" class="form-control mb-2" required minlength="3" maxlength="100" value="<%= o('Name') %>" placeholder="VD: Kỷ yếu lớp">
+      <label class="form-label small text-muted" for="bDesc">Mô tả</label>
+      <input name="Description" id="bDesc" class="form-control mb-2" maxlength="300" value="<%= o('Description') %>">
+      <div class="row g-2 mb-2">
+        <div class="col">
+          <label class="form-label small text-muted" for="bPct">Giảm (%)</label>
+          <input name="Percent" id="bPct" type="number" min="1" max="90" class="form-control" required value="<%= o('Percent', 10) %>">
+        </div>
+        <div class="col" id="bMinBox">
+          <label class="form-label small text-muted" for="bMin">Từ số bộ</label>
+          <input name="MinQty" id="bMin" type="number" min="2" max="999" class="form-control" value="<%= o('MinQty', 5) %>">
+        </div>
+      </div>
+      <label class="form-label small text-muted" for="bFind">Các mẫu (tối đa <%= MAX_PRODUCTS %>) · đã chọn <b id="bCount">0</b></label>
+      <input id="bFind" type="search" class="form-control form-control-sm mb-2" placeholder="Lọc theo tên">
+      <div class="bd-pick mb-3" id="bPick">
+        <% products.forEach(p => { %>
+          <label><input class="form-check-input me-2" type="checkbox" name="ProductIDs" value="<%= p.ProductID %>" <%= picked.has(p.ProductID) ? 'checked' : '' %>><%= p.ProductName %> <span class="text-muted">#<%= p.ProductID %></span></label>
+        <% }) %>
+      </div>
+      <button class="btn btn-primary">Tạo và bật</button>
+    </form>
+  </div>
+  <div class="col-lg-7">
+    <% if (!list.length) { %><div class="card p-4 text-muted">Chưa có ưu đãi nào.</div><% } %>
+    <% list.forEach(({ bundle: b, products: ps }) => { %>
+      <div class="card p-3 mb-3">
+        <div class="d-flex justify-content-between gap-2 flex-wrap">
+          <div>
+            <strong><%= b.Name %></strong>
+            <span class="badge bg-<%= b.isActive ? 'success' : 'secondary' %>"><%= b.isActive ? 'Đang bật' : 'Đang tắt' %></span>
+            <div class="small text-muted"><%= b.Kind === 'combo' ? 'Combo' : 'Nhóm từ ' + b.MinQty + ' bộ' %> · giảm <%= b.Percent %>%</div>
+          </div>
+          <div class="d-flex gap-2">
+            <form method="POST" action="/admin/bundles/<%= b.BundleID %>/toggle"><button class="btn btn-sm btn-outline-primary"><%= b.isActive ? 'Tắt' : 'Bật' %></button></form>
+            <form method="POST" action="/admin/bundles/<%= b.BundleID %>/delete" onsubmit="return confirm('Xóa ưu đãi này?')"><button class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button></form>
+          </div>
+        </div>
+        <div class="small mt-2"><%= ps.map(p => p.ProductName).join(' · ') %></div>
+      </div>
+    <% }) %>
+  </div>
+</div>
+<script>
+(function () {
+  const kind = document.getElementById('bKind'), pick = document.getElementById('bPick'), count = document.getElementById('bCount');
+  const sync = () => {
+    document.getElementById('bMinBox').hidden = kind.value !== 'group';
+    count.textContent = pick.querySelectorAll('input:checked').length;
+  };
+  kind.addEventListener('change', sync);
+  pick.addEventListener('change', sync);
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase();
+  document.getElementById('bFind').addEventListener('input', e => {
+    const q = norm(e.target.value);
+    pick.querySelectorAll('label').forEach(l => { l.hidden = !norm(l.textContent).includes(q); });
+  });
+  sync();
+})();
+</script>

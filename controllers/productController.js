@@ -17,6 +17,7 @@ const { CATEGORIES, filterByCategory, menuGroups } = require('../utils/categorie
 const { DETAIL_FIELDS } = require('../utils/details');
 const { hotSet, hotScores } = require('../utils/hot');
 const { saleOf, priceOf, salePercent } = require('../utils/pricing');
+const { lockProducts } = require('../utils/locks');
 
 // Thứ tự size: XS → S → M → L → XL → XXL (kể cả "S+", "M/L"), rồi Free size, rồi size số / ni / kích thước (theo số tăng dần)
 const LETTER_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
@@ -378,15 +379,18 @@ exports.update = async (req, res) => {
     const keep = gallery.filter(g => !removeIds.has(g.ImageID));
     if (keep.length + req.galleryFiles.length > MAX_GALLERY) errors.push(`Tối đa ${MAX_GALLERY} ảnh phụ (đang giữ ${keep.length}, chọn thêm ${req.galleryFiles.length}).`);
     // Không cho giảm số bộ của một size × màu xuống dưới số bộ khách đang giữ cùng lúc (kể cả bỏ size / màu đó đi)
-    if (!errors.length) {
-      const peaks = await peakFutureUsage(product.ProductID);
+    const stockErrors = async (opts) => {
+      const list = [];
+      const peaks = await peakFutureUsage(product.ProductID, opts);
       const newQty = Object.fromEntries(combos.map(c => [`${c.Size}|${c.Color}`, c.Quantity]));
       for (const [k, peak] of Object.entries(peaks)) {
         const [size, color] = k.split('|');
         const q = newQty[k] || 0;
-        if (q < peak) errors.push(`Size ${size} – ${color}: đang có ${peak} ${product.Unit} được khách đặt cùng lúc, không thể ${k in newQty ? `giảm xuống ${q}` : 'bỏ size / màu này'}. Tối thiểu là ${peak}.`);
+        if (q < peak) list.push(`Size ${size} – ${color}: đang có ${peak} ${product.Unit} được khách đặt cùng lúc, không thể ${k in newQty ? `giảm xuống ${q}` : 'bỏ size / màu này'}. Tối thiểu là ${peak}.`);
       }
-    }
+      return list;
+    };
+    if (!errors.length) errors.push(...await stockErrors());
     if (errors.length) {
       removeUploads(req);
       return res.status(400).render('products/form', formView({
@@ -404,6 +408,9 @@ exports.update = async (req, res) => {
     if (req.file) data.PathImage = '/uploads/' + req.file.filename;
     const removed = gallery.filter(g => removeIds.has(g.ImageID));
     await sequelize.transaction(async (t) => {
+      await lockProducts([product.ProductID], t);
+      const late = await stockErrors({ transaction: t });   // kiểm tra lại: có thể khách vừa đặt xong
+      if (late.length) throw new Error(late.join(' '));
       await product.update(data, { transaction: t });
       await saveVariants(product, combos, { transaction: t });
       if (removed.length) await ProductImage.destroy({ where: { ImageID: { [Op.in]: removed.map(g => g.ImageID) } }, transaction: t });

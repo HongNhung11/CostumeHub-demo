@@ -47,6 +47,7 @@ exports.changePassword = async (req, res) => {
 
   user.password = next;   // hook beforeUpdate sẽ băm mật khẩu
   await user.save();
+  req.session.user.pv = require('../utils/passwordVersion')(user.password);   // phiên này giữ nguyên, phiên khác bị đăng xuất
   req.flash('success', 'Đã đổi mật khẩu.');
   res.redirect('/account');
 };

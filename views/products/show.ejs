@@ -134,7 +134,7 @@
                   <label class="pd-opt <%= off ? 'opt-off' : '' %>" for="size<%= i %>" title="<%= !total ? 'Shop không có size này' : off ? 'Đã có khách thuê trong ngày bạn chọn' : '' %>"><%= sz %></label>
                 <% }) %>
                 <%# Bảng số đo nằm cùng hàng, bên phải các nút size %>
-                <% if (chart.length) { %><a href="#" class="pd-guide-link small ms-2" data-bs-toggle="modal" data-bs-target="#sizeChartModal"><i class="bi bi-rulers"></i> Bảng số đo</a><% } %>
+                <% if (chart.length) { %><a href="#" class="pd-guide-link small ms-2" data-bs-toggle="modal" data-bs-target="#sizeChartModal"><i class="bi bi-rulers"></i> Gợi ý size · bảng số đo</a><% } %>
               </div>
               <div class="small text-danger mt-1 opt-msg" hidden>Vui lòng chọn size.</div>
             </div>
@@ -309,6 +309,17 @@
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title"><i class="bi bi-rulers" style="color:var(--gold)"></i> Bảng số đo — <%= product.ProductName %></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
     <div class="modal-body">
+        <form id="sizeAdvisor" class="sa-box mb-3" data-rows="<%= JSON.stringify(chart) %>" novalidate>
+          <div class="fw-semibold mb-2"><i class="bi bi-magic"></i> Gợi ý size cho bạn</div>
+          <div class="row g-2 align-items-end">
+            <% [['height', 'Chiều cao'], ['bust', 'Vòng ngực'], ['waist', 'Vòng eo'], ['hip', 'Vòng mông']].forEach(([k, label]) => { %>
+              <div class="col-6 col-md"><label class="form-label small mb-1" for="sa-<%= k %>"><%= label %> (cm)</label>
+                <input id="sa-<%= k %>" name="<%= k %>" type="number" min="30" max="220" inputmode="numeric" class="form-control form-control-sm"></div>
+            <% }) %>
+            <div class="col-12 col-md-auto"><button class="btn btn-primary btn-sm w-100">Xem size</button></div>
+          </div>
+          <div class="sa-result mt-2" role="status" aria-live="polite"></div>
+        </form>
         <div class="row g-4">
           <div class="col-lg-8">
             <%# Bảng rộng hết khung, không cuộn ngang; đơn vị ghi 1 lần ở dưới thay vì từng cột %>
@@ -418,3 +429,4 @@
 </div><!-- /.pd-wrap -->
 
 <% if (canRent) { %><script src="/js/range-picker.js"></script><% } %>
+<% if (chart.length) { %><script src="/js/size-advisor.js"></script><% } %>

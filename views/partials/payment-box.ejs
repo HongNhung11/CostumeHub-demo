@@ -1,0 +1,98 @@
+<%# Khung chuyển khoản của đơn "Chờ thanh toán": QR động + tự cập nhật khi tiền về %>
+<% const money = Number(due).toLocaleString('vi-VN') + ' đ', sandbox = SEPAY.mode === 'sandbox', claimed = FLOW.transferClaimed(rental); %>
+<div class="card p-3 border-warning d-print-none mb-3" id="payBox" data-state-url="/rentals/<%= rental.RentalID %>/pay-state">
+  <% if (!SEPAY.enabled) { %>
+    <div class="alert alert-warning mb-2"><i class="bi bi-exclamation-triangle"></i> Cửa hàng đang tạm dừng nhận chuyển khoản. Vui lòng <strong>không chuyển tiền</strong> và liên hệ cửa hàng.</div>
+  <% } else { %>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <div class="fw-semibold text-warning-emphasis"><i class="bi bi-qr-code-scan"></i> Quét mã để thanh toán</div>
+      <% if (!claimed) { %><div class="pay-countdown" id="payCountdown" data-deadline="<%= FLOW.paymentDeadline(rental).getTime() %>">--:--</div><% } %>
+    </div>
+
+    <% if (sandbox) { %>
+      <div class="alert alert-info py-2 small"><i class="bi bi-cone-striped"></i> <strong>SePay Test mode, không chuyển tiền thật.</strong> Vào my.sepay.vn → Test mode → Mô phỏng giao dịch, nhập đúng số tiền và nội dung bên dưới. Đơn sẽ tự xác nhận.</div>
+    <% } %>
+
+    <div class="qr-pay">
+      <% if (qrUrl) { %>
+        <div class="qr-box">
+          <img src="<%= qrUrl %>" alt="Mã VietQR thanh toán đơn #<%= rental.RentalID %>">
+          <a href="<%= qrUrl %>" download="QR-don-<%= rental.RentalID %>.png" class="small"><i class="bi bi-download"></i> Lưu ảnh QR</a>
+        </div>
+      <% } %>
+      <div class="qr-info">
+        <div class="qi-row"><span>Ngân hàng</span><b><%= SEPAY.bank.name %></b></div>
+        <div class="qi-row"><span>Chủ tài khoản</span><b><%= SEPAY.owner %></b></div>
+        <div class="qi-row"><span>Số tài khoản</span><b class="mono"><%= SEPAY.receiveAccount %></b><button type="button" class="qi-copy" data-copy="<%= SEPAY.receiveAccount %>" title="Sao chép"><i class="bi bi-copy"></i></button></div>
+        <div class="qi-row"><span>Số tiền</span><b class="price-tag"><%= money %></b><button type="button" class="qi-copy" data-copy="<%= Number(due) %>" title="Sao chép"><i class="bi bi-copy"></i></button></div>
+        <div class="qi-row"><span>Nội dung CK</span><b class="mono"><%= rental.PayCode %></b><button type="button" class="qi-copy" data-copy="<%= rental.PayCode %>" title="Sao chép"><i class="bi bi-copy"></i></button></div>
+        <div class="small text-muted mt-2">Giữ <strong>đúng số tiền và nội dung</strong> để đơn được xác nhận tự động.</div>
+      </div>
+    </div>
+
+    <div class="pay-wait small" id="payWait" role="status" aria-live="polite">
+      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+      <span>Đang chờ tiền về. Trang sẽ tự chuyển, bạn không cần bấm gì.</span>
+    </div>
+  <% } %>
+
+  <div class="d-flex gap-2 flex-wrap mt-3">
+    <% if (isStaff) { %>
+      <form method="POST" action="/rentals/<%= rental.RentalID %>/deposit" onsubmit="return confirm('Chỉ xác nhận tay khi đã thấy <%= money %> trong tài khoản ngân hàng. Xác nhận?')">
+        <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
+        <button class="btn btn-outline-success btn-sm"><i class="bi bi-cash-coin"></i> Xác nhận tay</button>
+      </form>
+    <% } %>
+    <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Nếu bạn đã chuyển tiền thì đừng hủy, hãy đợi hệ thống xác nhận.')">
+      <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const box = document.getElementById('payBox'), wait = document.getElementById('payWait');
+  box.querySelectorAll('.qi-copy').forEach(b => b.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(b.dataset.copy);
+      b.innerHTML = '<i class="bi bi-check2"></i>';
+      setTimeout(() => { b.innerHTML = '<i class="bi bi-copy"></i>'; }, 1500);
+    } catch (_) {}
+  }));
+
+  // Đồng hồ giữ chỗ (máy chủ chờ thêm 2 phút cho giao dịch báo về chậm)
+  const clock = document.getElementById('payCountdown');
+  if (clock) {
+    const end = +clock.dataset.deadline;
+    const tick = () => {
+      const s = Math.max(0, Math.round((end - Date.now()) / 1000));
+      clock.textContent = s ? String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') : 'Hết giờ';
+      clock.classList.toggle('is-low', s <= 60);
+      if (!s) {
+        const qr = box.querySelector('.qr-box');
+        if (qr) qr.hidden = true;   // hết giờ thì không cho quét nữa
+        if (wait) wait.lastElementChild.textContent = 'Hết giờ: đừng chuyển thêm. Nếu bạn vừa chuyển, hệ thống còn chờ tiền về thêm 2 phút.';
+        clearInterval(timer);
+      }
+    };
+    const timer = setInterval(tick, 1000);
+    tick();
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch(box.dataset.stateUrl, { cache: 'no-store' });
+      if (r.ok) {
+        const d = await r.json();
+        if (d.status !== 'Chờ cọc') return location.reload();
+        if (d.issue && wait) {
+          wait.className = 'alert alert-warning py-2 small mt-2 mb-0';
+          wait.textContent = 'Đã thấy giao dịch nhưng cần kiểm tra: ' + d.issue + '. Vui lòng không chuyển thêm, nhân viên sẽ xử lý.';
+        }
+      }
+    } catch (_) {}
+    setTimeout(poll, 3000);
+  }
+  setTimeout(poll, 3000);
+})();
+</script>

@@ -1,0 +1,31 @@
+<%# Ảnh tình trạng đồ: so sánh lúc giao và lúc nhận lại %>
+<% const canAdd = Object.values(PHOTO_STAGES).some(s => s.statuses.includes(rental.Status)); %>
+<% if (photos.length || (isStaff && canAdd)) { %>
+<div class="card p-3 mb-3 d-print-none" id="anh-tinh-trang">
+  <div class="fw-semibold mb-2"><i class="bi bi-camera"></i> Ảnh tình trạng đồ</div>
+  <div class="row g-3">
+    <% Object.entries(PHOTO_STAGES).forEach(([key, stage]) => { const list = photos.filter(p => p.Stage === key); %>
+      <div class="col-md-6">
+        <div class="small text-muted mb-1"><%= stage.label %> (<%= list.length %>)</div>
+        <div class="hp-list">
+          <% list.forEach(p => { const url = `/rentals/${rental.RentalID}/photos/${p.PhotoID}`; %>
+            <figure>
+              <a href="<%= url %>" target="_blank" rel="noopener"><img src="<%= url %>" loading="lazy" alt="<%= stage.label %>"></a>
+              <figcaption><%= new Date(p.createdAt).toLocaleString('vi-VN') %><% if (isStaff) { %> · <%= p.TakenBy %><% } %><% if (p.Note) { %><br><%= p.Note %><% } %></figcaption>
+            </figure>
+          <% }) %>
+          <% if (!list.length) { %><span class="small text-muted">Chưa có ảnh.</span><% } %>
+        </div>
+        <% if (isStaff && stage.statuses.includes(rental.Status)) { %>
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/photos" enctype="multipart/form-data" class="mt-2">
+            <input type="hidden" name="Stage" value="<%= key %>">
+            <input type="file" name="photos" class="form-control form-control-sm mb-1" accept="image/jpeg,image/png,image/webp,image/gif" multiple required aria-label="Ảnh <%= stage.label.toLowerCase() %>">
+            <input name="Note" class="form-control form-control-sm mb-1" maxlength="200" placeholder="Ghi chú tình trạng (không bắt buộc)">
+            <button class="btn btn-outline-primary btn-sm"><i class="bi bi-upload"></i> Lưu ảnh</button>
+          </form>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+</div>
+<% } %>

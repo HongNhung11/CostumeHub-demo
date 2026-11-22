@@ -1420,6 +1420,55 @@ a.co-step:hover{ color:var(--primary); }
 .qr-demo{ margin-top:.7rem; background:#e8f4fd; color:#1d5f8a; border-radius:8px; padding:.5rem .7rem; font-size:.85rem; }
 @media (max-width: 575px){ .qr-box{ flex:1 1 100%; max-width:260px; margin:0 auto; } }
 
+/* Combo / thuê nhóm */
+.bd-off{ background:var(--sel-bg); color:var(--sel-text); border-radius:999px; padding:.3rem .8rem; font-weight:600; font-size:.88rem; }
+.bd-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap:.8rem; }
+.bd-product{ display:flex; gap:.8rem; align-items:flex-start; border:1px solid var(--line); border-radius:12px; padding:.7rem; min-width:0; }
+.bd-product > img{ width:72px; height:94px; object-fit:cover; border-radius:8px; flex-shrink:0; }
+.bd-sizes label{ display:flex; justify-content:space-between; align-items:center; gap:.5rem; font-size:.85rem; margin-bottom:.3rem; }
+.bd-sizes input{ width:72px; flex-shrink:0; }
+.bd-pick{ max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:10px; padding:.4rem .7rem; }
+.bd-pick label{ display:block; font-size:.88rem; padding:.2rem 0; }
+.bd-pick label[hidden]{ display:none; }
+/* Gợi ý size */
+.sa-result strong{ display:block; }
+.sa-box{ background:var(--cream); border:1px solid var(--line); border-radius:12px; padding:.8rem 1rem; }
+/* Lịch tổng */
+.cal-grid{ display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; }
+.cal-week{ text-align:center; font-size:.8rem; font-weight:700; color:var(--muted); }
+.cal-day{ display:flex; flex-direction:column; gap:2px; min-height:104px; padding:.35rem; background:#fff; border:1px solid var(--line); border-radius:8px; color:var(--ink); min-width:0; overflow:hidden; }
+.cal-day.is-out{ opacity:.45; }
+.cal-day.is-today .cal-num{ color:var(--primary); text-decoration:underline; }
+.cal-day.is-sel{ border:2px solid var(--primary); }
+.cal-num{ font-weight:700; }
+.cal-event{ display:flex; gap:.25rem; align-items:center; font-size:.75rem; background:var(--sel-bg); border-radius:4px; padding:1px 4px; white-space:nowrap; overflow:hidden; }
+.cal-event.is-late{ background:#fdecea; color:#a23a2e; }
+.cal-event em{ font-style:normal; overflow:hidden; text-overflow:ellipsis; }
+.cal-busy{ margin-top:auto; font-size:.72rem; color:var(--muted); }
+.cal-row{ display:flex; flex-wrap:wrap; gap:.4rem .8rem; align-items:center; padding:.55rem 0; border-top:1px solid var(--line); }
+.cal-row.is-done{ opacity:.6; }
+.cal-kind{ min-width:150px; font-size:.88rem; }
+@media (max-width: 767.98px){
+  .cal-day{ min-height:64px; padding:.2rem; }
+  .cal-event{ padding:1px 2px; gap:2px; font-size:.68rem; }
+  .cal-event em, .cal-busy{ display:none; }
+}
+/* Ảnh tình trạng đồ */
+.hp-list{ display:flex; flex-wrap:wrap; gap:.5rem; }
+.hp-list figure{ width:108px; margin:0; }
+.hp-list img{ width:108px; height:108px; object-fit:cover; border-radius:8px; }
+.hp-list figcaption{ font-size:.7rem; color:var(--muted); overflow-wrap:anywhere; }
+
+.btn-primary:disabled{ background:var(--primary); border-color:var(--primary); color:#fff; }
+.cs-row b{ white-space:nowrap; }
+
+/* Thanh toán chuyển khoản */
+.pay-wait{ color:var(--muted); margin-top:.6rem; }
+.pay-success{ display:flex; align-items:center; gap:.9rem; padding:1rem 1.2rem; border-radius:14px; background:#e8f6ec; border:1px solid #b7dfc2; color:#1e5b2a; }
+.pay-success > .bi{ font-size:2.2rem; color:#2e7d32; }
+.pay-success strong{ display:block; font-size:1.15rem; }
+.pay-success span{ display:block; font-size:.9rem; }
+
 /* ===== CHỐNG TRÀN VIỀN khi thu nhỏ / phóng to ===== */
 /* 1200–1279px: chỗ hẹp nhất của menu ngang */
 @media (min-width: 1200px) and (max-width: 1279.98px){

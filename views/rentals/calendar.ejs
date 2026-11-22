@@ -1,0 +1,50 @@
+<%
+  const [yy, mm] = month.split('-').map(Number);
+  const link = (o) => '/rentals/calendar?' + new URLSearchParams(Object.entries({ month, kind, ...o }).filter(([, v]) => v)).toString();
+  const cur = days.find(d => d.date === selected);
+%>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h3 class="font-serif mb-0"><i class="bi bi-calendar3" style="color:var(--gold)"></i> Lịch tổng · tháng <%= mm %>/<%= yy %></h3>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-light btn-sm" href="<%= link({ month: prev }) %>" title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
+    <a class="btn btn-light btn-sm" href="<%= link({ month: today.slice(0, 7), day: today }) %>">Hôm nay</a>
+    <a class="btn btn-light btn-sm" href="<%= link({ month: next }) %>" title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
+  </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a href="<%= link({ kind: '', day: selected }) %>" class="btn btn-sm <%= kind ? 'btn-light' : 'btn-primary' %>">Tất cả việc</a>
+  <% Object.entries(KINDS).forEach(([k, v]) => { %>
+    <a href="<%= link({ kind: k, day: selected }) %>" class="btn btn-sm <%= kind === k ? 'btn-primary' : 'btn-light' %>"><i class="bi <%= v.icon %>"></i> <%= v.label %></a>
+  <% }) %>
+</div>
+
+<div class="cal-grid">
+  <% ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].forEach(w => { %><div class="cal-week"><%= w %></div><% }) %>
+  <% days.forEach(d => {
+       const count = {};
+       d.events.filter(e => !e.finished).forEach(e => { count[e.type] = (count[e.type] || 0) + 1; }); %>
+    <a href="<%= link({ day: d.date }) %>#ngay" class="cal-day <%= d.inMonth ? '' : 'is-out' %> <%= d.date === today ? 'is-today' : '' %> <%= d.date === selected ? 'is-sel' : '' %>" aria-label="<%= d.date %>: <%= d.events.length %> việc, <%= d.busy %> bộ bận">
+      <span class="cal-num"><%= +d.date.slice(8) %></span>
+      <% Object.entries(count).forEach(([k, n]) => { %>
+        <span class="cal-event <%= d.date < today ? 'is-late' : '' %>" title="<%= KINDS[k].label %>"><i class="bi <%= KINDS[k].icon %>"></i><b><%= n %></b><em><%= KINDS[k].label %></em></span>
+      <% }) %>
+      <% if (d.busy) { %><span class="cal-busy"><%= d.busy %> bộ bận</span><% } %>
+    </a>
+  <% }) %>
+</div>
+
+<section class="card p-3 mt-3" id="ngay">
+  <h6 class="font-serif mb-2">Ngày <%= selected.split('-').reverse().join('/') %> · <%= cur.events.length %> việc · <%= cur.busy %> bộ bận (kể cả vận chuyển, giặt)</h6>
+  <% if (!cur.events.length) { %><p class="text-muted small mb-0">Không có việc trong ngày này.</p><% } %>
+  <% cur.events.forEach(e => { const r = e.rental; %>
+    <div class="cal-row <%= e.finished ? 'is-done' : '' %>">
+      <span class="cal-kind"><i class="bi <%= KINDS[e.type].icon %>"></i> <%= KINDS[e.type].label %></span>
+      <div class="flex-grow-1" style="min-width:0">
+        <a href="/rentals/<%= r.RentalID %>" class="fw-semibold">#<%= r.RentalID %> <%= r.CustomerName %></a> · <a href="tel:<%= r.CustomerPhone %>"><%= r.CustomerPhone %></a>
+        <div class="small text-muted"><%= r.items.map(it => `${it.ProductName} × ${it.Quantity}${it.Size ? ' · ' + it.Size : ''}`).join('; ') %></div>
+      </div>
+      <span class="badge bg-<%= e.finished ? 'success' : FLOW.cls(r.Status) %>"><%= e.finished ? 'Đã xong' : FLOW.label(r.Status) %></span>
+    </div>
+  <% }) %>
+</section>

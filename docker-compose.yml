@@ -1,3 +1,6 @@
+# Lần đầu:  node scripts/setup-env.js   (tạo .env với mật khẩu ngẫu nhiên)
+# Chạy:     docker compose up -d --build
+# KHÔNG dùng "docker compose down -v": -v xóa toàn bộ dữ liệu.
 services:
   db:
     image: postgres:16-alpine
@@ -6,16 +9,17 @@ services:
     environment:
       POSTGRES_DB: costumehub
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Thieu DB_PASSWORD - chay node scripts/setup-env.js}
+      TZ: Asia/Ho_Chi_Minh
+      PGTZ: Asia/Ho_Chi_Minh
+    # Không mở cổng ra ngoài: chỉ web và backup truy cập qua mạng nội bộ của Docker
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d costumehub"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   web:
     build: .
@@ -24,21 +28,45 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file: .env
     environment:
+      TZ: Asia/Ho_Chi_Minh
       PORT: 3000
-      SESSION_SECRET: costumehub_secret
       DB_DIALECT: postgres
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: costumehub
       DB_USER: postgres
-      DB_PASSWORD: postgres
     ports:
-      - "3000:3000"
+      # Mặc định chỉ máy này truy cập được. Cho máy khác trong mạng: APP_BIND=0.0.0.0 trong .env
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3001}:3000"
     volumes:
       # Giữ file upload khi xóa / build lại container
       - uploads:/app/public/uploads          # ảnh trang phục (công khai)
-      - private_uploads:/app/private_uploads # ảnh CCCD (riêng tư)
+      - private_uploads:/app/private_uploads # ảnh CCCD + ảnh tình trạng đồ (riêng tư)
+
+  backup:
+    image: postgres:16-alpine
+    container_name: costumehub_backup
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy           # web tạo bảng xong mới sao lưu
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: costumehub
+      PGPASSWORD: ${DB_PASSWORD}
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    entrypoint: ["sh", "/scripts/backup.sh"]
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./backups:/backups
+      - uploads:/data/uploads:ro
+      - private_uploads:/data/private:ro
 
 volumes:
   pgdata:

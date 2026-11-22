@@ -12,6 +12,9 @@ const Rental = sequelize.define('Rental', {
   CustomerPhone: { type: DataTypes.STRING, allowNull: false },
   CustomerIDCard: { type: DataTypes.STRING },             // số CCCD (sau này OCR tự điền)
   IDCardImage: { type: DataTypes.STRING },                // ảnh chụp CCCD
+  IDCardDeletedAt: { type: DataTypes.DATE, allowNull: true },    // đã tự xóa theo quy định lưu trữ
+  BundleName: { type: DataTypes.TEXT, allowNull: true },         // ưu đãi combo / nhóm đã áp dụng
+  BundleDiscount: { type: DataTypes.DECIMAL(12, 0), allowNull: true },   // phần giảm đó (đã nằm trong Discount)
   DeliveryMethod: { type: DataTypes.STRING, defaultValue: 'Tự đến lấy' }, // Tự đến lấy / Giao tận nơi
   DeliveryZone: { type: DataTypes.STRING(20), allowNull: true },  // pickup | local | province (utils/shipping.js)
   ShipDays: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 0 },   // số ngày vận chuyển mỗi chiều (lưu lại lúc đặt)
@@ -21,7 +24,7 @@ const Rental = sequelize.define('Rental', {
   ShippedAt: { type: DataTypes.DATEONLY, allowNull: true },             // ngày giao cho shipper
   ReturnTrackingCode: { type: DataTypes.STRING(50), allowNull: true },  // mã vận đơn khách gửi trả
   ReturnSentDate: { type: DataTypes.DATEONLY, allowNull: true },        // ngày khách gửi trả (tính trễ theo ngày này)
-  TransferClaimedAt: { type: DataTypes.DATE, allowNull: true },         // lúc khách bấm "Tôi đã chuyển khoản"
+  TransferClaimedAt: { type: DataTypes.DATE, allowNull: true },         // (bản cũ) lúc khách tự báo đã chuyển khoản
   DeliveryAddress: { type: DataTypes.STRING },            // địa chỉ nhận (nếu giao tận nơi)
   CustomerAddress: { type: DataTypes.STRING(255), allowNull: true },   // địa chỉ liên hệ của khách (bắt buộc khi đặt)
 
@@ -47,6 +50,8 @@ const Rental = sequelize.define('Rental', {
 
   PaymentMethod: { type: DataTypes.STRING },                        // tiền mặt / chuyển khoản / ví
   PaymentStatus: { type: DataTypes.STRING, defaultValue: 'Chưa thanh toán' },
+  PayCode: { type: DataTypes.STRING(16), allowNull: true },          // mã nội dung chuyển khoản (CH + 8 số)
+  PaidVia: { type: DataTypes.STRING(10), allowNull: true },          // sepay | manual | cod
   DepositPaidAt: { type: DataTypes.DATE },                           // lúc nhân viên xác nhận đã nhận cọc
 
   // Trạng thái đơn: Chờ cọc -> Đã cọc -> Đang thuê -> Hoàn tất | Đã hủy  ("Đã đặt": dữ liệu cũ)
@@ -55,6 +60,7 @@ const Rental = sequelize.define('Rental', {
 }, {
   tableName: 'Rentals',
   timestamps: true,
+  version: true,   // khóa lạc quan: 2 người cùng sửa 1 đơn thì người sau bị báo, không ghi đè
 });
 
 module.exports = Rental;

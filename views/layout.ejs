@@ -41,6 +41,7 @@
                 { label: 'Áo dài', href: '/products?type=' + enc('Áo dài') },
                 { label: 'Váy tiệc – Đầm dạ hội', href: '/products?type=' + enc('Váy tiệc') },
               ] },
+              { label: 'Combo & thuê nhóm', href: '/combo' },
               { label: 'Phụ kiện', href: '/products?type=' + enc('Phụ kiện'), sub: [
                 { label: 'Tất cả phụ kiện', href: '/products?type=' + enc('Phụ kiện') }, ...groupOf('Phụ kiện'),
               ] },
@@ -85,6 +86,8 @@
                 <ul class="dropdown-menu">
                   <li><a class="dropdown-item <%= path === '/rentals/today' ? 'active' : '' %>" href="/rentals/today"><i class="bi bi-list-check me-2"></i>Việc hôm nay</a></li>
                   <li><a class="dropdown-item <%= path === '/rentals' ? 'active' : '' %>" href="/rentals"><i class="bi bi-receipt me-2"></i>Tất cả đơn thuê</a></li>
+                  <li><a class="dropdown-item <%= path === '/rentals/calendar' ? 'active' : '' %>" href="/rentals/calendar"><i class="bi bi-calendar3 me-2"></i>Lịch tổng</a></li>
+                  <li><a class="dropdown-item <%= path === '/admin/money' ? 'active' : '' %>" href="/admin/money"><i class="bi bi-journal-text me-2"></i>Sổ hoàn cọc</a></li>
                 </ul>
               </li>
             <% } else { %>
@@ -106,6 +109,7 @@
                 <% if (isAdmin) { %>
                   <li><a class="dropdown-item <%= path.startsWith('/admin/stats') ? 'active' : '' %>" href="/admin/stats"><i class="bi bi-bar-chart-line me-2"></i>Thống kê</a></li>
                   <li><a class="dropdown-item <%= path.startsWith('/admin/coupons') ? 'active' : '' %>" href="/admin/coupons"><i class="bi bi-ticket-perforated me-2"></i>Mã giảm giá</a></li>
+                  <li><a class="dropdown-item <%= path.startsWith('/admin/bundles') ? 'active' : '' %>" href="/admin/bundles"><i class="bi bi-gift me-2"></i>Combo &amp; thuê nhóm</a></li>
                   <li><a class="dropdown-item <%= path.startsWith('/admin/users') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people me-2"></i>Tài khoản</a></li>
                 <% } %>
               </ul>

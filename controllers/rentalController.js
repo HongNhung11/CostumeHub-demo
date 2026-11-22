@@ -14,7 +14,12 @@ const { addDays } = require('../utils/dates');
 const { notify } = require('../utils/notify');
 const FLOW = require('../utils/rentalFlow');
 const { amountDue, isDelivery, shipDay, paymentDeadline, isPaid } = FLOW;
-const { DEPOSIT_HOLD_HOURS, SHOP_BANK, vietQrUrl } = require('../utils/constants');
+const { SEPAY } = require('../utils/env');
+const { lockUser, lockProducts, lockCoupon } = require('../utils/locks');
+const { newPayCode } = require('../utils/payments');
+const { normCode } = require('../utils/coupons');
+const ledger = require('../utils/ledger');
+const vietqr = require('../utils/vietqr');
 const vnd = (n) => Number(n || 0).toLocaleString('vi-VN') + ' đ';
 const timeVi = (d) => new Date(d).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -76,11 +81,22 @@ exports.create = async (req, res) => {
     }
     if (req.body.agree !== '1') return fail('Vui lòng đọc và đồng ý nội quy thuê đồ trước khi đặt.');
     const payMethod = req.body.method === FLOW.PAY.BANK ? FLOW.PAY.BANK : FLOW.PAY.COD;
+    if (payMethod === FLOW.PAY.BANK && !SEPAY.enabled) return fail('Cửa hàng chưa bật nhận chuyển khoản. Vui lòng chọn thanh toán khi nhận đồ (COD).');
 
     // Kiểm tra trùng lịch THEO TỪNG SIZE × MÀU + tạo đơn trong 1 transaction (tránh 2 khách cùng giữ 1 bộ)
     const need = needByVariant(lines);
     const rental = await sequelize.transaction(async (t) => {
-      const avail = await productAvailability(products, StartDate, EndDate, { transaction: t, shipDays: zone.days });
+      await lockUser(req.session.user.id, t);
+      const fresh = await lockProducts(products.map(p => p.ProductID), t);
+      const byId = new Map(fresh.map(p => [p.ProductID, p]));
+      for (const l of lines) {
+        const p = byId.get(l.productId);
+        if (!p || p.Status !== 'Còn trống') throw Object.assign(new Error(`"${l.product.ProductName}" vừa ngừng cho thuê. Vui lòng xem lại giỏ.`), { userFacing: true });
+        l.product = p;   // giá và trạng thái mới nhất, đọc sau khi đã khóa
+      }
+      const couponInput = normCode(req.body.CouponCode);
+      if (couponInput) await lockCoupon(couponInput, t);
+      const avail = await productAvailability(fresh, StartDate, EndDate, { transaction: t, shipDays: zone.days });
       const freeOf = (l) => (avail[l.productId].variants.find(v => v.Size === l.size && v.Color === l.color) || { free: 0 }).free;
       const short = lines.filter(l => need[lineKey(l)] > freeOf(l));
       if (short.length) {
@@ -102,8 +118,11 @@ exports.create = async (req, res) => {
       // Mã giảm giá (không bắt buộc): chỉ trừ vào tiền thuê, kiểm tra lại trong transaction
       const rentFee = pricePerDay * rentDays;
       let couponCode = null, discount = 0;
+      const { bundleFor, totalOff } = require('../utils/bundles');
+      const bundle = await bundleFor(lines, { transaction: t });
+      const bundleOff = totalOff(bundle.perDay, rentDays);
       if (String(req.body.CouponCode || '').trim()) {
-        const cp = await applyCoupon(req.body.CouponCode, req.session.user.id, rentFee, { transaction: t });
+        const cp = await applyCoupon(req.body.CouponCode, req.session.user.id, rentFee - bundleOff, { transaction: t });
         if (cp.error) { const e = new Error(cp.error + ' Bạn có thể xóa mã để đặt không dùng mã.'); e.userFacing = true; throw e; }
         couponCode = cp.coupon.Code; discount = cp.discount;
       }
@@ -119,13 +138,16 @@ exports.create = async (req, res) => {
         PricePerDay: pricePerDay,
         RentFee: rentFee,
         CouponCode: couponCode,
-        Discount: discount,
+        Discount: bundleOff + discount,
+        BundleName: bundleOff ? bundle.names : null,
+        BundleDiscount: bundleOff || null,
         Deposit: deposit,
         // Khách trả 1 lần = tiền thuê − giảm giá + tiền cọc.
         // COD: trả khi nhận đồ -> giữ chỗ ngay ("Đã cọc" = chờ giao đồ). Chuyển khoản: chờ thanh toán tới hạn.
         PaymentMethod: payMethod,
         PaymentStatus: payMethod === FLOW.PAY.COD ? 'Thu khi nhận đồ' : 'Chưa thanh toán',
         Status: payMethod === FLOW.PAY.COD ? 'Đã cọc' : 'Chờ cọc',
+        PayCode: newPayCode(),
         TermsAcceptedAt: new Date(),
         Note,
       }, { transaction: t });
@@ -153,12 +175,12 @@ exports.create = async (req, res) => {
       }
     }
     const due = vnd(amountDue(rental));
-    const promo = rental.CouponCode ? ` Mã ${rental.CouponCode} đã giảm ${vnd(rental.Discount)} tiền thuê.` : '';
+    const promo = num(rental.Discount) ? ` Đã giảm ${vnd(rental.Discount)} tiền thuê.` : '';
     if (rental.Status === 'Chờ cọc') {
       const deadline = timeVi(paymentDeadline(rental));
-      req.flash('success', `Đặt thuê thành công! Vui lòng chuyển khoản ${due} (tiền thuê + tiền cọc) trong ${FLOW.PAY_MINUTES} phút rồi bấm "Tôi đã chuyển khoản" — quá ${FLOW.PAY_MINUTES} phút đơn tự hủy.` + promo);
+      req.flash('success', `Đặt thuê thành công! Quét mã QR để chuyển ${due} (tiền thuê + tiền cọc) trong ${FLOW.PAY_MINUTES} phút — tiền về là đơn tự xác nhận, quá hạn đơn tự hủy.` + promo);
       await notify(rental, { level: 'warning', title: `Đơn #${rental.RentalID} chờ chuyển khoản`,
-        message: `Chuyển khoản ${due} trước ${deadline} và bấm "Tôi đã chuyển khoản" trên trang đơn. Quá hạn đơn tự hủy.` });
+        message: `Chuyển khoản ${due} trước ${deadline}, nội dung ${rental.PayCode}. Tiền về là đơn tự xác nhận; quá hạn đơn tự hủy.` });
     } else {
       const when = isDelivery(rental) ? `shop gửi đồ ngày ${viDate(shipDay(rental))}, bạn nhận ngày ${viDate(rental.StartDate)}` : `nhận đồ tại cửa hàng ngày ${viDate(rental.StartDate)}`;
       req.flash('success', `Đặt thuê thành công ${rental.Quantity} món! Thanh toán ${due} khi nhận đồ (COD) — ${when}.` + promo);
@@ -177,6 +199,7 @@ exports.show = async (req, res) => {
   const rental = await Rental.findByPk(req.params.id, withItems);
   if (!rental) return res.status(404).render('404', { title: 'Không tìm thấy đơn' });
   if (!canAccess(req, rental)) return denied(req, res);
+  if (rental.Status === 'Chờ cọc' && !rental.PayCode) await rental.update({ PayCode: newPayCode() });   // đơn tạo từ bản cũ
   rental.alert = alertOf(rental);
   let damageDetails = [];
   try { damageDetails = JSON.parse(rental.DamageDetails || '[]'); } catch (_) { damageDetails = []; }
@@ -203,11 +226,29 @@ exports.show = async (req, res) => {
   }
   res.render('rentals/show', {
     title: `Đơn thuê #${rental.RentalID}`, rental, damageDetails, swap, swapOptions, reviewed, isOwner: rental.UserID === req.session.user.id,
-    isStaff: isStaff(req.session.user), SHOP_BANK, DEPOSIT_HOLD_HOURS, deadline: rental.Status === 'Chờ cọc' ? timeVi(paymentDeadline(rental)) : null, today: todayStr(),
-    // Mã QR chuyển khoản: nội dung CH<mã đơn> (không đưa SĐT khách ra dịch vụ ngoài)
-    qrUrl: rental.Status === 'Chờ cọc' ? vietQrUrl(amountDue(rental), `CH${rental.RentalID}`) : null,
+    photos: await require('../models').HandoverPhoto.findAll({ where: { RentalID: rental.RentalID }, order: [['PhotoID', 'ASC']] }),
+    PHOTO_STAGES: require('./photoController').STAGES,
+    isStaff: isStaff(req.session.user), SEPAY, deadline: rental.Status === 'Chờ cọc' ? timeVi(paymentDeadline(rental)) : null, today: todayStr(),
+    // QR sinh tại máy chủ; Test mode không hiện QR để không ai chuyển nhầm tiền thật
+    qrUrl: rental.Status === 'Chờ cọc' && SEPAY.enabled && SEPAY.mode === 'live' ? `/rentals/${rental.RentalID}/qr.png` : null,
     isNew: req.query.new === '1' && rental.UserID === req.session.user.id,   // vừa đặt xong -> hiện bước 3 Hoàn tất
   });
+};
+
+// ===== Ảnh QR chuyển khoản =====
+exports.qr = async (req, res) => {
+  const r = await Rental.findByPk(req.params.id);
+  if (!r || !canAccess(req, r) || r.Status !== 'Chờ cọc' || !r.PayCode || !SEPAY.enabled || SEPAY.mode !== 'live') return res.sendStatus(404);
+  const png = await vietqr.png({ bin: SEPAY.bank.bin, account: SEPAY.receiveAccount, amount: amountDue(r), content: r.PayCode });
+  res.set('Cache-Control', 'private, no-store').type('png').send(png);
+};
+
+// ===== Trang đơn hỏi trạng thái mỗi 3 giây để tự chuyển sang "Đã thanh toán" =====
+exports.payState = async (req, res) => {
+  const r = await Rental.findByPk(req.params.id);
+  if (!r || !canAccess(req, r)) return res.sendStatus(404);
+  const issue = r.Status === 'Chờ cọc' ? await require('../models').Payment.findOne({ where: { RentalID: r.RentalID, State: 'review' }, order: [['PaymentID', 'DESC']] }) : null;
+  res.set('Cache-Control', 'no-store').json({ status: r.Status, paid: isPaid(r), issue: issue ? issue.Reason : null });
 };
 
 // ===== CHÍNH SÁCH ĐỔI SIZE =====
@@ -260,6 +301,9 @@ exports.changeSize = async (req, res) => {
   const from = `${it.Size} · ${it.Color}`;   // ghi lại size cũ trước khi đổi (để ghi chú đơn)
   try {
     await sequelize.transaction(async (t) => {
+      await lockProducts([it.ProductID], t);
+      const now = await Rental.findByPk(rental.RentalID, { transaction: t, lock: t.LOCK.UPDATE });
+      if (now.version !== rental.version) throw Object.assign(new Error('Đơn vừa được cập nhật, vui lòng tải lại trang rồi đổi size.'), { userFacing: true });
       const v = await ProductVariant.findOne({ where: { ProductID: it.ProductID, Size: size, Color: color }, transaction: t });
       if (!v || v.Quantity <= 0) throw Object.assign(new Error(`Mẫu này không có size ${size} màu ${color}.`), { userFacing: true });
       const { start, end } = swapRange(rental);
@@ -278,7 +322,7 @@ exports.changeSize = async (req, res) => {
       }
       const who = isStaff(req.session.user) ? 'nhân viên' : 'khách';
       const line = `[${viDate(todayStr())}] Đổi size (${who}): "${it.ProductName}" ${n} bộ ${from} → ${size} · ${color}.`;
-      await rental.update({ Note: [rental.Note, line].filter(Boolean).join('\n') }, { transaction: t });
+      await now.update({ Note: [now.Note, line].filter(Boolean).join('\n') }, { transaction: t });
     });
   } catch (e) {
     req.flash('error', e.userFacing ? e.message : 'Lỗi đổi size: ' + e.message);
@@ -306,28 +350,38 @@ exports.idCardImage = async (req, res) => {
 
 // ===== Hủy đơn (tính phí hủy theo mốc ngày) =====
 exports.cancel = async (req, res) => {
-  const rental = await Rental.findByPk(req.params.id);
-  if (!rental) { req.flash('error', 'Không tìm thấy đơn.'); return res.redirect('/rentals'); }
-  if (!canAccess(req, rental)) return denied(req, res);
-  if (!['Chờ cọc', 'Đã cọc', 'Đã đặt'].includes(rental.Status)) {
-    req.flash('error', rental.Status === 'Đang giao' ? 'Đồ đã được gửi đi, không thể hủy đơn.' : 'Đơn này không thể hủy.');
-    return res.redirect(`/rentals/${rental.RentalID}`);
+  const result = await sequelize.transaction(async (t) => {
+    const r = await Rental.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+    if (!r) return { missing: true };
+    if (!canAccess(req, r)) return { forbidden: true };
+    if (!['Chờ cọc', 'Đã cọc', 'Đã đặt'].includes(r.Status)) return { blocked: r };
+
+    // Phí hủy tính trên tiền cọc theo số ngày trước ngày nhận; chỉ trừ khi khách ĐÃ trả tiền (chuyển khoản).
+    // COD chưa thu tiền -> không có gì để trừ.
+    const daysToStart = daysBetween(todayStr(), r.StartDate);
+    const paid = isPaid(r);
+    let fee = 0;
+    if (!paid) fee = 0;
+    else if (daysToStart >= 3) fee = 0;                            // hoàn 100%
+    else if (daysToStart >= 1) fee = Math.round(num(r.Deposit) * 0.5); // giữ 50% tiền cọc
+    else fee = num(r.Deposit);                                     // mất tiền cọc
+
+    // Đơn rất cũ "Đã cọc" mới chỉ trả tiền cọc, chưa trả tiền thuê
+    const received = !paid ? 0 : r.PaymentStatus === 'Đã cọc' ? num(r.Deposit) : amountDue(r);
+    r.CancelFee = fee;
+    r.RefundAmount = received - fee;
+    r.Status = 'Đã hủy';                                           // hủy => các bộ tự trống lại theo lịch
+    await r.save({ transaction: t });
+    await ledger.post({ key: `cancel:${r.RentalID}`, rentalId: r.RentalID, amount: r.RefundAmount, reason: 'Hoàn tiền hủy đơn' }, { transaction: t });
+    return { rental: r, cancelFee: fee };
+  });
+  if (result.missing) { req.flash('error', 'Không tìm thấy đơn.'); return res.redirect('/rentals'); }
+  if (result.forbidden) return denied(req, res);
+  if (result.blocked) {
+    req.flash('error', result.blocked.Status === 'Đang giao' ? 'Đồ đã được gửi đi, không thể hủy đơn.' : 'Đơn này không thể hủy.');
+    return res.redirect(`/rentals/${result.blocked.RentalID}`);
   }
-
-  // Phí hủy tính trên tiền cọc theo số ngày trước ngày nhận; chỉ trừ khi khách ĐÃ trả tiền (chuyển khoản).
-  // COD chưa thu tiền -> không có gì để trừ.
-  const daysToStart = daysBetween(todayStr(), rental.StartDate);
-  const paid = isPaid(rental);
-  let cancelFee = 0;
-  if (!paid) cancelFee = 0;
-  else if (daysToStart >= 3) cancelFee = 0;                  // hoàn 100%
-  else if (daysToStart >= 1) cancelFee = Math.round(num(rental.Deposit) * 0.5); // giữ 50% tiền cọc
-  else cancelFee = num(rental.Deposit);                      // mất tiền cọc
-
-  rental.CancelFee = cancelFee;
-  rental.RefundAmount = paid ? amountDue(rental) - cancelFee : 0;
-  rental.Status = 'Đã hủy';                                  // hủy => các bộ tự trống lại theo lịch
-  await rental.save();
+  const { rental, cancelFee } = result;
   const byStaff = isStaff(req.session.user) && rental.UserID !== req.session.user.id;
   await notify(rental, { level: 'danger', title: `Đơn #${rental.RentalID} đã hủy${byStaff ? ' bởi cửa hàng' : ''}`,
     message: `Phí hủy ${vnd(cancelFee)} · hoàn lại ${vnd(rental.RefundAmount)}.` });
@@ -340,7 +394,7 @@ exports.cancel = async (req, res) => {
 function alertOf(r, today = todayStr()) {
   const deli = isDelivery(r), sd = shipDay(r);
   if (r.Status === 'Chờ cọc') {
-    if (FLOW.transferClaimed(r)) return { level: 'danger', text: 'Khách báo đã chuyển khoản — kiểm tra tài khoản & xác nhận' };
+    if (FLOW.transferClaimed(r)) return { level: 'danger', text: 'Đơn cũ báo đã chuyển khoản — kiểm tra tài khoản & xác nhận' };
     const left = Math.max(0, Math.ceil((paymentDeadline(r) - Date.now()) / 60e3));
     return { level: 'warning', text: `Chờ chuyển khoản · còn ${left} phút` };
   }
@@ -412,7 +466,7 @@ const loadOr404 = async (req, res) => {
   return rental;
 };
 // COD: tiền thu khi khách nhận đồ -> đánh dấu đã thanh toán
-const collectCod = (rental) => { if (rental.PaymentMethod === FLOW.PAY.COD && !isPaid(rental)) { rental.PaymentStatus = 'Đã thanh toán'; rental.DepositPaidAt = new Date(); } };
+const collectCod = (rental) => { if (rental.PaymentMethod === FLOW.PAY.COD && !isPaid(rental)) { rental.PaymentStatus = 'Đã thanh toán'; rental.PaidVia = 'cod'; rental.DepositPaidAt = new Date(); } };
 const SHIP_NOTE = 'gọi đơn vị vận chuyển tới lấy hoặc gửi tại bưu cục';
 
 // Nhân viên: khách TỰ ĐẾN LẤY đồ tại shop (Chờ giao đồ -> Đang thuê)
@@ -464,12 +518,25 @@ exports.delivered = async (req, res) => {
   if (!canAccess(req, rental)) return denied(req, res);
   const back = safeBack(req, `/rentals/${rental.RentalID}`);
   if (rental.Status !== 'Đang giao') { req.flash('error', 'Đơn này không ở trạng thái đang giao.'); return res.redirect(back); }
-  collectCod(rental);
+  // Khách chỉ xác nhận ĐÃ NHẬN ĐỒ. Đã thu tiền COD hay chưa thì chỉ nhân viên xác nhận (exports.confirmCod)
   rental.Status = 'Đang thuê';
   await rental.save();
   await notify(rental, { level: 'success', title: `Đã nhận đồ — đơn #${rental.RentalID}`,
     message: `Ngày ${viDate(rental.EndDate)} vui lòng gửi trả đồ (${SHIP_NOTE}) và nhập mã vận đơn trên trang đơn.` });
   req.flash('success', `Đã xác nhận nhận đồ cho đơn #${rental.RentalID}.`);
+  res.redirect(back);
+};
+
+// Nhân viên: đã thật sự nhận được tiền COD (shipper nộp về / khách trả)
+exports.confirmCod = async (req, res) => {
+  const rental = await loadOr404(req, res); if (!rental) return;
+  const back = safeBack(req, `/rentals/${rental.RentalID}`);
+  if (!FLOW.codPending(rental)) { req.flash('error', 'Đơn này không có khoản COD chờ xác nhận.'); return res.redirect(back); }
+  collectCod(rental);
+  await rental.save();
+  await notify(rental, { level: 'success', key: `paid-${rental.RentalID}`, title: `Đã nhận thanh toán — đơn #${rental.RentalID}`,
+    message: `Cửa hàng đã nhận ${vnd(amountDue(rental))} (COD, gồm tiền thuê và tiền cọc).` });
+  req.flash('success', `Đã xác nhận thu ${vnd(amountDue(rental))} COD cho đơn #${rental.RentalID}.`);
   res.redirect(back);
 };
 
@@ -489,21 +556,6 @@ exports.sentBack = async (req, res) => {
   res.redirect(back);
 };
 
-// ===== Khách: "Tôi đã chuyển khoản" (trong thời gian giữ chỗ) -> không tự hủy, chờ nhân viên xác nhận =====
-exports.claimTransfer = async (req, res) => {
-  const rental = await loadOr404(req, res); if (!rental) return;
-  if (!canAccess(req, rental)) return denied(req, res);
-  const back = `/rentals/${rental.RentalID}`;
-  if (rental.Status !== 'Chờ cọc') { req.flash('error', 'Đơn này không ở trạng thái chờ chuyển khoản.'); return res.redirect(back); }
-  if (!rental.TransferClaimedAt) {
-    if (paymentDeadline(rental) < Date.now()) { req.flash('error', `Đã quá ${FLOW.PAY_MINUTES} phút giữ chỗ. Nếu bạn đã chuyển tiền, vui lòng gọi hotline 0123 456 789.`); return res.redirect(back); }
-    rental.TransferClaimedAt = new Date();
-    await rental.save();
-  }
-  req.flash('success', 'Đã ghi nhận bạn chuyển khoản. Cửa hàng kiểm tra tài khoản và xác nhận trong giờ làm việc — bạn sẽ nhận được thông báo.');
-  res.redirect(back);
-};
-
 // ===== Nhân viên: Xác nhận đã nhận tiền chuyển khoản (Chờ thanh toán -> Chờ giao đồ) =====
 exports.confirmDeposit = async (req, res) => {
   const rental = await loadOr404(req, res); if (!rental) return;
@@ -514,6 +566,7 @@ exports.confirmDeposit = async (req, res) => {
   rental.Status = 'Đã cọc';
   rental.PaymentStatus = 'Đã thanh toán';
   rental.DepositPaidAt = new Date();
+  rental.PaidVia = 'manual';   // chỉ dùng khi webhook / đối soát gặp sự cố
   await rental.save();
   const when = isDelivery(rental) ? `shop gửi đồ ngày ${viDate(shipDay(rental))}, bạn nhận ngày ${viDate(rental.StartDate)}` : `nhận đồ tại cửa hàng ngày ${viDate(rental.StartDate)}`;
   await notify(rental, { level: 'success', title: `Đã nhận thanh toán — đơn #${rental.RentalID}`,
@@ -594,14 +647,19 @@ exports.receiveReturn = async (req, res) => {
   rental.LateFee = lateFee;
   rental.DamageFee = damageFee;
   rental.DamageDetails = details.length ? JSON.stringify(details) : null;
-  rental.RefundAmount = num(rental.Deposit) - lateFee - damageFee; // có thể âm (khách đền thêm)
+  // COD chưa thu: chưa cầm đồng nào -> không hoàn cọc, khách còn phải trả tiền thuê + phí
+  const codUnpaid = rental.PaymentMethod === FLOW.PAY.COD && !isPaid(rental);
+  rental.RefundAmount = num(rental.Deposit) - lateFee - damageFee - (codUnpaid ? amountDue(rental) : 0); // có thể âm (khách trả thêm)
   rental.Status = 'Hoàn tất';                                      // hoàn tất => các bộ trống lại
-  await rental.save();
+  await sequelize.transaction(async (t) => {
+    await rental.save({ transaction: t });
+    await ledger.post({ key: `return:${rental.RentalID}`, rentalId: rental.RentalID, amount: rental.RefundAmount, reason: codUnpaid ? 'COD chưa thu: thu tiền thuê và phí' : num(rental.RefundAmount) >= 0 ? 'Hoàn cọc khi trả đồ' : 'Khách đền thêm khi trả đồ' }, { transaction: t });
+  });
   await notify(rental, { level: 'success', title: `Đơn #${rental.RentalID} hoàn tất`,
-    message: `Cửa hàng đã nhận lại đồ. ${Number(rental.RefundAmount) >= 0 ? `Hoàn cọc ${vnd(rental.RefundAmount)}` : `Bạn cần đền thêm ${vnd(-rental.RefundAmount)}`}` +
+    message: `Cửa hàng đã nhận lại đồ. ${Number(rental.RefundAmount) >= 0 ? `Hoàn cọc ${vnd(rental.RefundAmount)}` : `Bạn cần trả thêm ${vnd(-rental.RefundAmount)}`}` +
       `${lateFee + damageFee ? ` (đã trừ phí ${vnd(lateFee + damageFee)})` : ''}. Cảm ơn bạn — hãy đánh giá mẫu đã thuê nhé!` });
 
-  req.flash('success', `Đã nhận trả đơn #${rental.RentalID}. Phí trễ ${lateFee.toLocaleString('vi-VN')} đ · Hư hỏng ${damageFee.toLocaleString('vi-VN')} đ · Hoàn cọc ${Number(rental.RefundAmount).toLocaleString('vi-VN')} đ.`);
+  req.flash('success', `Đã nhận trả đơn #${rental.RentalID}. Phí trễ ${lateFee.toLocaleString('vi-VN')} đ · Hư hỏng ${damageFee.toLocaleString('vi-VN')} đ · ${num(rental.RefundAmount) >= 0 ? 'Hoàn cọc' : 'Khách trả thêm'} ${Math.abs(num(rental.RefundAmount)).toLocaleString('vi-VN')} đ.`);
   res.redirect('/rentals');
 };
 
@@ -621,8 +679,10 @@ exports.today = async (req, res) => {
   rows.forEach(r => { r.alert = alertOf(r, today); });
   const deli = isDelivery;
   const groups = [
-    { key: 'pay', title: 'Chờ xác nhận thanh toán', icon: 'bi-cash-coin', hint: 'Kiểm tra tài khoản ngân hàng, thấy tiền thì bấm "Đã nhận tiền".',
+    { key: 'pay', title: 'Chờ xác nhận thanh toán', icon: 'bi-cash-coin', hint: 'Tiền về là đơn tự xác nhận. Chỉ bấm "Đã nhận tiền" khi SePay gặp sự cố và bạn đã thấy tiền trong tài khoản.',
       list: rows.filter(r => r.Status === 'Chờ cọc') },
+    { key: 'cod', title: 'Xác nhận đã thu COD', icon: 'bi-wallet2', hint: 'Chỉ bấm khi đã thật sự nhận tiền từ khách hoặc shipper.',
+      list: rows.filter(FLOW.codPending) },
     { key: 'pack', title: 'Đóng đơn & gửi shipper', icon: 'bi-box-seam', hint: `Đơn giao tận nơi có ngày gửi hôm nay (hoặc đã quá ngày). Đóng gói buổi sáng, shipper lấy trước ${FLOW.PACK_CUTOFF_HOUR + 5}h.`,
       list: rows.filter(r => r.Status === 'Đã cọc' && deli(r) && shipDay(r) <= today) },
     { key: 'packTmr', title: 'Chuẩn bị cho ngày mai', icon: 'bi-calendar-event', hint: 'Đơn gửi đồ / khách đến lấy vào ngày mai: kiểm tra, ủi sẵn.',
@@ -643,5 +703,5 @@ exports.today = async (req, res) => {
 exports.slip = async (req, res) => {
   const rental = await Rental.findByPk(req.params.id, withItems);
   if (!rental) return res.status(404).render('404', { title: 'Không tìm thấy đơn' });
-  res.render('rentals/slip', { layout: false, rental, SHOP_BANK });
+  res.render('rentals/slip', { layout: false, rental });
 };

@@ -7,6 +7,7 @@ const { keyOf } = require('../utils/variants');
 
 const getCart = (req) => (req.session.cart ||= []);
 const MAX_LINES = 20;
+exports.MAX_LINES = MAX_LINES;
 const lineKey = (l) => keyOf(l.productId, l.size, l.color);
 
 // Số bộ shop có của 1 size × màu (0 nếu không có tổ hợp đó)
@@ -120,7 +121,8 @@ async function cartData(req, res, opts = {}) {
     const u = await require('../models').User.findByPk(req.session.user.id, { attributes: ['phone', 'idCardNumber', 'address'] });
     if (u) profile = u.get({ plain: true });
   }
-  return { lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons, profile, ZONES: require('../utils/shipping').ZONES, rentZone: req.session.rentZone || 'pickup', savedCoupon: req.session.couponCode || '' };
+  const bundle = await require('../utils/bundles').bundleFor(lines.filter(l => !l.off));
+  return { bundle, lines, old, rentDates, MAX_RENT_DAYS, lineKey, coupons, profile, ZONES: require('../utils/shipping').ZONES, rentZone: req.session.rentZone || 'pickup', savedCoupon: req.session.couponCode || '' };
 }
 
 // ===== Bước 1: Giỏ thuê — xem lại món, số lượng (ai cũng xem được) =====
@@ -208,7 +210,9 @@ exports.coupon = async (req, res) => {
   if (!lines.length) return res.json({ ok: false, error: 'Chưa chọn món nào để đặt thuê.' });
   const { priceOf } = require('../utils/pricing');
   const rentFee = lines.reduce((s, l) => s + priceOf(l.product) * l.qty, 0) * rentDaysOf(start, end);
-  const r = await applyCoupon(code, req.session.user ? req.session.user.id : null, rentFee);
+  const { bundleFor, totalOff } = require('../utils/bundles');
+  const off = totalOff((await bundleFor(lines)).perDay, rentDaysOf(start, end));   // mã tính trên tiền còn lại sau combo
+  const r = await applyCoupon(code, req.session.user ? req.session.user.id : null, rentFee - off);
   if (r.error) return res.json({ ok: false, error: r.error });
   res.json({ ok: true, code: r.coupon.Code, discount: r.discount, rentFee, description: r.coupon.Description || '' });
 };

@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const c = require('../controllers/rentalController');
 const { requireLogin, requireStaff } = require('../middlewares/auth');
-const { uploadIDCard } = require('../middlewares/upload');
+const { uploadIDCard, uploadHandover } = require('../middlewares/upload');
+const photos = require('../controllers/photoController');
 
 // Khách đặt thuê (phải đăng nhập; có upload ảnh CCCD — lưu ở thư mục riêng tư)
 router.post('/', requireLogin, uploadIDCard.single('IDCardImage'), c.create);
@@ -11,6 +12,7 @@ router.post('/', requireLogin, uploadIDCard.single('IDCardImage'), c.create);
 router.get('/', requireLogin, c.index);
 // Nhân viên: việc cần làm hôm nay (đóng đơn, giao, thu hồi, giặt)
 router.get('/today', requireStaff, c.today);
+router.get('/calendar', requireStaff, require('../controllers/calendarController').index);
 
 // Nhân viên: giao đồ / nhận trả
 router.post('/:id/handover', requireStaff, c.handover);
@@ -19,7 +21,11 @@ router.get('/:id/slip', requireStaff, c.slip);                 // phiếu đơn 
 // Khách (chủ đơn) hoặc nhân viên: đã nhận đồ / đã gửi trả (kiểm tra quyền trong controller)
 router.post('/:id/delivered', requireLogin, c.delivered);
 router.post('/:id/sent-back', requireLogin, c.sentBack);
-router.post('/:id/paid', requireLogin, c.claimTransfer);       // khách: "Tôi đã chuyển khoản"
+router.get('/:id/qr.png', requireLogin, c.qr);                  // ảnh QR chuyển khoản
+router.post('/:id/photos', requireStaff, uploadHandover, photos.upload);
+router.get('/:id/photos/:pid', requireLogin, photos.view);
+router.get('/:id/pay-state', requireLogin, c.payState);         // trang đơn tự cập nhật khi tiền về
+router.post('/:id/cod-collected', requireStaff, c.confirmCod);   // chỉ nhân viên: đã thu tiền COD
 router.post('/:id/deposit', requireStaff, c.confirmDeposit);   // xác nhận đã nhận cọc (Chờ cọc -> Đã cọc)
 router.get('/:id/return', requireStaff, c.returnForm);
 router.post('/:id/return', requireStaff, c.receiveReturn);

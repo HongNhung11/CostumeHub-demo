@@ -1,31 +1,28 @@
 ========================================================
-  CostumeHub — Web cho thuê trang phục (50 sản phẩm)
+  CostumeHub — Web cho thuê trang phục
 ========================================================
 
-YÊU CẦU: Máy đích cần cài Node.js (bản 18 trở lên).
-  Tải tại: https://nodejs.org  (chọn bản LTS)
+YÊU CẦU: Docker Desktop (đang bật) và Node.js 20.17 trở lên.
 
-CÁCH CHẠY (3 bước):
-  1) Giải nén thư mục này ra.
-  2) Mở Terminal / CMD / PowerShell ngay trong thư mục
-     "CostumeHub-demo-main", gõ:
-         npm install
-     (chờ tải thư viện lần đầu — cần internet lúc này)
-  3) Chạy app:
-         npm start
-     Rồi mở trình duyệt vào:  http://localhost:3000
+CÁCH CHẠY:
+  1) Mở PowerShell / Terminal trong thư mục dự án.
+  2) Lần đầu, tạo file cấu hình .env:
+         node scripts/setup-env.js
+  3) Chạy:
+         docker compose up -d --build
+     Mở trình duyệt vào:  http://localhost:3001
 
-GHI CHÚ:
-  - Đã cấu hình sẵn chạy bằng SQLite (file .env), KHÔNG cần
-    cài PostgreSQL. Lần chạy đầu tự tạo 50 sản phẩm mẫu.
-  - Giao diện (Bootstrap) đã nhúng sẵn trong public/vendor
-    nên hiển thị đúng kể cả khi mạng chặn CDN.
-  - Muốn tạo lại dữ liệu từ đầu: xoá thư mục "data" rồi npm start.
+LỆNH HAY DÙNG:
+  - Xem log:            docker compose logs -f web
+  - Sửa .env xong:      docker compose up -d
+  - Sửa code xong:      docker compose up -d --build
+  - Dừng:               docker compose down
+  - KHÔNG dùng "docker compose down -v" (xóa toàn bộ dữ liệu).
 
-TÀI KHOẢN DÙNG THỬ:
+TÀI KHOẢN MẪU (đổi mật khẩu trước khi nhận tiền thật):
   - Quản trị:  admin      / admin123
   - Nhân viên: nhanvien   / 123456
   - Khách:     khachhang  / 123456
 
-Nếu dùng PostgreSQL thật: sửa DB_DIALECT=postgres trong file .env
-và điền thông tin DB (xem .env.example).
+CHUYỂN KHOẢN TỰ ĐỘNG, EMAIL, SAO LƯU:
+  xem HUONG_DAN_THANH_TOAN.md

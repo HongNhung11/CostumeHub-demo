@@ -112,9 +112,9 @@ async function freeByVariant(product, start, end, opts) {
 }
 
 // Số bộ bị giữ cùng lúc nhiều nhất từ hôm nay trở đi, theo từng "Size|Color" (dùng khi sửa số lượng SP)
-async function peakFutureUsage(productId) {
+async function peakFutureUsage(productId, opts = {}) {
   const start = todayStr();
-  const holds = await activeHolds([productId], start, '9990-12-31');   // (không dùng 9999: + ngày vận chuyển sẽ tràn sang năm 10000)
+  const holds = await activeHolds([productId], start, '9990-12-31', opts);   // (không dùng 9999: + ngày vận chuyển sẽ tràn sang năm 10000)
   if (!holds.length) return {};
   const end = holds.reduce((m, h) => (h.to > m ? h.to : m), start);
   const out = {};

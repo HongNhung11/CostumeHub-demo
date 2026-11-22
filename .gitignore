@@ -5,3 +5,10 @@ public/uploads/*
 !public/uploads/.gitkeep
 npm-debug.log
 private_uploads/
+backups/
+
+# Cấu hình riêng, CSDL, bản sao lưu
+.env.*
+!.env.example
+*.sqlite
+*.dump

@@ -10,12 +10,36 @@
   <div class="text-center mb-4 co-done">
     <i class="bi bi-check-circle-fill"></i>
     <h3 class="font-serif mb-1">Đặt thuê thành công!</h3>
-    <p class="text-muted mb-0"><%= rental.Status === 'Chờ cọc' ? 'Chuyển khoản trong 5 phút bên dưới để giữ chỗ.' : 'Đơn đã được giữ chỗ. Chi tiết đơn thuê bên dưới.' %></p>
+    <p class="text-muted mb-0"><%= rental.Status === 'Chờ cọc' ? 'Quét mã QR bên dưới trong 5 phút để giữ chỗ.' : 'Đơn đã được giữ chỗ. Chi tiết đơn thuê bên dưới.' %></p>
   </div>
 <% } %>
 <div class="row justify-content-center">
   <div class="col-lg-8">
 
+    <% if (st === 'Chờ cọc') { %>
+      <%- include('../partials/payment-box', { due }) %>
+    <% } %>
+    <% if (paid && ['sepay', 'manual'].includes(rental.PaidVia) && st !== 'Đã hủy') { %>
+      <div class="pay-success mb-3 d-print-none" role="status">
+        <i class="bi bi-check-circle-fill"></i>
+        <div>
+          <strong>Thanh toán thành công</strong>
+          <span>Đã nhận <%= vnd(due) %> lúc <%= new Date(rental.DepositPaidAt).toLocaleString('vi-VN') %> · mã <%= rental.PayCode %>. Đơn #<%= rental.RentalID %> đã được giữ chỗ.</span>
+        </div>
+      </div>
+    <% } %>
+    <% if (FLOW.codPending(rental)) { %>
+      <div class="card p-3 mb-3 border-warning d-print-none" id="cod-pending">
+        <% if (isStaff) { %>
+          <div class="fw-semibold mb-2"><i class="bi bi-wallet2 text-warning"></i> Chưa xác nhận thu COD <%= vnd(due) %></div>
+          <form method="POST" action="/rentals/<%= rental.RentalID %>/cod-collected" onsubmit="return confirm('Đã thật sự nhận <%= vnd(due) %> từ khách hoặc shipper?')">
+            <button class="btn btn-success btn-sm"><i class="bi bi-cash-coin"></i> Đã thu COD</button>
+          </form>
+        <% } else { %>
+          <div class="small"><i class="bi bi-wallet2 text-warning"></i> Thanh toán <strong><%= vnd(due) %></strong> cho shipper khi nhận đồ. Cửa hàng nhận được tiền sẽ xác nhận và báo cho bạn.</div>
+        <% } %>
+      </div>
+    <% } %>
     <div class="card p-4 mb-3">
       <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
         <div>
@@ -121,7 +145,9 @@
           <% const disc = Number(rental.Discount) || 0, rentPay = Number(rental.RentFee) - disc; %>
           <div class="d-flex justify-content-between py-1"><span>Tiền thuê</span><span><%= vnd(rental.RentFee) %></span></div>
           <% if (disc) { %>
-            <div class="d-flex justify-content-between py-1 text-success"><span>Giảm giá (mã <strong><%= rental.CouponCode %></strong>)</span><span>- <%= vnd(disc) %></span></div>
+            <% const bOff = Number(rental.BundleDiscount) || 0; %>
+            <% if (bOff) { %><div class="d-flex justify-content-between py-1 text-success gap-2"><span>Combo / nhóm (<%= rental.BundleName %>)</span><span class="text-nowrap">- <%= vnd(bOff) %></span></div><% } %>
+            <% if (disc > bOff) { %><div class="d-flex justify-content-between py-1 text-success"><span>Giảm giá (mã <strong><%= rental.CouponCode %></strong>)</span><span>- <%= vnd(disc - bOff) %></span></div><% } %>
             <div class="d-flex justify-content-between py-1 small"><span>Tiền thuê phải trả</span><span><%= vnd(rentPay) %></span></div>
           <% } %>
           <div class="d-flex justify-content-between py-1"><span>Tiền cọc</span><span><%= vnd(rental.Deposit) %></span></div>
@@ -134,8 +160,9 @@
                 <span><%= vnd(d.amount) %></span>
               </div>
             <% }) %>
+            <% if (cod && !paid) { %><div class="d-flex justify-content-between py-1 text-danger"><span>COD chưa thu (thuê + cọc)</span><span>- <%= vnd(due) %></span></div><% } %>
             <hr class="my-1">
-            <div class="d-flex justify-content-between py-1 fw-bold"><span>Hoàn lại cọc</span><span class="<%= Number(rental.RefundAmount)<0?'text-danger':'text-success' %>"><%= vnd(rental.RefundAmount) %></span></div>
+            <div class="d-flex justify-content-between py-1 fw-bold"><span><%= Number(rental.RefundAmount) < 0 ? 'Khách trả thêm' : 'Hoàn lại cọc' %></span><span class="<%= Number(rental.RefundAmount)<0?'text-danger':'text-success' %>"><%= vnd(rental.RefundAmount) %></span></div>
             <% if (Number(rental.RefundAmount)<0) { %><div class="small text-danger">* Số âm: khách cần đền thêm.</div><% } %>
           <% } else if (st==='Đã hủy') { %>
             <div class="d-flex justify-content-between py-1 text-danger"><span>Phí hủy</span><span>- <%= vnd(rental.CancelFee) %></span></div>
@@ -163,75 +190,6 @@
     </div>
 
     <!-- Hành động theo trạng thái (quy trình: utils/rentalFlow.js) -->
-    <% if (st === 'Chờ cọc') { const claimed = FLOW.transferClaimed(rental); %>
-      <div class="card p-3 border-warning d-print-none mb-3">
-        <% if (claimed) { %>
-          <div class="fw-semibold mb-2"><i class="bi bi-hourglass-split text-warning"></i> Khách đã báo chuyển khoản lúc <%= new Date(rental.TransferClaimedAt).toLocaleString('vi-VN') %> — cửa hàng đang kiểm tra tài khoản.</div>
-          <p class="small text-muted mb-2">Đơn vẫn được giữ chỗ. Cửa hàng xác nhận đã nhận <strong><%= vnd(due) %></strong> thì bạn nhận được thông báo.</p>
-        <% } else { %>
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-            <div class="fw-semibold text-warning-emphasis"><i class="bi bi-stopwatch"></i> Chuyển khoản trong <%= FLOW.PAY_MINUTES %> phút để giữ chỗ</div>
-            <div class="pay-countdown" id="payCountdown" data-deadline="<%= FLOW.paymentDeadline(rental).getTime() %>">--:--</div>
-          </div>
-        <% } %>
-        <!-- Quét mã QR (VietQR) hoặc chuyển tay theo thông tin bên cạnh -->
-        <div class="qr-pay">
-          <div class="qr-box">
-            <img src="<%= qrUrl %>" alt="Mã QR chuyển khoản đơn #<%= rental.RentalID %>" loading="lazy" onerror="this.closest('.qr-box').classList.add('is-off')">
-            <div class="qr-fallback small text-muted">Không tải được mã QR — chuyển tay theo thông tin bên cạnh.</div>
-            <a href="<%= qrUrl %>" download="QR-don-<%= rental.RentalID %>.png" target="_blank" rel="noopener" class="small"><i class="bi bi-download"></i> Lưu ảnh QR</a>
-          </div>
-          <div class="qr-info">
-            <div class="qi-row"><span>Ngân hàng</span><b><%= SHOP_BANK.bank %></b></div>
-            <div class="qi-row"><span>Chủ tài khoản</span><b><%= SHOP_BANK.owner %></b></div>
-            <div class="qi-row"><span>Số tài khoản</span><b class="mono"><%= SHOP_BANK.account %></b><button type="button" class="qi-copy" data-copy="<%= SHOP_BANK.account.replace(/\s/g, '') %>" title="Sao chép"><i class="bi bi-copy"></i></button></div>
-            <div class="qi-row"><span>Số tiền</span><b class="price-tag"><%= vnd(due) %></b></div>
-            <div class="qi-row"><span>Nội dung CK</span><b class="mono">CH<%= rental.RentalID %></b><button type="button" class="qi-copy" data-copy="CH<%= rental.RentalID %>" title="Sao chép"><i class="bi bi-copy"></i></button></div>
-            <div class="small text-muted mt-2"><i class="bi bi-phone"></i> Mở app ngân hàng → Quét QR (hoặc chọn ảnh QR đã lưu). App tự điền số tiền và nội dung.</div>
-            <% if (SHOP_BANK.demo) { %><div class="qr-demo"><i class="bi bi-flask"></i> <b>Chế độ thử nghiệm:</b> tài khoản mẫu, không chuyển tiền thật — bấm "Tôi đã chuyển khoản" để xem tiếp quy trình.</div><% } %>
-          </div>
-        </div>
-        <script>
-        document.querySelectorAll('.qi-copy').forEach(b => b.addEventListener('click', async () => {
-          try { await navigator.clipboard.writeText(b.dataset.copy); b.innerHTML = '<i class="bi bi-check2"></i>'; setTimeout(() => { b.innerHTML = '<i class="bi bi-copy"></i>'; }, 1500); } catch (_) {}
-        }));
-        </script>
-        <% if (!claimed) { %><p class="small text-muted mb-2">Chuyển xong bấm <strong>"Tôi đã chuyển khoản"</strong>. Quá <%= FLOW.PAY_MINUTES %> phút chưa bấm, đơn tự hủy (không mất phí) để nhường lịch cho khách khác.</p><% } %>
-        <div class="d-flex gap-2 flex-wrap">
-          <% if (!claimed && (isOwner || isStaff)) { %>
-            <form method="POST" action="/rentals/<%= rental.RentalID %>/paid" id="claimForm">
-              <button class="btn btn-primary btn-sm"><i class="bi bi-check2-circle"></i> Tôi đã chuyển khoản</button>
-            </form>
-          <% } %>
-          <% if (isStaff) { %>
-            <form method="POST" action="/rentals/<%= rental.RentalID %>/deposit" onsubmit="return confirm('Xác nhận đã nhận <%= vnd(due) %>?')">
-              <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
-              <button class="btn btn-success btn-sm"><i class="bi bi-cash-coin"></i> Đã nhận tiền</button>
-            </form>
-          <% } %>
-          <form method="POST" action="/rentals/<%= rental.RentalID %>/cancel" onsubmit="return confirm('Hủy đơn này? Đơn chưa thanh toán nên không mất phí.')">
-            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Hủy đơn</button>
-          </form>
-        </div>
-      </div>
-      <% if (!claimed) { %>
-      <script>
-      // Đếm ngược thời gian giữ chỗ; hết giờ thì tải lại trang (đơn tự hủy phía máy chủ)
-      (function () {
-        const el = document.getElementById('payCountdown'); if (!el) return;
-        const end = +el.dataset.deadline;
-        const tick = () => {
-          const s = Math.max(0, Math.round((end - Date.now()) / 1000));
-          el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
-          el.classList.toggle('is-low', s <= 60);
-          if (s <= 0) { clearInterval(t); el.textContent = 'Hết giờ'; const f = document.getElementById('claimForm'); if (f) f.querySelector('button').disabled = true; setTimeout(() => location.reload(), 4000); }
-        };
-        const t = setInterval(tick, 1000); tick();
-      })();
-      </script>
-      <% } %>
-    <% } %>
-
     <% if (st === 'Đã cọc') { %>
       <div class="card p-3 mb-3 d-print-none">
         <div class="mb-2">
@@ -314,6 +272,8 @@
         <% if (isStaff) { %><a href="/rentals/<%= rental.RentalID %>/return" class="btn btn-success btn-sm mt-2"><i class="bi bi-box-arrow-in-down"></i> Nhận lại đồ & hoàn cọc</a><% } %>
       </div>
     <% } %>
+
+    <%- include('../partials/handover-photos') %>
 
     <div class="mt-3 d-flex gap-2">
       <a href="/rentals" class="btn btn-light"><i class="bi bi-list-ul"></i> Danh sách đơn</a>

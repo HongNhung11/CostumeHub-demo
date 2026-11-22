@@ -1,4 +1,4 @@
-const { Product, User, Coupon, Rental, RentalItem } = require('../models');
+const { Product, User, Coupon, Rental, RentalItem, Bundle } = require('../models');
 const { standardChart } = require('../utils/sizeChart');
 const { guessDetails } = require('../utils/details');
 
@@ -271,6 +271,18 @@ async function seed() {
 
   // Đơn thuê mẫu ở nhiều trạng thái (để nhân viên test) — chỉ tạo khi chưa có đơn nào
   await seedRentals();
+
+  // Combo / nhóm mẫu: để TẮT, mức giảm do chủ shop quyết định rồi bật ở Quản lý -> Combo & thuê nhóm
+  if (await Bundle.count() === 0) {
+    const dresses = await Product.findAll({ where: { ProductType: 'Áo dài' }, order: [['ProductID', 'ASC']], limit: 4 });
+    const extra = await Product.findOne({ where: { ProductType: 'Phụ kiện' }, order: [['ProductID', 'ASC']] });
+    if (dresses.length && extra) {
+      await Bundle.bulkCreate([
+        { Name: 'Combo áo dài và phụ kiện', Kind: 'combo', Percent: 10, MinQty: 1, ProductIDs: JSON.stringify([dresses[0].ProductID, extra.ProductID]) },
+        { Name: 'Áo dài kỷ yếu, bê tráp', Kind: 'group', Percent: 10, MinQty: 5, ProductIDs: JSON.stringify(dresses.map(p => p.ProductID)) },
+      ]);
+    }
+  }
 
   // Mã giảm giá mẫu (chỉ tạo khi chưa có mã nào)
   if (await Coupon.count() === 0) {

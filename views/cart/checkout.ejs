@@ -15,6 +15,7 @@
 
 <form method="POST" action="/rentals" enctype="multipart/form-data" id="bookForm" novalidate>
   <input type="hidden" id="pricePerDay" value="<%= pricePerDay %>">
+  <input type="hidden" id="bundlePerDay" value="<%= bundle.perDay %>">
   <input type="hidden" id="depositAll" value="<%= depositAll %>">
   <div class="row g-4">
 
@@ -91,6 +92,7 @@
           <div class="col-md-6">
             <label class="form-label small text-muted">Ảnh chụp CCCD <span class="text-muted">(không bắt buộc)</span></label>
             <input type="file" name="IDCardImage" accept="image/*" class="form-control">
+            <div class="form-text">Ảnh tự xóa sau <%= IDCARD_KEEP_DAYS %> ngày kể từ khi đơn kết thúc.</div>
           </div>
           <div class="col-12">
             <label class="form-label small text-muted" for="CustomerAddress">Địa chỉ <span class="text-danger">*</span></label>
@@ -147,6 +149,7 @@
         <!-- Tiền thuê -->
         <div class="co-sec">
           <div class="cs-row"><span class="text-muted">Giá thuê <span id="sumDaysTxt"></span></span><b id="sumRent">0 đ</b></div>
+          <% if (bundle.perDay) { %><div class="cs-row text-success"><span><i class="bi bi-gift"></i> <%= bundle.names %></span><b id="sumBundle" class="text-nowrap">0 đ</b></div><% } %>
           <div class="cs-row"><span class="text-muted">Giảm giá <span id="discCode" class="small"></span></span><b id="sumDisc">0 đ</b></div>
         </div>
 
@@ -154,10 +157,12 @@
         <div class="co-sec">
           <div class="co-label">Hình thức thanh toán</div>
           <div class="co-pays">
-            <input type="radio" class="btn-check" name="method" value="COD" id="pay-cod" <%= o('method', 'COD') !== 'Chuyển khoản' ? 'checked' : '' %>>
+            <input type="radio" class="btn-check" name="method" value="COD" id="pay-cod" <%= !SEPAY_ON || o('method', 'COD') !== 'Chuyển khoản' ? 'checked' : '' %>>
             <label class="co-opt" for="pay-cod"><i class="bi bi-cash-stack"></i><span><b>Thanh toán khi nhận đồ (COD)</b><small>Trả tại cửa hàng hoặc cho shipper</small></span></label>
+            <% if (SEPAY_ON) { %>
             <input type="radio" class="btn-check" name="method" value="Chuyển khoản" id="pay-bank" <%= o('method') === 'Chuyển khoản' ? 'checked' : '' %>>
-            <label class="co-opt" for="pay-bank"><i class="bi bi-bank"></i><span><b>Chuyển khoản</b><small>Chuyển trong 5 phút sau khi đặt</small></span></label>
+            <label class="co-opt" for="pay-bank"><i class="bi bi-bank"></i><span><b>Chuyển khoản QR</b><small>Quét mã, tiền về là tự xác nhận (trong 5 phút)</small></span></label>
+            <% } %>
           </div>
         </div>
 
@@ -187,15 +192,17 @@
   const viD=v=>v?v.split('-').reverse().join('/'):'';
   const days=()=>{ if(!s.value||!e.value) return 0; const d=Math.round((new Date(e.value)-new Date(s.value))/86400000)+1; return d>=1?d:0; };   // tính cả ngày nhận và ngày trả
   const price=+document.getElementById('pricePerDay').value, dep=+document.getElementById('depositAll').value;
+  const bundleDay=+document.getElementById('bundlePerDay').value||0;
   let disc=0;   // số tiền giảm của mã đang áp dụng (tính lại khi đổi ngày)
   function calc(){
-    const d=days();
+    const d=days(), bOff=Math.floor(Math.round(bundleDay*d)/1000)*1000;   // = utils/bundles.js totalOff
+    const bEl=document.getElementById('sumBundle'); if(bEl) bEl.textContent=(bOff?'- ':'')+vnd(bOff);
     document.getElementById('sumDaysTxt').textContent=d?`(${vnd(price)} × ${d} ngày)`:'(chưa chọn ngày)';
     document.getElementById('sumRent').textContent=vnd(price*d);
     document.getElementById('sumDisc').textContent=(disc?'- ':'')+vnd(disc);
-    document.getElementById('sumRentNet').textContent=vnd(price*d-disc);
+    document.getElementById('sumRentNet').textContent=vnd(price*d-bOff-disc);
     document.getElementById('sumDeposit').textContent=vnd(dep);
-    document.getElementById('sumTotal').textContent=vnd(price*d-disc+dep);
+    document.getElementById('sumTotal').textContent=vnd(price*d-bOff-disc+dep);
     const txt=d?`Thuê từ ${viD(s.value)} đến ${viD(e.value)}`:'Chưa chọn ngày thuê';
     document.querySelectorAll('.js-range').forEach(c=>{ c.textContent=txt; c.classList.toggle('is-empty',!d); });
     document.getElementById('datesHint').textContent=d?`${d} ngày thuê`:'Chọn ngày nhận và ngày trả';

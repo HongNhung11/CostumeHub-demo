@@ -11,6 +11,8 @@ const Notification = sequelize.define('Notification', {
   Message: { type: DataTypes.TEXT },
   Link: { type: DataTypes.STRING },                          // trang mở khi bấm vào (VD /rentals/12)
   Key: { type: DataTypes.STRING, allowNull: true },          // chống tạo trùng lời nhắc (VD "pickup-tmr-12")
+  EmailedAt: { type: DataTypes.DATE, allowNull: true },      // đã gửi kèm email lúc nào
+  EmailTries: { type: DataTypes.INTEGER, allowNull: true },
   isRead: { type: DataTypes.BOOLEAN, defaultValue: false },
 }, {
   tableName: 'Notifications',

@@ -74,7 +74,7 @@
           </td>
           <td><%= r.CustomerName %><div class="small text-muted"><%= r.CustomerPhone %></div></td>
           <td class="small text-nowrap"><%= vi(r.StartDate) %><br><%= vi(r.EndDate) %> (<%= r.RentDays %> ngày)</td>
-          <td class="text-end text-nowrap"><%= vnd(Number(r.RentFee) - (Number(r.Discount) || 0)) %><% if (Number(r.Discount)) { %><div class="small text-success" title="Đã giảm <%= vnd(r.Discount) %>"><i class="bi bi-ticket-perforated"></i> <%= r.CouponCode %></div><% } %></td>
+          <td class="text-end text-nowrap"><%= vnd(Number(r.RentFee) - (Number(r.Discount) || 0)) %><% if (Number(r.Discount)) { %><div class="small text-success" title="Đã giảm <%= vnd(r.Discount) %>"><i class="bi bi-ticket-perforated"></i> <%= r.CouponCode || 'Combo / nhóm' %></div><% } %></td>
           <td class="text-end text-nowrap"><%= vnd(r.Deposit) %></td>
           <td>
             <span class="badge bg-<%= stCls(r.Status) %>"><%= FLOW.label(r.Status) %></span>
@@ -135,5 +135,5 @@
 <div class="alert alert-light border mt-3 small">
   <strong>Tự đến lấy:</strong> <span class="badge bg-secondary">Chờ thanh toán</span> → <span class="badge bg-info text-dark">Chờ giao đồ</span> → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-success">Hoàn tất</span><br>
   <strong>Giao tận nơi:</strong> <span class="badge bg-secondary">Chờ thanh toán</span> → <span class="badge bg-info text-dark">Chờ giao đồ</span> → <span class="badge bg-primary">Đang giao</span> → <span class="badge bg-warning text-dark">Đang thuê</span> → <span class="badge bg-dark">Đang gửi trả</span> → <span class="badge bg-success">Hoàn tất</span><br>
-  Thanh toán COD: bỏ qua bước "Chờ thanh toán", thu tiền khi giao đồ. Chuyển khoản: giữ chỗ 5 phút — khách bấm "Tôi đã chuyển khoản" thì chờ nhân viên xác nhận, không bấm thì tự hủy.
+  Thanh toán COD: bỏ qua bước "Chờ thanh toán", thu tiền khi giao đồ. Chuyển khoản: giữ chỗ 5 phút — tiền về là tự xác nhận, quá hạn thì tự hủy (tiền về muộn vào sổ hoàn cọc).
 </div>

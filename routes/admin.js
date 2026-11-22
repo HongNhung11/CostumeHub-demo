@@ -17,6 +17,12 @@ router.post('/coupons', coupons.create);
 router.post('/coupons/:id/toggle', coupons.toggle);
 router.post('/coupons/:id/delete', coupons.remove);
 
+const bundles = require('../controllers/bundleController');
+router.get('/bundles', bundles.manage);
+router.post('/bundles', bundles.create);
+router.post('/bundles/:id/toggle', bundles.toggle);
+router.post('/bundles/:id/delete', bundles.remove);
+
 router.get('/users', users.index);
 router.post('/users', users.create);
 router.post('/users/:id/role', users.changeRole);

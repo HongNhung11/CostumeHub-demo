@@ -65,6 +65,18 @@ const uploadIDCard = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
 });
 
+// Ảnh tình trạng đồ lúc giao / nhận lại: riêng tư
+const handoverDir = path.join(privateDir, 'handover');
+fs.mkdirSync(handoverDir, { recursive: true });
+const uploadHandover = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, handoverDir),
+    filename: (req, file, cb) => cb(null, randomName('hg', file)),
+  }),
+  fileFilter: imageFilter,
+  limits: { fileSize: 8 * 1024 * 1024, files: 10 },
+}).array('photos', 10);
+
 // Import dữ liệu (excel/json/xml): giữ trong bộ nhớ, chỉ nhận đúng đuôi
 const uploadMemory = multer({
   storage: multer.memoryStorage(),
@@ -77,4 +89,4 @@ const uploadMemory = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
 
-module.exports = { uploadImage, uploadProductImages, uploadReviewImages, MAX_GALLERY, uploadIDCard, uploadMemory, privateDir, uploadDir };
+module.exports = { uploadImage, uploadProductImages, uploadReviewImages, MAX_GALLERY, uploadIDCard, uploadMemory, uploadHandover, handoverDir, privateDir, uploadDir };

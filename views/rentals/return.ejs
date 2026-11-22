@@ -30,7 +30,16 @@
       </div>
     </div>
 
-    <form method="POST" action="/rentals/<%= rental.RentalID %>/return" id="returnForm"
+    <% const codDue = rental.PaymentMethod === FLOW.PAY.COD && !FLOW.isPaid(rental) ? FLOW.amountDue(rental) : 0; %>
+    <% if (codDue) { %>
+      <div class="alert alert-warning small">
+        <div class="mb-2"><strong>Chưa xác nhận thu COD <%= vnd(codDue) %>.</strong> Đã nhận tiền thì xác nhận trước. Nếu chưa thu, hệ thống không hoàn cọc và ghi khoản khách còn nợ.</div>
+        <form method="POST" action="/rentals/<%= rental.RentalID %>/cod-collected" onsubmit="return confirm('Đã thật sự nhận <%= vnd(codDue) %>?')">
+          <button class="btn btn-sm btn-success">Đã thu COD</button>
+        </form>
+      </div>
+    <% } %>
+    <form method="POST" action="/rentals/<%= rental.RentalID %>/return" id="returnForm" data-unpaid="<%= codDue %>"
           data-deposit="<%= Number(rental.Deposit) %>" data-late="<%= latePerDay %>" data-end="<%= graceEnd %>">
       <div class="card p-3 mb-3">
         <label class="form-label">Ngày trả thực tế</label>
@@ -84,11 +93,12 @@
         <div class="d-flex justify-content-between small py-1"><span>Tiền cọc</span><span><%= vnd(rental.Deposit) %></span></div>
         <div class="d-flex justify-content-between small py-1 text-danger"><span>Phí trễ <span id="lateDays" class="text-muted"></span></span><span id="sumLate">0 đ</span></div>
         <div class="d-flex justify-content-between small py-1 text-danger"><span>Phí vệ sinh / hư hỏng</span><span id="sumDamage">0 đ</span></div>
+        <% if (codDue) { %><div class="d-flex justify-content-between small py-1 text-danger"><span>COD chưa thu (thuê + cọc)</span><span>− <%= vnd(codDue) %></span></div><% } %>
         <hr class="my-1">
         <div class="d-flex justify-content-between fw-bold py-1"><span id="refundLabel">Hoàn cọc cho khách</span><span id="sumRefund"></span></div>
       </div>
 
-      <button class="btn btn-success"><i class="bi bi-check2-circle"></i> Xác nhận nhận trả & hoàn cọc</button>
+      <button class="btn btn-success"><i class="bi bi-check2-circle"></i> Xác nhận nhận trả<%= codDue ? '' : ' & hoàn cọc' %></button>
       <a href="/rentals" class="btn btn-light">Hủy</a>
     </form>
 
@@ -104,7 +114,7 @@
         const late = days * latePer;
         let dmg = Math.max(0, +other.value || 0);
         f.querySelectorAll('.fee-n').forEach(i => { dmg += Math.max(0, +i.value || 0) * +i.dataset.unit; });
-        const refund = dep - late - dmg;
+        const refund = dep - late - dmg - (+f.dataset.unpaid || 0);
         document.getElementById('lateDays').textContent = days ? `(${days} ngày)` : '';
         document.getElementById('sumLate').textContent = '− ' + vnd(late);
         document.getElementById('sumDamage').textContent = '− ' + vnd(dmg);

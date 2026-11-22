@@ -15,6 +15,8 @@ const User = sequelize.define('User', {
   // --- Xác minh danh tính (OCR CCCD) ---
   idCardNumber: { type: DataTypes.STRING },
   idCardImage: { type: DataTypes.STRING },
+  ResetHash: { type: DataTypes.STRING(64), allowNull: true },      // hash mã đặt lại mật khẩu
+  ResetExpires: { type: DataTypes.DATE, allowNull: true },
   isVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true },   // false = bị admin khóa
 }, {
