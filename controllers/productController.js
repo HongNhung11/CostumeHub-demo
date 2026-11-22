@@ -89,7 +89,7 @@ const formView = (extra) => ({ TYPES: PRODUCT_TYPES, STATUSES: PRODUCT_STATUSES,
 // ===== CỬA HÀNG: lưới thẻ sản phẩm + lọc danh mục + tìm kiếm + phân trang =====
 exports.index = async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = 24;   // chia hết cho 6 / 4 / 3 / 2 cột
+  const limit = 16;   // 16 mẫu/trang: ~80 mẫu chia thành khoảng 5 trang, lưới 4 cột vừa 4 hàng
   const q = (req.query.q || '').trim();
   const type = (req.query.type || '').trim();
 
