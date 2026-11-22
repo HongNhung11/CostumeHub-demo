@@ -1,0 +1,28 @@
+# TEST TỰ ĐỘNG trên Postgres riêng: không mở cổng, dữ liệu nằm trong RAM, không đụng dữ liệu thật.
+#   docker compose -p chregress -f docker-compose.test.yml run --build --rm test
+#   docker compose -p chregress -f docker-compose.test.yml down
+services:
+  testdb:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: chi-dung-de-test
+      TZ: Asia/Ho_Chi_Minh
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  test:
+    build: .
+    depends_on:
+      testdb:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+      NODE_ENV: test
+      TEST_DB_HOST: testdb
+      TEST_DB_PASSWORD: chi-dung-de-test
+    command: ["npm", "test"]

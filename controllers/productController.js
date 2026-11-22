@@ -18,6 +18,7 @@ const { DETAIL_FIELDS } = require('../utils/details');
 const { hotSet, hotScores } = require('../utils/hot');
 const { saleOf, priceOf, salePercent } = require('../utils/pricing');
 const { lockProducts } = require('../utils/locks');
+const { intId, readCookie } = require('../utils/http');
 
 // Thứ tự size: XS → S → M → L → XL → XXL (kể cả "S+", "M/L"), rồi Free size, rồi size số / ni / kích thước (theo số tăng dần)
 const LETTER_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
@@ -265,8 +266,9 @@ exports.show = async (req, res) => {
     order: NEWEST_FIRST, limit: 8,
   });
   // Sản phẩm đã xem: nhớ trong phiên (tối đa 8, mới xem nằm đầu)
-  const seenIds = (req.session.viewed || []).filter(id => id !== product.ProductID);
-  req.session.viewed = [product.ProductID, ...seenIds].slice(0, 9);
+  // nhớ bằng cookie thay vì session: bot xem hàng không làm phình CSDL
+  const seenIds = [...new Set(readCookie(req, 'ch.seen').split('.').map(intId).filter(Boolean))].filter(id => id !== product.ProductID).slice(0, 9);
+  res.cookie('ch.seen', [product.ProductID, ...seenIds].slice(0, 9).join('.'), { httpOnly: true, sameSite: 'lax', secure: req.secure, maxAge: 30 * 864e5 });
   const viewed = seenIds.length
     ? (await Product.findAll({ where: { ...ON_SALE, ProductID: { [Op.in]: seenIds } } })).sort((a, b) => seenIds.indexOf(a.ProductID) - seenIds.indexOf(b.ProductID)).slice(0, 8)
     : [];
@@ -440,23 +442,34 @@ function blockedMessages({ active, history }) {
   return msgs;
 }
 
+// Khóa sản phẩm rồi mới kiểm tra đơn: khách đặt đúng lúc xóa thì 1 bên chờ bên kia, không mất đơn
+async function removeProducts(ids) {
+  const result = await sequelize.transaction(async (t) => {
+    const found = await lockProducts(ids, t);
+    const used = await productsInRentals(ids, { transaction: t });
+    const ok = found.filter(p => !used.active.has(p.ProductID) && !used.history.has(p.ProductID));
+    if (!ok.length) return { used, removed: 0, images: [] };
+    const where = { ProductID: { [Op.in]: ok.map(p => p.ProductID) } };
+    const extra = await ProductImage.findAll({ where, transaction: t });
+    for (const Model of [ProductVariant, ProductImage, Favorite]) await Model.destroy({ where, transaction: t });
+    const removed = await Product.destroy({ where, transaction: t });
+    return { used, removed, images: ok.map(p => p.PathImage).concat(extra.map(g => g.Path)) };
+  }).catch((e) => {
+    if (e.name === 'SequelizeForeignKeyConstraintError') return { blocked: true, removed: 0, images: [] };   // CSDL chặn (RESTRICT)
+    throw e;
+  });
+  for (const img of new Set(result.images)) await removeImageIfUnused(img);
+  return result;
+}
+function flashRemoval(req, { used, blocked, removed }, done) {
+  if (removed) req.flash('success', done);
+  const m = blocked ? ['Không xóa được: sản phẩm vừa có đơn thuê. Hãy đổi Tình trạng sang "Ngừng cho thuê".'] : blockedMessages(used);
+  if (m.length) req.flash('error', m.join(' '));
+}
+
 exports.destroy = async (req, res) => {
-  const id = parseInt(req.params.id);
-  const used = await productsInRentals([id]);
-  if (used.active.has(id) || used.history.has(id)) {
-    { const m = blockedMessages(used); if (m.length) req.flash('error', m.join(' ')); }
-  } else {
-    const p = await Product.findByPk(id);
-    if (p) {
-      const extra = await ProductImage.findAll({ where: { ProductID: id } });
-      await ProductVariant.destroy({ where: { ProductID: id } });
-      await ProductImage.destroy({ where: { ProductID: id } });
-      await Favorite.destroy({ where: { ProductID: id } });
-      await p.destroy();
-      for (const img of [p.PathImage, ...extra.map(g => g.Path)]) await removeImageIfUnused(img);
-      req.flash('success', 'Đã xóa 1 trang phục.');
-    }
-  }
+  const result = await removeProducts([intId(req.params.id)]);
+  flashRemoval(req, result, 'Đã xóa 1 trang phục.');
   res.redirect(backToList(req));              // 7: quay về trang danh sách
 };
 
@@ -467,19 +480,8 @@ exports.destroyMany = async (req, res) => {
     req.flash('error', 'Chưa chọn bản ghi nào.');
     return res.redirect(backToList(req));
   }
-  const used = await productsInRentals(ids);
-  const ok = ids.filter(id => !used.active.has(id) && !used.history.has(id));
-  if (ok.length) {
-    const images = (await Product.findAll({ attributes: ['PathImage'], where: { ProductID: { [Op.in]: ok } } })).map(p => p.PathImage)
-      .concat((await ProductImage.findAll({ where: { ProductID: { [Op.in]: ok } } })).map(g => g.Path));
-    await ProductVariant.destroy({ where: { ProductID: { [Op.in]: ok } } });
-    await ProductImage.destroy({ where: { ProductID: { [Op.in]: ok } } });
-    await Favorite.destroy({ where: { ProductID: { [Op.in]: ok } } });
-    const n = await Product.destroy({ where: { ProductID: { [Op.in]: ok } } });
-    for (const img of new Set(images)) await removeImageIfUnused(img);
-    if (n) req.flash('success', `Đã xóa ${n} trang phục được chọn.`);
-  }
-  { const m = blockedMessages(used); if (m.length) req.flash('error', m.join(' ')); }
+  const result = await removeProducts(ids);
+  flashRemoval(req, result, `Đã xóa ${result.removed} trang phục được chọn.`);
   res.redirect(backToList(req));              // 7: quay về trang danh sách
 };
 
@@ -636,7 +638,7 @@ function pickBody(body) {
 }
 function toArray(v) {
   if (!v) return [];
-  return (Array.isArray(v) ? v : [v]).map(Number).filter(Boolean);
+  return (Array.isArray(v) ? v : [v]).map(intId).filter(Boolean);
 }
 
 // Danh sách size / màu đã chuẩn hóa: bỏ trùng, bỏ khoảng trắng thừa -> "S, M, L"

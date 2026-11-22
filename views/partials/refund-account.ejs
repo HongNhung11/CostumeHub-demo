@@ -1,0 +1,36 @@
+<%# Tài khoản khách nhận hoàn (hoàn cọc / hoàn khi hủy) %>
+<% if (!['Hoàn tất', 'Đã hủy'].includes(rental.Status) || refundDue) { %>
+<div class="card p-3 mb-3 d-print-none <%= refundDue && !rental.RefundAccount ? 'border-warning' : '' %>" id="tai-khoan-hoan">
+  <div class="fw-semibold"><i class="bi bi-bank"></i> Tài khoản nhận hoàn tiền</div>
+  <% if (rental.RefundAccount) { %>
+    <div class="small text-break"><%= rental.RefundBank %> · <strong><%= rental.RefundAccount %></strong> · <%= rental.RefundHolder %></div>
+  <% } else { %>
+    <div class="small text-muted">Chưa có. <%= refundDue ? 'Cần khai để được chuyển khoản hoàn tiền.' : 'Khai trước để được hoàn cọc nhanh khi trả đồ.' %></div>
+  <% } %>
+  <details class="small mt-2">
+    <summary class="text-primary"><%= rental.RefundAccount ? 'Đổi tài khoản' : 'Khai tài khoản' %></summary>
+    <form method="POST" action="/rentals/<%= rental.RentalID %>/refund-account" class="row g-2 mt-1">
+      <div class="col-sm-6">
+        <label class="form-label mb-0" for="rfBank">Ngân hàng</label>
+        <select name="RefundBank" id="rfBank" class="form-select form-select-sm" required>
+          <option value="">-- Chọn --</option>
+          <% BANKS.forEach(b => { %><option value="<%= b.code %>" <%= b.code === rental.RefundBank ? 'selected' : '' %>><%= b.name %></option><% }) %>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label mb-0" for="rfAccount">Số tài khoản</label>
+        <input name="RefundAccount" id="rfAccount" class="form-control form-control-sm" required minlength="6" maxlength="19" autocomplete="off" value="<%= rental.RefundAccount || '' %>">
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label mb-0" for="rfHolder">Chủ tài khoản</label>
+        <input name="RefundHolder" id="rfHolder" class="form-control form-control-sm text-uppercase" required minlength="2" maxlength="100" value="<%= rental.RefundHolder || '' %>">
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label mb-0" for="rfPass">Mật khẩu đăng nhập của bạn</label>
+        <input name="currentPassword" id="rfPass" type="password" class="form-control form-control-sm" required autocomplete="current-password">
+      </div>
+      <div class="col-12"><button class="btn btn-outline-primary btn-sm">Lưu tài khoản nhận hoàn</button></div>
+    </form>
+  </details>
+</div>
+<% } %>

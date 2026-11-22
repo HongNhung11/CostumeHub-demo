@@ -14,7 +14,7 @@ const localDate = (d) => { const t = new Date(d); return `${t.getFullYear()}-${p
 const STATUSES = require('../utils/rentalFlow').ORDER;
 
 exports.index = async (req, res) => {
-  const rentals = await Rental.findAll({ include: [{ model: RentalItem, as: 'items' }] });
+  const rentals = await Rental.findAll({ where: { DataKind: require('../utils/dataKind').VISIBLE.filter(k => k !== 'test') }, include: [{ model: RentalItem, as: 'items' }] });
   const today = todayStr();
   const thisYear = Number(today.slice(0, 4));
 

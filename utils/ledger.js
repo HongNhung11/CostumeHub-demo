@@ -1,12 +1,12 @@
 // Ghi sổ hoàn cọc / thu thêm. amount > 0: shop hoàn khách · amount < 0: khách đền thêm
 const { LedgerEntry } = require('../models');
 
-async function post({ key, rentalId = null, amount, reason }, { transaction } = {}) {
+async function post({ key, rentalId = null, amount, reason, kind }, { transaction } = {}) {
   const n = Math.round(Number(amount) || 0);
   if (!n) return null;
-  const [entry] = await LedgerEntry.findOrCreate({
+  const [entry] = await LedgerEntry.unscoped().findOrCreate({   // khóa duy nhất trên mọi loại dữ liệu
     where: { Key: key },
-    defaults: { RentalID: rentalId, Direction: n > 0 ? 'out' : 'in', Amount: Math.abs(n), Reason: String(reason || '').slice(0, 255) },
+    defaults: { RentalID: rentalId, ...(kind ? { DataKind: kind } : {}), Direction: n > 0 ? 'out' : 'in', Amount: Math.abs(n), Reason: String(reason || '').slice(0, 255) },
     transaction,
   });
   return entry;

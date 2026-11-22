@@ -117,6 +117,7 @@ exports.resetPassword = async (req, res) => {
   const password = String(req.body.password || '');
   const err = checkPassword(password, user.username);
   if (err) { req.flash('error', `Không đổi được mật khẩu "${user.username}": ${err}`); return res.redirect(back(req)); }
+  Object.assign(user, { ResetHash: null, ResetExpires: null, PendingEmail: null, EmailVerifyHash: null });
   user.password = password;              // hook beforeUpdate sẽ băm mật khẩu
   await user.save();
   req.flash('success', `Đã đặt lại mật khẩu cho "${user.username}".`);

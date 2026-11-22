@@ -111,6 +111,7 @@
                   <li><a class="dropdown-item <%= path.startsWith('/admin/coupons') ? 'active' : '' %>" href="/admin/coupons"><i class="bi bi-ticket-perforated me-2"></i>Mã giảm giá</a></li>
                   <li><a class="dropdown-item <%= path.startsWith('/admin/bundles') ? 'active' : '' %>" href="/admin/bundles"><i class="bi bi-gift me-2"></i>Combo &amp; thuê nhóm</a></li>
                   <li><a class="dropdown-item <%= path.startsWith('/admin/users') ? 'active' : '' %>" href="/admin/users"><i class="bi bi-people me-2"></i>Tài khoản</a></li>
+                  <li><a class="dropdown-item <%= path.startsWith('/admin/audit') ? 'active' : '' %>" href="/admin/audit"><i class="bi bi-clock-history me-2"></i>Nhật ký tiền</a></li>
                 <% } %>
               </ul>
             </li>
@@ -155,6 +156,7 @@
     </div>
   </nav>
 
+  <% if (typeof SANDBOX !== 'undefined' && SANDBOX) { %><div class="alert alert-info rounded-0 text-center small py-1 mb-0"><strong>Test mode</strong>: đơn và giao dịch lúc này là dữ liệu thử, được tách khỏi dữ liệu thật.</div><% } %>
   <main class="container my-4">
     <% if (success && success.length) { %><div class="alert alert-success alert-dismissible shadow-sm"><%= success %><button class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
     <% if (error && error.length) { %><div class="alert alert-danger alert-dismissible shadow-sm"><%= error %><button class="btn-close" data-bs-dismiss="alert"></button></div><% } %>

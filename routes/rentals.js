@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+require('../utils/http').numericParams(router, 'id', 'pid');
+const { limits } = require('../middlewares/security');
 const c = require('../controllers/rentalController');
 const { requireLogin, requireStaff } = require('../middlewares/auth');
 const { uploadIDCard, uploadHandover } = require('../middlewares/upload');
@@ -26,6 +28,8 @@ router.post('/:id/photos', requireStaff, uploadHandover, photos.upload);
 router.get('/:id/photos/:pid', requireLogin, photos.view);
 router.get('/:id/pay-state', requireLogin, c.payState);         // trang đơn tự cập nhật khi tiền về
 router.post('/:id/cod-collected', requireStaff, c.confirmCod);   // chỉ nhân viên: đã thu tiền COD
+router.post('/:id/sent-confirm', requireStaff, c.confirmSent);   // nhân viên chốt ngày khách gửi trả
+router.post('/:id/refund-account', requireLogin, limits.reauth, c.setRefundAccount);
 router.post('/:id/deposit', requireStaff, c.confirmDeposit);   // xác nhận đã nhận cọc (Chờ cọc -> Đã cọc)
 router.get('/:id/return', requireStaff, c.returnForm);
 router.post('/:id/return', requireStaff, c.receiveReturn);

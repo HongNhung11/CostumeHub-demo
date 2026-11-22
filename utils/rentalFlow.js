@@ -10,6 +10,7 @@
 //               → (khách nhận) Đang thuê → (khách gửi trả + mã vận đơn) Đang gửi trả → (shop nhận, kiểm tra) Hoàn tất
 //  (Giá trị lưu trong CSDL giữ tên cũ "Chờ cọc" / "Đã cọc" để không phải đổi dữ liệu; chỉ đổi chữ hiển thị.)
 const { addDays, todayStr } = require('./dates');
+const PAY_GRACE_MS = 2 * 60e3;   // chờ thêm cho ngân hàng / SePay báo chậm
 const PAY_MINUTES = 5;   // thời gian giữ chỗ để khách chuyển khoản
 
 const STATUS = {
@@ -44,8 +45,12 @@ const amountDue = (r) => num(r.RentFee) - num(r.Discount) + num(r.Deposit);
 const isDelivery = (r) => r.DeliveryMethod === 'Giao tận nơi';
 // Ngày shop gửi đồ đi (= ngày nhận − số ngày vận chuyển); tự đến lấy = ngày nhận
 const shipDay = (r) => addDays(r.StartDate, -(num(r.ShipDays)));
+// Ngày gửi trả: đã đối chiếu, chưa có thì theo lời khách báo (chỉ để tính lịch, KHÔNG để tính phí)
+const sentDay = (r) => r.ReturnSentDate || r.ReturnClaimedDate || null;
 // Ngày đồ dự kiến về tới shop
-const backDay = (r) => addDays(r.ReturnSentDate || r.EndDate, num(r.ShipDays));
+const backDay = (r) => addDays(sentDay(r) || r.EndDate, num(r.ShipDays));
+// Khách báo đã gửi trả nhưng nhân viên chưa đối chiếu vận đơn
+const sentPending = (r) => r.Status === 'Đang gửi trả' && !r.ReturnSentDate && !!r.ReturnClaimedDate;
 
 // Giờ chốt đóng đơn trong ngày gửi (gợi ý cho nhân viên)
 const PACK_CUTOFF_HOUR = 12;
@@ -65,5 +70,5 @@ function steps(r) {
 
 module.exports = {
   STATUS, ORDER, label, cls, PAY, PAY_LABEL, payLabel, isPaid, codPending, CARRIERS,
-  amountDue, isDelivery, shipDay, backDay, paymentDeadline, transferClaimed, PAY_MINUTES, PACK_CUTOFF_HOUR, steps, todayStr,
+  PAY_GRACE_MS, amountDue, isDelivery, shipDay, backDay, sentDay, sentPending, paymentDeadline, transferClaimed, PAY_MINUTES, PACK_CUTOFF_HOUR, steps, todayStr,
 };

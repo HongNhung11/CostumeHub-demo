@@ -40,6 +40,7 @@
         <% } %>
       </div>
     <% } %>
+    <% if (rental.DataKind === 'test') { %><div class="alert alert-info py-2 small"><strong>Đơn thử (Test mode)</strong>: không phải tiền thật, không tính doanh thu.</div><% } %>
     <div class="card p-4 mb-3">
       <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
         <div>
@@ -70,7 +71,7 @@
           <p class="mb-1 small"><i class="bi bi-truck"></i> <%= rental.DeliveryZone ? zone.label : rental.DeliveryMethod %><% if (rental.DeliveryAddress) { %>: <%= rental.DeliveryAddress %><% } %></p>
           <% if (sd) { %><p class="mb-1 small text-muted"><i class="bi bi-calendar-week"></i> Shop gửi đồ ngày <%= shift(rental.StartDate, -sd) %> · khách gửi trả ngày <%= shift(rental.EndDate, 0) %> · shop nhận lại khoảng <%= shift(rental.EndDate, sd) %></p><% } %>
           <% if (rental.TrackingCode) { %><p class="mb-1 small"><i class="bi bi-upc-scan"></i> Gửi đi: <%= rental.Carrier %> · <strong><%= rental.TrackingCode %></strong></p><% } %>
-          <% if (rental.ReturnTrackingCode) { %><p class="mb-1 small"><i class="bi bi-upc-scan"></i> Gửi trả <%= vi(rental.ReturnSentDate) %>: <strong><%= rental.ReturnTrackingCode %></strong></p><% } %>
+          <% if (rental.ReturnTrackingCode) { %><p class="mb-1 small"><i class="bi bi-upc-scan"></i> <%= rental.ReturnSentDate ? 'Gửi trả' : 'Khách báo gửi trả' %> <%= vi(FLOW.sentDay(rental)) %>: <strong><%= rental.ReturnTrackingCode %></strong></p><% } %>
           <% if (rental.IDCardImage) { %><p class="mb-0 small"><i class="bi bi-image"></i> Ảnh CCCD: <a href="/rentals/<%= rental.RentalID %>/cccd" target="_blank" rel="noopener">xem</a></p><% } %>
         </div>
         <div class="col-md-5">
@@ -250,7 +251,7 @@
     <% if (st === 'Đang thuê') { %>
       <div class="card p-3 mb-3 d-print-none">
         <% if (deli) { %>
-          <div class="mb-2"><i class="bi bi-arrow-return-left text-primary"></i> Ngày <strong><%= vi(rental.EndDate) %></strong> vui lòng gửi trả đồ (<%= rental.ShipDays > 1 ? 'gọi đơn vị vận chuyển tới lấy hoặc gửi tại bưu cục' : 'gọi shop để shipper tới lấy' %>) về <strong>CostumeHub, Hà Nội · 0123 456 789</strong>, rồi nhập mã vận đơn bên dưới. Tính trễ theo ngày bạn gửi.</div>
+          <div class="mb-2"><i class="bi bi-arrow-return-left text-primary"></i> Ngày <strong><%= vi(rental.EndDate) %></strong> vui lòng gửi trả đồ (<%= rental.ShipDays > 1 ? 'gọi đơn vị vận chuyển tới lấy hoặc gửi tại bưu cục' : 'gọi shop để shipper tới lấy' %>) về <strong>CostumeHub, Hà Nội · 0123 456 789</strong>, rồi nhập mã vận đơn bên dưới. Tính trễ theo ngày gửi trên vận đơn (cửa hàng đối chiếu).</div>
           <form method="POST" action="/rentals/<%= rental.RentalID %>/sent-back" class="d-flex flex-wrap gap-2 align-items-end">
             <input type="hidden" name="back" value="/rentals/<%= rental.RentalID %>">
             <div style="min-width:240px">
@@ -268,12 +269,34 @@
 
     <% if (st === 'Đang gửi trả') { %>
       <div class="card p-3 mb-3 d-print-none">
-        <div><i class="bi bi-arrow-return-left text-primary"></i> Đã gửi trả ngày <strong><%= vi(rental.ReturnSentDate) %></strong> — mã vận đơn <strong class="coupon-code"><%= rental.ReturnTrackingCode %></strong>. Dự kiến về shop <strong><%= vi(FLOW.backDay(rental)) %></strong>; shop kiểm tra xong sẽ hoàn cọc.</div>
+        <div><i class="bi bi-arrow-return-left text-primary"></i> <%= rental.ReturnSentDate ? 'Đã gửi trả' : 'Đã báo gửi trả' %> ngày <strong><%= vi(FLOW.sentDay(rental)) %></strong> — mã vận đơn <strong class="coupon-code"><%= rental.ReturnTrackingCode %></strong>. Dự kiến về shop <strong><%= vi(FLOW.backDay(rental)) %></strong>; shop kiểm tra xong sẽ hoàn cọc.</div>
+        <% if (FLOW.sentPending(rental)) { %>
+          <% if (isStaff) { %>
+            <form method="POST" action="/rentals/<%= rental.RentalID %>/sent-confirm" class="d-flex flex-wrap gap-2 align-items-end mt-2">
+              <div>
+                <label class="form-label small text-muted mb-0" for="sentDate">Ngày gửi trên vận đơn (dùng tính phí trễ)</label>
+                <input type="date" name="SentDate" id="sentDate" class="form-control form-control-sm" required max="<%= today %>">
+              </div>
+              <button class="btn btn-outline-primary btn-sm"><i class="bi bi-check2"></i> Chốt ngày gửi</button>
+            </form>
+          <% } else { %>
+            <div class="small text-muted mt-1">Cửa hàng sẽ đối chiếu ngày gửi trên vận đơn để tính trễ. Hãy giữ biên nhận.</div>
+          <% } %>
+        <% } %>
         <% if (isStaff) { %><a href="/rentals/<%= rental.RentalID %>/return" class="btn btn-success btn-sm mt-2"><i class="bi bi-box-arrow-in-down"></i> Nhận lại đồ & hoàn cọc</a><% } %>
       </div>
     <% } %>
 
+    <%- include('../partials/refund-account') %>
     <%- include('../partials/handover-photos') %>
+    <% if (logs.length) { %>
+      <details class="card p-3 mb-3 small d-print-none">
+        <summary class="fw-semibold"><i class="bi bi-clock-history"></i> Nhật ký thao tác (<%= logs.length %>)</summary>
+        <% logs.forEach(l => { %>
+          <div class="pt-2 text-break"><span class="text-muted"><%= new Date(l.createdAt).toLocaleString('vi-VN') %></span> · <strong><%= l.ActorName %></strong> · <%= AUDIT_ACTIONS[l.Action] || l.Action %><%= l.Amount === null ? '' : ' · ' + vnd(l.Amount) %><%= l.Detail ? ' · ' + l.Detail : '' %></div>
+        <% }) %>
+      </details>
+    <% } %>
 
     <div class="mt-3 d-flex gap-2">
       <a href="/rentals" class="btn btn-light"><i class="bi bi-list-ul"></i> Danh sách đơn</a>

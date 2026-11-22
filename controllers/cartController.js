@@ -19,7 +19,7 @@ async function stockOf(productId, size, color) {
 // Nạp sản phẩm cho từng dòng giỏ; bỏ các dòng mà sản phẩm đã bị xóa / ngừng cho thuê / không còn size × màu đó
 // opts.selectedOnly: chỉ lấy các món khách đánh dấu để đặt (dòng có off = true là đang bỏ chọn)
 async function loadCart(req, opts = {}) {
-  const cart = getCart(req);
+  const cart = req.session.cart || [];   // chỉ đọc: xem giỏ trống không tạo session
   const ids = [...new Set(cart.map(l => l.productId))];
   const products = ids.length ? await Product.findAll({ where: { ProductID: { [Op.in]: ids } } }) : [];
   const variants = ids.length ? await ProductVariant.findAll({ where: { ProductID: { [Op.in]: ids } } }) : [];
@@ -48,7 +48,7 @@ exports.lineKey = lineKey;
 
 // ===== Thêm vào giỏ (từ trang chi tiết) =====
 exports.add = async (req, res) => {
-  const productId = parseInt(req.body.ProductID);
+  const productId = require('../utils/http').intId(req.body.ProductID);
   const back = `/products/${productId}`;
   // Trang chi tiết / xem nhanh gọi bằng fetch (không tải lại trang) -> trả JSON để hiện khung "Đã thêm vào giỏ"
   const wantsJson = req.get('X-Requested-With') === 'fetch' && !req.body.buyNow;

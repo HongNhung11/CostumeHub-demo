@@ -2,15 +2,14 @@
   CostumeHub — Web cho thuê trang phục
 ========================================================
 
-YÊU CẦU: Docker Desktop (đang bật) và Node.js 20.17 trở lên.
+YÊU CẦU: Docker Desktop (đang bật). Không cần Node. File .env tự tạo từ .env.example.
 
 CÁCH CHẠY:
-  1) Mở PowerShell / Terminal trong thư mục dự án.
-  2) Lần đầu, tạo file cấu hình .env:
-         node scripts/setup-env.js
-  3) Chạy:
-         docker compose up -d --build
-     Mở trình duyệt vào:  http://localhost:3001
+  - Windows:        bấm đúp CHAY_WEB.cmd
+  - macOS / Linux:  sh chay-web.sh
+  Xong mở trình duyệt vào:  http://localhost:3001
+
+CẬP NHẬT: xóa thư mục cũ, tải bản mới, chạy lại y như trên. Dữ liệu vẫn còn.
 
 LỆNH HAY DÙNG:
   - Xem log:            docker compose logs -f web

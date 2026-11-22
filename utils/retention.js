@@ -9,7 +9,7 @@ const { IDCARD_KEEP_DAYS } = require('./env');
 const { todayStr, addDays } = require('./dates');
 
 async function purgeIdCards() {
-  const list = await Rental.findAll({
+  const list = await Rental.unscoped().findAll({
     where: {
       IDCardImage: { [Op.ne]: null },
       [Op.or]: [
@@ -20,7 +20,7 @@ async function purgeIdCards() {
   });
   let removed = 0;
   for (const r of list) {
-    if (await LedgerEntry.count({ where: { RentalID: r.RentalID, Status: 'pending' } })) continue;
+    if (await LedgerEntry.unscoped().count({ where: { RentalID: r.RentalID, Status: 'pending' } })) continue;
     const name = path.basename(r.IDCardImage);
     if (!name || name === '.' || name === '..') continue;
     const file = path.join(r.IDCardImage.startsWith('/uploads/') ? uploadDir : privateDir, name);

@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { CURRENT, VISIBLE } = require('../utils/dataKind');
 
 // Đơn thuê (1 đơn có thể gồm nhiều món — xem RentalItem)
 const Rental = sequelize.define('Rental', {
@@ -56,10 +57,19 @@ const Rental = sequelize.define('Rental', {
 
   // Trạng thái đơn: Chờ cọc -> Đã cọc -> Đang thuê -> Hoàn tất | Đã hủy  ("Đã đặt": dữ liệu cũ)
   Status: { type: DataTypes.STRING, defaultValue: 'Đã đặt' },
+  DataKind: { type: DataTypes.STRING(8), allowNull: false, defaultValue: CURRENT },   // real | demo | test (utils/dataKind.js)
+  CancelReason: { type: DataTypes.STRING(20), allowNull: true },        // expired: tự hủy vì quá hạn chuyển khoản (được khôi phục nếu tiền thực ra về đúng giờ)
+  ReturnClaimedDate: { type: DataTypes.DATEONLY, allowNull: true },    // ngày KHÁCH BÁO gửi trả; ReturnSentDate = ngày nhân viên đã đối chiếu
+  ReturnSentBy: { type: DataTypes.STRING(100), allowNull: true },      // nhân viên đã đối chiếu
+  RefundBank: { type: DataTypes.STRING(20), allowNull: true },         // tài khoản khách nhận hoàn
+  RefundAccount: { type: DataTypes.STRING(30), allowNull: true },
+  RefundHolder: { type: DataTypes.STRING(100), allowNull: true },
+  SearchText: { type: DataTypes.TEXT, allowNull: true },               // tên khách + tên món, không dấu
   Note: { type: DataTypes.TEXT },
 }, {
   tableName: 'Rentals',
   timestamps: true,
+  defaultScope: { where: { DataKind: VISIBLE } },
   version: true,   // khóa lạc quan: 2 người cùng sửa 1 đơn thì người sau bị báo, không ghi đè
 });
 

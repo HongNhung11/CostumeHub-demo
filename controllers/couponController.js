@@ -59,7 +59,7 @@ exports.toggle = async (req, res) => {
 exports.remove = async (req, res) => {
   const c = await Coupon.findByPk(req.params.id);
   if (!c) return res.redirect('/admin/coupons');
-  if (await Rental.count({ where: { CouponCode: c.Code } })) {
+  if (await Rental.unscoped().count({ where: { CouponCode: c.Code } })) {
     req.flash('error', `Mã ${c.Code} đã được dùng trong đơn thuê — không xóa được, hãy bấm "Tắt" để ngừng áp dụng.`);
   } else {
     await c.destroy();

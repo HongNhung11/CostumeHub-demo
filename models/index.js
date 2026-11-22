@@ -15,6 +15,8 @@ const LedgerEntry = require('./LedgerEntry');
 const Session = require('./Session');
 const Bundle = require('./Bundle');
 const HandoverPhoto = require('./HandoverPhoto');
+const AuditLog = require('./AuditLog');
+const SwapHold = require('./SwapHold');
 
 // Số lượng theo size × màu (xóa SP thì xóa luôn biến thể)
 Product.hasMany(ProductVariant, { foreignKey: 'ProductID', as: 'variants', onDelete: 'CASCADE' });
@@ -26,8 +28,11 @@ ProductImage.belongsTo(Product, { foreignKey: 'ProductID' });
 
 // Quan hệ
 // Rental.ProductID = sản phẩm đầu tiên trong đơn (giữ để tương thích dữ liệu cũ)
-Product.hasMany(Rental, { foreignKey: 'ProductID' });
-Rental.belongsTo(Product, { foreignKey: 'ProductID' });
+// RESTRICT: xóa sản phẩm không được kéo theo đơn (CSDL cũ: utils/migrate.js đổi khóa ngoại)
+Product.hasMany(Rental, { foreignKey: 'ProductID', onDelete: 'RESTRICT' });
+Rental.belongsTo(Product, { foreignKey: 'ProductID', onDelete: 'RESTRICT' });
+Rental.hasMany(SwapHold, { foreignKey: 'RentalID', onDelete: 'CASCADE' });
+SwapHold.belongsTo(Rental, { foreignKey: 'RentalID', onDelete: 'CASCADE' });
 
 User.hasMany(Rental, { foreignKey: 'UserID' });
 Rental.belongsTo(User, { foreignKey: 'UserID' });
@@ -35,8 +40,8 @@ Rental.belongsTo(User, { foreignKey: 'UserID' });
 // Một đơn thuê có nhiều món
 Rental.hasMany(RentalItem, { foreignKey: 'RentalID', as: 'items' });
 RentalItem.belongsTo(Rental, { foreignKey: 'RentalID' });
-Product.hasMany(RentalItem, { foreignKey: 'ProductID' });
-RentalItem.belongsTo(Product, { foreignKey: 'ProductID' });
+Product.hasMany(RentalItem, { foreignKey: 'ProductID', onDelete: 'RESTRICT' });
+RentalItem.belongsTo(Product, { foreignKey: 'ProductID', onDelete: 'RESTRICT' });
 
 // Đánh giá + yêu thích
 Product.hasMany(Review, { foreignKey: 'ProductID', onDelete: 'CASCADE' });
@@ -49,4 +54,4 @@ User.hasMany(Favorite, { foreignKey: 'UserID' });
 
 User.hasMany(Notification, { foreignKey: 'UserID' });
 
-module.exports = { sequelize, Product, User, Rental, RentalItem, ProductVariant, ProductImage, Review, Favorite, Coupon, Notification, ContactRequest, Payment, LedgerEntry, Session, Bundle, HandoverPhoto };
+module.exports = { sequelize, Product, User, Rental, RentalItem, ProductVariant, ProductImage, Review, Favorite, Coupon, Notification, ContactRequest, Payment, LedgerEntry, Session, Bundle, HandoverPhoto, AuditLog, SwapHold };

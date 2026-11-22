@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+require('../utils/http').numericParams(router, 'id', 'rid', 'pid');
 const home = require('../controllers/homeController');
 const auth = require('../controllers/authController');
 const { limits } = require('../middlewares/security');
@@ -38,7 +39,10 @@ router.use('/products', productRoutes);
   const account = require('../controllers/accountController');
   const { requireLogin } = require('../middlewares/auth');
   router.get('/account', requireLogin, account.show);
-  router.post('/account/profile', requireLogin, account.updateProfile);
+  router.post('/account/profile', requireLogin, limits.reauth, account.updateProfile);
+  router.post('/account/resend-verify', requireLogin, limits.passwordChange, account.resendVerify);
+  router.get('/xac-minh-email/:token', requireLogin, account.verifyForm);
+  router.post('/xac-minh-email/:token', requireLogin, account.verifyEmail);
   router.post('/account/password', requireLogin, limits.passwordChange, account.changePassword);
   // Thông báo của tôi
   const noti = require('../controllers/notificationController');

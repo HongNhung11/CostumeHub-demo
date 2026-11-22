@@ -3,7 +3,7 @@
 // - remindersFor(): tạo lời nhắc theo ngày (mai nhận đồ, hôm nay nhận, mai hạn trả, hôm nay trả, quá hạn) — mỗi lời nhắc chỉ 1 lần
 // - expirePending(): đơn "Chờ cọc" quá PAY_MINUTES phút mà khách chưa báo chuyển khoản -> tự hủy, trả lại lịch cho khách khác
 const { Op } = require('sequelize');
-const { sequelize, Notification, Rental, RentalItem } = require('../models');
+const { sequelize, Notification, Rental, RentalItem, Payment } = require('../models');
 const { todayStr, addDays, daysBetween, viDate } = require('./dates');
 
 const vnd = (n) => Number(n || 0).toLocaleString('vi-VN') + ' đ';
@@ -19,7 +19,7 @@ async function notify(rental, { title, message, level = 'info', key = null }) {
 }
 
 // Hạn chuyển khoản của đơn "Chờ cọc": PAY_MINUTES phút (utils/rentalFlow.js)
-const { paymentDeadline: depositDeadline, isDelivery, PAY_MINUTES } = require('./rentalFlow');
+const { paymentDeadline: depositDeadline, isDelivery, PAY_MINUTES, PAY_GRACE_MS } = require('./rentalFlow');
 
 // Lời nhắc theo ngày cho 1 khách (gọi khi khách mở web, có giới hạn tần suất ở server.js)
 async function remindersFor(userId) {
@@ -58,25 +58,34 @@ async function remindAll() {
   for (const id of new Set(rows.map(r => r.UserID))) await remindersFor(id);
 }
 
-// Tự hủy đơn chờ thanh toán quá hạn (chưa thu tiền nên không có phí hủy).
-// Chờ thêm PAY_GRACE_MS vì ngân hàng / SePay báo về chậm vài chục giây.
-const PAY_GRACE_MS = 2 * 60e3;
+// Tự hủy đơn chờ thanh toán quá hạn (chưa thu tiền nên không có phí hủy). KHÔNG hủy khi:
+//  - đã có tiền của đơn đang chờ xử lý (chuyển lệch)
+//  - API đối soát chưa có lượt thành công nào sau hạn (chưa biết tiền về hay chưa; hoãn tối đa MAX_HOLD_MS)
+const MAX_HOLD_MS = 60 * 60e3;
 async function expirePending() {
+  const { SEPAY } = require('./env');
+  const { status } = require('./payments');
   const now = Date.now();
-  const overdue = (r) => depositDeadline(r).getTime() + PAY_GRACE_MS <= now;
-  const list = (await Rental.findAll({ where: { Status: 'Chờ cọc', TransferClaimedAt: null } })).filter(overdue);
+  const expired = (r) => {
+    const limit = depositDeadline(r).getTime() + PAY_GRACE_MS;
+    if (limit > now) return false;
+    if (SEPAY.enabled && SEPAY.token && now < limit + MAX_HOLD_MS) return !!status.okStartedAt && status.okStartedAt.getTime() >= limit;
+    return true;
+  };
+  const list = (await Rental.findAll({ where: { Status: 'Chờ cọc', TransferClaimedAt: null } })).filter(expired);
   let count = 0;
   for (const { RentalID } of list) {
     const r = await sequelize.transaction(async (t) => {
       const x = await Rental.findByPk(RentalID, { transaction: t, lock: t.LOCK.UPDATE });
       if (!x || x.Status !== 'Chờ cọc' || x.TransferClaimedAt) return null;   // tiền vừa về
+      if (await Payment.count({ where: { RentalID, State: 'review' }, transaction: t })) return null;
       const line = `[${viDate(todayStr())}] Tự hủy: quá ${PAY_MINUTES} phút chưa nhận được chuyển khoản.`;
-      await x.update({ Status: 'Đã hủy', CancelFee: 0, RefundAmount: 0, Note: [x.Note, line].filter(Boolean).join('\n') }, { transaction: t });
+      await x.update({ Status: 'Đã hủy', CancelReason: 'expired', CancelFee: 0, RefundAmount: 0, Note: [x.Note, line].filter(Boolean).join('\n') }, { transaction: t });
       return x;
     });
     if (!r) continue;
     count++;
-    await notify(r, { level: 'danger', title: `Đơn #${RentalID} đã tự hủy`, message: `Quá ${PAY_MINUTES} phút chưa nhận được chuyển khoản nên đơn đã tự hủy. Nếu bạn đã chuyển, khoản tiền sẽ được ghi vào sổ hoàn tiền.` });
+    await notify(r, { level: 'danger', title: `Đơn #${RentalID} đã tự hủy`, message: `Quá ${PAY_MINUTES} phút chưa nhận được chuyển khoản nên đơn đã tự hủy. Nếu bạn đã chuyển đúng giờ, đơn tự khôi phục khi tiền được báo về và đồ còn trống; không thì tiền vào sổ hoàn.` });
   }
   return count;
 }

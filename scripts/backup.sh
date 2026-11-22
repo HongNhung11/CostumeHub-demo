@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sao lưu mỗi ngày vào ./backups: CSDL + ảnh sản phẩm + ảnh tình trạng đồ.
+# Sao lưu mỗi ngày vào volume backups: CSDL + ảnh sản phẩm + ảnh tình trạng đồ.
 # KHÔNG sao lưu ảnh CCCD: bản sao sẽ sống lâu hơn thời hạn lưu đã cam kết.
 #   Sao lưu ngay:  docker compose exec backup sh /scripts/backup.sh once
 #   Khôi phục:     docker compose exec backup sh /scripts/restore.sh <tên thư mục>

@@ -1,6 +1,6 @@
 # Hướng dẫn thanh toán tự động, email và sao lưu
 
-Mọi cấu hình nằm trong file `.env`. Sửa xong chạy:
+Mọi cấu hình nằm trong file `.env` (chưa có thì chép từ `.env.example`). Sửa xong chạy:
 
 ```bash
 docker compose up -d
@@ -34,6 +34,8 @@ Khi tiền về:
    ```
 
 5. Đặt một đơn chuyển khoản. Vào SePay → **Mô phỏng giao dịch**, nhập đúng số tiền và nội dung hiện trên trang đơn. Web hỏi SePay 10 giây một lần nên đơn tự xác nhận sau vài giây.
+
+Đơn tạo trong Test mode được gắn nhãn thử: không vào doanh thu, và ẩn khi chuyển sang `live`.
 
 Test mode cố ý không hiện QR để không ai chuyển nhầm tiền thật.
 
@@ -74,9 +76,11 @@ Trước khi đưa web ra Internet phải đổi **mọi** mật khẩu mẫu, k
 | Trường hợp | Web xử lý |
 |---|---|
 | Đúng mã, đúng tiền | Tự xác nhận |
-| Sai số tiền | Không xác nhận, vào "Giao dịch cần xử lý" |
+| Chuyển thiếu | Giữ đơn, chuyển bù đủ thì tự xác nhận |
+| Chuyển thừa | Giữ đơn, nhân viên bấm "Nhận vào đơn", phần dư vào sổ hoàn |
+| Đúng giờ nhưng báo muộn | Khôi phục đơn nếu đồ còn trống |
 | Không có mã đơn | Vào "Giao dịch cần xử lý" |
-| Về muộn, đơn đã hủy | Ghi khoản cần hoàn |
+| Chuyển sau hạn, đơn đã hủy | Ghi khoản cần hoàn |
 | Chuyển hai lần | Ghi khoản cần hoàn cho lần sau |
 
 Web **không tự chuyển tiền hoàn**. Nhân viên chuyển bằng app ngân hàng rồi ghi mã giao dịch vào Sổ hoàn cọc.
@@ -94,11 +98,11 @@ SMTP_USER=email-cua-shop@gmail.com
 SMTP_PASS=mật khẩu ứng dụng 16 ký tự
 ```
 
-Tài khoản phải có email mới nhận được. Ba tài khoản mẫu chưa có email.
+Tài khoản phải có email **đã xác minh** mới nhận được thư (mở liên kết trong thư xác minh khi đang đăng nhập). Ba tài khoản mẫu chưa có email.
 
 ## 5. Sao lưu và khôi phục
 
-Tự sao lưu khi khởi động và mỗi 24 giờ vào thư mục `backups/`, giữ 14 ngày. Chỉ chạy khi máy và Docker đang bật. Nên chép định kỳ sang ổ khác.
+Tự sao lưu khi khởi động và mỗi 24 giờ vào volume `backups` của Docker (xóa thư mục project không mất), giữ 14 ngày. Lấy ra máy: `docker compose cp backup:/backups ./backups`. Chỉ chạy khi máy và Docker đang bật. Nên chép định kỳ sang ổ khác.
 
 ```bash
 # sao lưu ngay

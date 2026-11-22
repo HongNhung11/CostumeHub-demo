@@ -51,8 +51,19 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label small text-muted" for="pfEmail">Email <span class="text-danger">*</span></label>
-                <input name="email" id="pfEmail" type="email" class="form-control" required maxlength="150" value="<%= user.email || '' %>">
+                <input name="email" id="pfEmail" type="email" class="form-control" required maxlength="150" value="<%= user.email || user.PendingEmail || '' %>" data-current="<%= user.email || user.PendingEmail || '' %>">
                 <div class="invalid-feedback">Email không hợp lệ.</div>
+                <% if (user.PendingEmail) { %><div class="small text-warning-emphasis text-break">Đang chờ xác minh: <%= user.PendingEmail %></div>
+                <% } else if (user.email && user.EmailVerifiedAt) { %><div class="small text-success">Đã xác minh</div>
+                <% } else if (user.email) { %><div class="small text-warning-emphasis">Chưa xác minh: chưa nhận được thư và chưa dùng được Quên mật khẩu.</div><% } %>
+                <% if (mailOn && (user.PendingEmail || (user.email && !user.EmailVerifiedAt))) { %>
+                  <button class="btn btn-link btn-sm p-0" formaction="/account/resend-verify" formnovalidate id="resendVerify">Gửi lại thư xác minh</button>
+                <% } %>
+              </div>
+              <div class="col-md-6" id="pfPassBox" hidden>
+                <label class="form-label small text-muted" for="pfPass">Mật khẩu hiện tại (bắt buộc khi đổi email) <span class="text-danger">*</span></label>
+                <input name="currentPassword" id="pfPass" type="password" class="form-control" autocomplete="current-password" maxlength="100">
+                <div class="invalid-feedback">Nhập mật khẩu hiện tại.</div>
               </div>
               <div class="col-md-6">
                 <label class="form-label small text-muted" for="pfCCCD">Số CCCD</label>
@@ -70,6 +81,25 @@
               <span class="small text-muted">Thông tin này được điền sẵn khi bạn đặt thuê. Tên đăng nhập <code><%= user.username %></code> không đổi được.</span>
             </div>
           </form>
+          <script>
+          (function () {
+            const email = document.getElementById('pfEmail'), box = document.getElementById('pfPassBox'), pass = document.getElementById('pfPass');
+            const sync = () => {
+              const changed = email.value.trim().toLowerCase() !== email.dataset.current;
+              box.hidden = !changed;
+              pass.required = changed;
+            };
+            email.addEventListener('input', sync);
+            sync();
+            // nút gửi lại thư không cần qua bước kiểm tra của form thông tin
+            document.getElementById('resendVerify')?.addEventListener('click', (e) => {
+              e.preventDefault();
+              const f = document.createElement('form');
+              f.method = 'POST'; f.action = '/account/resend-verify';
+              document.body.append(f); f.submit();
+            });
+          })();
+          </script>
         </div>
       </div>
       <div class="col-md-6">

@@ -48,17 +48,23 @@
             <td>
               <% if (['review', 'unmatched'].includes(r.State)) { %>
                 <form method="POST" action="/admin/money/payments/<%= r.PaymentID %>" class="d-flex gap-1 flex-wrap" style="min-width:200px">
+                  <% if (c && c.Status === 'Chờ cọc') { %><button class="btn btn-sm btn-success" name="Action" value="accept">Nhận vào đơn</button><% } %>
                   <button class="btn btn-sm btn-outline-danger" name="Action" value="refund">Cần hoàn</button>
-                  <button class="btn btn-sm btn-light" name="Action" value="keep" onclick="return confirm('Đã xử lý xong, không cần hoàn?')">Đã xử lý</button>
+                  <% if (!c || c.Status !== 'Chờ cọc') { %><button class="btn btn-sm btn-light" name="Action" value="keep" onclick="return confirm('Đã xử lý xong, không cần hoàn?')">Đã xử lý</button><% } %>
                 </form>
               <% } else if (r.HandledBy) { %><span class="small text-muted"><%= r.HandledBy %></span><% } %>
             </td>
           <% } else { %>
             <td class="text-end text-nowrap fw-semibold text-<%= r.Direction === 'out' ? 'danger' : 'success' %>"><%= r.Direction === 'out' ? 'Hoàn' : 'Thu' %> <%= vnd(r.Amount) %></td>
-            <td class="small" style="min-width:180px"><%= r.Reason %><div class="text-muted"><%= when(r.createdAt) %></div></td>
+            <td class="small" style="min-width:180px"><%= r.Reason %><div class="text-muted"><%= when(r.createdAt) %></div>
+              <% if (r.Direction === 'out' && r.Status === 'pending' && c) { %>
+                <% if (c.RefundAccount) { %><div class="text-break">Chuyển tới <strong><%= c.RefundBank %> <%= c.RefundAccount %></strong> · <%= c.RefundHolder %></div>
+                <% } else { %><div class="text-danger">Khách chưa khai tài khoản nhận hoàn</div><% } %>
+              <% } else if (r.SentTo) { %><div class="text-break">Đã chuyển tới <%= r.SentTo %></div><% } %></td>
             <td>
               <% if (r.Status === 'pending') { %>
                 <form method="POST" action="/admin/money/ledger/<%= r.EntryID %>" class="d-flex gap-1 flex-wrap" style="min-width:230px">
+                  <% if (c && c.RefundAccount) { %><input type="hidden" name="SentTo" value="<%= c.RefundBank %> <%= c.RefundAccount %>"><% } %>
                   <select name="Method" class="form-select form-select-sm" style="width:auto" aria-label="Cách thanh toán"><% METHODS.forEach(m => { %><option><%= m %></option><% }) %></select>
                   <input name="Reference" class="form-control form-control-sm" style="width:130px" maxlength="100" placeholder="Mã giao dịch" aria-label="Mã giao dịch">
                   <button class="btn btn-sm btn-success" onclick="return confirm('Đã <%= r.Direction === 'out' ? 'hoàn' : 'thu' %> <%= vnd(r.Amount) %>?')">Xong</button>

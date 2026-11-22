@@ -11,7 +11,7 @@
 // => Khách A thuê size S, khách B thuê size M cùng ngày: không ảnh hưởng nhau;
 //    hai khách cùng thuê size S thì phải còn đủ bộ size S.
 const { Op } = require('sequelize');
-const { Rental, RentalItem, ProductVariant } = require('../models');
+const { Rental, RentalItem, ProductVariant, SwapHold } = require('../models');
 const { todayStr, addDays, daysBetween } = require('./dates');
 const { keyOf } = require('./variants');
 const { MAX_SHIP_DAYS } = require('./shipping');
@@ -28,7 +28,7 @@ async function activeHolds(productIds, start, end, { transaction, excludeRentalI
     where: { ProductID: { [Op.in]: productIds } },
     include: [{
       model: Rental,
-      attributes: ['RentalID', 'StartDate', 'EndDate', 'Status', 'ShipDays', 'ReturnDate', 'ReturnSentDate'],
+      attributes: ['RentalID', 'StartDate', 'EndDate', 'Status', 'ShipDays', 'ReturnDate', 'ReturnSentDate', 'ReturnClaimedDate'],
       where: {
         // Đơn đang giữ đồ + đơn vừa hoàn tất (đồ còn đang giặt sau ngày shop nhận lại)
         [Op.or]: [
@@ -41,22 +41,30 @@ async function activeHolds(productIds, start, end, { transaction, excludeRentalI
     }],
     transaction,
   });
-  return items
+  // size vừa được đổi ra: bận tới khi về shop + giặt xong
+  const swaps = await SwapHold.findAll({
+    where: { ProductID: { [Op.in]: productIds }, FromDate: { [Op.lte]: end }, ToDate: { [Op.gte]: start }, ...(excludeRentalId ? { RentalID: { [Op.ne]: excludeRentalId } } : {}) },
+    include: [{ model: Rental, attributes: ['RentalID'], required: true }],   // đơn mẫu / đơn thử đang ẩn thì không giữ
+    transaction,
+  });
+  const washing = swaps.map(h => ({ key: keyOf(h.ProductID, h.Size, h.Color), qty: h.Quantity, from: h.FromDate, to: h.ToDate }));
+  const held = items
     .map(it => {
       const r = it.Rental;
       const key = keyOf(it.ProductID, it.Size, it.Color);
       // Shop đã nhận lại đồ: chỉ còn bận ngày nhận lại + ngày giặt
       if (r.Status === 'Hoàn tất') return { key, qty: it.Quantity, from: r.ReturnDate, to: addDays(r.ReturnDate, CLEAN_DAYS) };
       let holdEnd = r.EndDate;
-      if (r.Status === 'Đang gửi trả' && r.ReturnSentDate && r.ReturnSentDate > holdEnd) holdEnd = r.ReturnSentDate;   // gửi trả muộn
+      const sent = r.ReturnSentDate || r.ReturnClaimedDate;
+      if (r.Status === 'Đang gửi trả' && sent && sent > holdEnd) holdEnd = sent;   // gửi trả muộn
       const ship = Number(r.ShipDays) || 0;
-      if (r.Status === 'Đang thuê' && holdEnd < today) holdEnd = today;   // quá hạn chưa trả / chưa gửi trả
+      if (['Đang giao', 'Đang thuê'].includes(r.Status) && holdEnd < today) holdEnd = today;   // đồ đã rời shop, quá hạn chưa về
       // Đã gửi trả nhưng quá ngày dự kiến mà chưa về shop -> coi như còn đang trên đường
       if (r.Status === 'Đang gửi trả' && addDays(holdEnd, ship) < today) holdEnd = addDays(today, -ship);
       // − ngày vận chuyển đi · + ngày vận chuyển về + ngày giặt sấy
       return { key, qty: it.Quantity, from: addDays(r.StartDate, -ship), to: addDays(holdEnd, ship + CLEAN_DAYS) };
-    })
-    .filter(h => h.to >= start && h.from <= end);
+    });
+  return held.concat(washing).filter(h => h.to >= start && h.from <= end);
 }
 
 // Số bộ bị giữ cùng lúc nhiều nhất trong [start, end], theo từng tổ hợp: { key: peak }
@@ -124,14 +132,18 @@ async function peakFutureUsage(productId, opts = {}) {
 
 // Các ProductID đã từng nằm trong đơn thuê: { active: đơn chưa xong, history: chỉ còn đơn đã xong/hủy }
 // (CSDL đặt Rentals.ProductID ... ON DELETE CASCADE => xóa SP sẽ xóa luôn hóa đơn cũ, nên phải chặn)
-async function productsInRentals(productIds) {
+async function productsInRentals(productIds, { transaction } = {}) {
+  // unscoped: đơn mẫu / đơn thử đang ẩn vẫn phải chặn xóa sản phẩm
   const items = await RentalItem.findAll({
+    transaction,
     attributes: ['ProductID'],
     where: { ProductID: { [Op.in]: productIds } },
-    include: [{ model: Rental, attributes: ['Status'] }],
+    include: [{ model: Rental.unscoped(), attributes: ['Status'] }],
   });
   const active = new Set(), history = new Set();
-  for (const i of items) (ACTIVE.includes(i.Rental.Status) ? active : history).add(i.ProductID);
+  for (const i of items) (ACTIVE.includes(i.Rental?.Status) ? active : history).add(i.ProductID);
+  const main = await Rental.unscoped().findAll({ where: { ProductID: { [Op.in]: productIds } }, attributes: ['ProductID', 'Status'], transaction });
+  for (const r of main) (ACTIVE.includes(r.Status) ? active : history).add(r.ProductID);
   for (const id of active) history.delete(id);
   return { active, history };
 }

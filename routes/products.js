@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+require('../utils/http').numericParams(router, 'id');
 const c = require('../controllers/productController');
 const { uploadProductImages, uploadMemory } = require('../middlewares/upload');
 const { requireLogin, requireStaff, requireAdmin } = require('../middlewares/auth');

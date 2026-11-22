@@ -15,6 +15,10 @@ const User = sequelize.define('User', {
   // --- Xác minh danh tính (OCR CCCD) ---
   idCardNumber: { type: DataTypes.STRING },
   idCardImage: { type: DataTypes.STRING },
+  EmailVerifiedAt: { type: DataTypes.DATE, allowNull: true },       // chỉ email đã xác minh mới nhận thư / đặt lại mật khẩu
+  PendingEmail: { type: DataTypes.STRING(150), allowNull: true },   // email mới đang chờ xác minh
+  EmailVerifyHash: { type: DataTypes.STRING(64), allowNull: true },
+  EmailVerifyExpires: { type: DataTypes.DATE, allowNull: true },
   ResetHash: { type: DataTypes.STRING(64), allowNull: true },      // hash mã đặt lại mật khẩu
   ResetExpires: { type: DataTypes.DATE, allowNull: true },
   isVerified: { type: DataTypes.BOOLEAN, defaultValue: false },

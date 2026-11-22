@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./utils/secret').ensureSessionSecret();   // không có .env vẫn chạy
 const express = require('express');
 require('express-async-errors');   // lỗi trong hàm async được chuyển tới bộ xử lý lỗi bên dưới (không treo trang)
 const path = require('path');
@@ -12,6 +13,9 @@ const ENV = require('./utils/env');
 const security = require('./middlewares/security');
 const { DbStore, TTL_MS } = require('./config/sessionStore');
 const passwordVersion = require('./utils/passwordVersion');
+const { cleanQuery } = require('./utils/http');
+const { remember } = require('./utils/device');
+const { DEMO_DATA, SANDBOX } = require('./utils/dataKind');
 
 const SECRET = process.env.SESSION_SECRET || '';
 if (SECRET.length < 32) {
@@ -36,6 +40,7 @@ app.locals.colorHex = require('./utils/colors').colorHex;   // chấm màu cạn
 Object.assign(app.locals, require('./utils/pricing'));   // saleOf / priceOf / salePercent: giá sale trong mọi view
 app.locals.IDCARD_KEEP_DAYS = ENV.IDCARD_KEEP_DAYS;
 app.locals.SEPAY_ON = ENV.SEPAY.enabled;
+app.locals.SANDBOX = SANDBOX;
 app.locals.SHOW_DEMO_ACCOUNTS = ENV.SHOW_DEMO_ACCOUNTS;
 app.locals.unreadCount = 0;                  // số thông báo chưa đọc (ghi đè cho từng người ở middleware bên dưới)
 app.locals.CAT_GROUPS = require('./utils/categories').menuGroups();   // danh mục con trên menu "Danh mục"
@@ -51,6 +56,7 @@ app.use(security.csrf);
 app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(methodOverride('_method'));
+app.use(cleanQuery);
 const store = new DbStore();
 app.use(session({
   name: 'ch.sid',
@@ -82,6 +88,7 @@ app.use(async (req, res, next) => {
     return res.redirect('/login');
   }
   req.session.user = { id: u.id, username: u.username, fullName: u.fullName, role: u.role, pv: su.pv };
+  remember(req, res, u.username);   // máy đang đăng nhập đúng = máy quen
   next();
 });
 
@@ -111,8 +118,10 @@ app.use(async (req, res, next) => {
 // Biến dùng chung cho mọi view
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null;
-  res.locals.success = req.flash('success');
-  res.locals.error = req.flash('error');
+  // chỉ đọc khi thật sự có: req.flash() tự tạo session cho mọi khách / bot ghé qua
+  const flashed = req.session.flash || {};
+  res.locals.success = flashed.success?.length ? req.flash('success') : [];
+  res.locals.error = flashed.error?.length ? req.flash('error') : [];
   res.locals.path = req.path;
   res.locals.SHIP = require('./utils/shipping');
   res.locals.FLOW = require('./utils/rentalFlow');   // trạng thái đơn, thanh toán, giao — nhận (dùng trong view)   // khu vực giao + số ngày vận chuyển (dùng trong view)
@@ -134,6 +143,10 @@ app.use((err, req, res, next) => {
     req.flash('error', 'Đơn vừa được cập nhật bởi thao tác khác (VD tiền vừa về). Vui lòng xem lại rồi thao tác tiếp.');
     const id = req.originalUrl.match(/^\/rentals\/(\d+)/);
     return res.redirect(id ? '/rentals/' + id[1] : '/rentals');
+  }
+  // lớp chặn cuối: giá trị không phải số / quá lớn lọt xuống CSDL
+  if (err.name === 'SequelizeDatabaseError' && ['22P02', '22003'].includes(err.parent?.code) && !res.headersSent) {
+    return res.status(404).render('404', { title: 'Không tìm thấy' });
   }
   if (err.type === 'entity.too.large') return res.status(413).type('text/plain').send('Dữ liệu gửi lên quá lớn.');
   if (err.type === 'entity.parse.failed') return res.status(400).type('text/plain').send('Dữ liệu gửi lên không hợp lệ.');
@@ -165,7 +178,7 @@ async function migrateRentalsToItems() {
   const { Rental, RentalItem, Product } = require('./models');
   const { ACTIVE } = require('./utils/availability');
   if (await RentalItem.count() > 0) return;
-  const rentals = await Rental.findAll({ include: Product });
+  const rentals = await Rental.unscoped().findAll({ include: Product });
   if (!rentals.length) return;
   await sequelize.transaction(async (t) => {
     for (const r of rentals) {
@@ -283,14 +296,17 @@ async function guardLivePayments() {
     await sequelize.authenticate();
     console.log(`✅ Kết nối CSDL (${sequelize.getDialect()}) thành công.`);
     await sequelize.sync();            // tạo bảng nếu chưa có
+    await require('./utils/migrate').upgrade();   // trước migrateSchema: các model đã đọc cột mới
     await migrateSchema();             // thêm cột mới, chuyển trạng thái SP cũ
     await migrateRentalsToItems();     // chuyển dữ liệu đơn thuê cũ (nếu có)
     await seed();                      // nạp dữ liệu mẫu nếu rỗng
     await migrateVariants();           // số lượng theo size × màu cho SP chưa có
+    await require('./utils/migrate').fillSearchText();
     await guardLivePayments();
     require('./utils/jobs').start({ store });
     if (ENV.SEPAY.enabled) console.log(`💳 SePay: ${ENV.SEPAY.mode} · webhook ${ENV.SEPAY.secret ? 'bật' : 'tắt'} · đối soát ${ENV.SEPAY.token ? 'bật' : 'tắt'}`);
     else console.log('💳 Chuyển khoản đang TẮT: ' + ENV.SEPAY.problems.join('; '));
+    if (DEMO_DATA && ENV.SEPAY.mode === 'live') console.log('⚠️  DEMO_DATA=true trong khi nhận tiền thật: đơn mẫu vẫn chiếm lịch và vào thống kê.');
     app.listen(PORT, () => {
       console.log(`🚀 CostumeHub chạy tại: http://localhost:${PORT}`);
     });

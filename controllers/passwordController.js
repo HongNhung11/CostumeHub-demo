@@ -29,13 +29,13 @@ exports.forgot = (req, res) => {
     return res.redirect('/quen-mat-khau');
   }
   // Trả lời ngay và giống nhau dù email có tồn tại hay không (không dò được tài khoản)
-  req.flash('success', `Nếu email thuộc một tài khoản, liên kết đặt lại mật khẩu đã được gửi (hết hạn sau ${TTL_MINUTES} phút).`);
+  req.flash('success', `Nếu email đã được xác minh cho một tài khoản, liên kết đặt lại mật khẩu đã được gửi (hết hạn sau ${TTL_MINUTES} phút).`);
   res.redirect('/login');
   issue(email).catch(e => console.error('Không gửi được email đặt lại mật khẩu:', e.code || e.message));
 };
 
 async function issue(email) {
-  for (const user of await User.findAll({ where: { email, isActive: true }, limit: 3 })) {
+  for (const user of await User.findAll({ where: { email, isActive: true, EmailVerifiedAt: { [Op.ne]: null } }, limit: 3 })) {
     const token = crypto.randomBytes(32).toString('hex');
     await user.update({ ResetHash: hash(token), ResetExpires: new Date(Date.now() + TTL_MINUTES * 60e3) });
     await mailer.send(email, 'Đặt lại mật khẩu',
@@ -56,12 +56,13 @@ exports.reset = async (req, res) => {
     if (!user) return { expired: true };
     const error = checkPassword(password, user.username) || (password !== confirm ? 'Nhập lại mật khẩu không khớp.' : null);
     if (error) return { error };
-    await user.update({ password, ResetHash: null, ResetExpires: null }, { transaction: t });
-    return {};
+    await user.update({ password, ResetHash: null, ResetExpires: null, PendingEmail: null, EmailVerifyHash: null }, { transaction: t });
+    return { username: user.username };
   });
   if (result.expired) return expired(req, res);
   if (result.error) { req.flash('error', result.error); return res.redirect(`/dat-lai-mat-khau/${req.params.token}`); }
   delete req.session.user;
+  require('../utils/device').remember(req, res, result.username);   // có email = chính chủ: không bị người lạ khóa nữa
   req.flash('success', 'Đã đặt mật khẩu mới. Mọi thiết bị đang đăng nhập đã được đăng xuất.');
   res.redirect('/login');
 };

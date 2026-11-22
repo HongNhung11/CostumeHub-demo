@@ -8,6 +8,7 @@ private_uploads/
 backups/
 
 # Cấu hình riêng, CSDL, bản sao lưu
+state/
 .env.*
 !.env.example
 *.sqlite

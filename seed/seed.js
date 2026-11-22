@@ -1,6 +1,7 @@
 const { Product, User, Coupon, Rental, RentalItem, Bundle } = require('../models');
 const { standardChart } = require('../utils/sizeChart');
 const { guessDetails } = require('../utils/details');
+const { DEMO_DATA } = require('../utils/dataKind');
 
 /* ============================================================
    DỮ LIỆU MẪU — Shop trang phục NỮ: Áo dài · Váy tiệc · Phụ kiện
@@ -250,6 +251,16 @@ function buildProducts() {
 
 async function seed() {
   const countUser = await User.count();
+  if (!DEMO_DATA) {
+    // Chạy thật: chỉ tạo đúng 1 admin cho CSDL trống
+    if (countUser === 0) {
+      const password = String(process.env.ADMIN_PASSWORD || '');
+      if (password.length < 10) throw new Error('DEMO_DATA=false trên CSDL trống: cần ADMIN_PASSWORD (ít nhất 10 ký tự) trong .env');
+      await User.create({ username: 'admin', password, fullName: 'Quản trị viên', role: 'admin', isVerified: true });
+      console.log('👤 Đã tạo tài khoản admin (mật khẩu: ADMIN_PASSWORD trong .env). Không nạp dữ liệu mẫu.');
+    }
+    return;
+  }
   if (countUser === 0) {
     await User.create({ username: 'admin', password: 'admin123', fullName: 'Quản trị viên', role: 'admin', isVerified: true });
     await User.create({ username: 'nhanvien', password: '123456', fullName: 'Nhân viên A', role: 'nhanvien', isVerified: true });
@@ -308,7 +319,7 @@ const _firstSize = (s) => String(s || 'Free size').split(/[,;]/)[0].trim() || 'F
 const _firstColor = (c) => String(c || 'Một màu').split(/[,;]/)[0].trim() || 'Một màu';
 
 async function seedRentals() {
-  if (await Rental.count() > 0) return;
+  if (await Rental.unscoped().count() > 0) return;
 
   const khach = await User.findOne({ where: { username: 'khachhang' } });
   const pick = async (type) => (await Product.findAll({ where: { ProductType: type }, order: [['ProductID', 'ASC']] }));
@@ -382,6 +393,7 @@ async function seedRentals() {
       PaymentStatus: paid ? 'Đã thanh toán' : (cod ? 'Thu khi nhận đồ' : 'Chưa thanh toán'),
       DepositPaidAt: paid ? createdAt : null,
       Status: status,
+      DataKind: 'demo',
       Note: opts.note || null,
       createdAt,
       updatedAt: today,
@@ -396,7 +408,8 @@ async function seedRentals() {
     }
     if (['Đang gửi trả', 'Hoàn tất'].includes(status) && delivery) {
       row.ReturnTrackingCode = 'GHN' + (900000 + idx);
-      row.ReturnSentDate = _ymd(end);
+      if (status === 'Hoàn tất') row.ReturnSentDate = _ymd(end);
+      else row.ReturnClaimedDate = _ymd(end);   // khách báo, chờ nhân viên đối chiếu
     }
     if (status === 'Hoàn tất') row.ReturnDate = _ymd(delivery ? _addDays(end, shipDays) : end);
     if (status === 'Đã hủy') { row.CancelFee = 0; row.RefundAmount = deposit; row.Note = row.Note || 'Khách báo bận, hủy trước ngày nhận.'; }

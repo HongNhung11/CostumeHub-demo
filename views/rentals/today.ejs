@@ -40,7 +40,7 @@
               <% r.items.forEach(it => { %><div><%= it.ProductName %> <span class="text-muted">× <%= it.Quantity %><% if (it.Size) { %> · <%= it.Size %><% } %><% if (it.Color) { %> · <%= it.Color %><% } %></span></div><% }) %>
               <div class="text-muted mt-1">Thuê <%= vi(r.StartDate) %> → <%= vi(r.EndDate) %><% if (deli) { %> · gửi <%= vi(FLOW.shipDay(r)) %><% } %></div>
               <% if (r.TrackingCode && r.Status === 'Đang giao') { %><div class="text-muted"><%= r.Carrier %>: <strong><%= r.TrackingCode %></strong></div><% } %>
-              <% if (r.ReturnTrackingCode && r.Status === 'Đang gửi trả') { %><div class="text-muted">Khách gửi trả <%= vi(r.ReturnSentDate) %>: <strong><%= r.ReturnTrackingCode %></strong></div><% } %>
+              <% if (r.ReturnTrackingCode && r.Status === 'Đang gửi trả') { %><div class="text-muted"><%= r.ReturnSentDate ? 'Khách gửi trả' : 'Khách báo gửi (chưa đối chiếu)' %> <%= vi(FLOW.sentDay(r)) %>: <strong><%= r.ReturnTrackingCode %></strong></div><% } %>
               <% if (r.alert) { %><div class="fw-semibold text-<%= r.alert.level === 'info' ? 'primary' : r.alert.level %>"><i class="bi bi-bell"></i> <%= r.alert.text %></div><% } %>
             </div>
             <!-- Thao tác nhanh -->

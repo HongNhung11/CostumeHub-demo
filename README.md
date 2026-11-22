@@ -12,7 +12,90 @@ Cửa hàng cho thuê trang phục nữ (áo dài, váy tiệc – đầm dạ h
 - **Lịch tổng**, **sổ hoàn cọc**, ảnh tình trạng đồ lúc giao và lúc nhận lại.
 - Chạy bằng **Docker**, tự sao lưu mỗi ngày.
 
-**Mục lục:** [Cách chạy](#-cách-chạy) · [Cấu hình](#cấu-hình-env) · [Tài khoản demo](#-tài-khoản-demo) · [Quy trình thuê](#-quy-trình-thuê-đồ) · [Chức năng](#-chức-năng) · [Bảo mật](#bảo-mật-và-dữ-liệu) · [Cấu trúc](#-cấu-trúc-mvc) · [Nhật ký cập nhật](#nhật-ký-cập-nhật) · [Chưa làm](#-chưa-làm)
+**Mục lục:** [Tải về và dùng thử](#tải-về-và-dùng-thử) · [Muốn sửa code](#muốn-sửa-code) · [Cách chạy](#-cách-chạy) · [Cấu hình](#cấu-hình-env) · [Tài khoản demo](#-tài-khoản-demo) · [Quy trình thuê](#-quy-trình-thuê-đồ) · [Chức năng](#-chức-năng) · [Bảo mật](#bảo-mật-và-dữ-liệu) · [Cấu trúc](#-cấu-trúc-mvc) · [Nhật ký cập nhật](#nhật-ký-cập-nhật) · [Chưa làm](#-chưa-làm)
+
+---
+
+## Tải về và dùng thử
+
+**3 bước, không cần cài Node hay PostgreSQL. File `.env` được tự tạo từ `.env.example`.**
+
+1. Cài và mở [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+2. [**Tải file ZIP**](https://github.com/HongNhung11/CostumeHub-demo/archive/refs/heads/main.zip) rồi **giải nén** (hoặc `git clone https://github.com/HongNhung11/CostumeHub-demo.git`).
+3. Chạy:
+   - **Windows:** bấm đúp **`CHAY_WEB.cmd`**. Windows hỏi thì chọn *More info → Run anyway*.
+   - **macOS / Linux:** mở Terminal trong thư mục, gõ `sh chay-web.sh`.
+
+Lần đầu mất vài phút. Xong thì mở **http://localhost:3001** và đăng nhập:
+
+| Vai trò | Tên đăng nhập | Mật khẩu | Nên thử |
+|---|---|---|---|
+| Khách | `khachhang` | `123456` | Chọn size, chọn ngày, đặt thuê COD |
+| Nhân viên | `nhanvien` | `123456` | Việc hôm nay, Lịch tổng, Sổ hoàn cọc |
+| Admin | `admin` | `admin123` | Thống kê, Nhật ký tiền, bật Combo & thuê nhóm |
+
+### Hoặc chạy bằng lệnh (có file .env)
+
+```bash
+# Windows
+copy .env.example .env
+# macOS / Linux
+cp .env.example .env
+
+docker compose up -d --build
+```
+
+`.env` để trống các khóa vẫn chạy được (khóa phiên tự sinh). Cần SePay, email hay đổi cổng thì điền vào file này. **Không commit, không nộp file `.env`**, chỉ nộp `.env.example`.
+
+### Xóa bản cũ, tải bản mới
+
+**Xóa thư mục cũ → tải bản mới → bấm đúp `CHAY_WEB.cmd`.** Vậy là xong, dữ liệu vẫn còn vì nằm trong Docker chứ không nằm trong thư mục.
+
+- Windows không cho xóa thư mục cũ (chỉ gặp ở bản trước 23/11/2026): cứ tải và chạy bản mới trước, rồi xóa sau.
+- Có tự tạo `.env` (SePay, email, đổi cổng) thì chép file đó sang thư mục mới.
+- Tắt web: `docker compose down`. Muốn **xóa sạch dữ liệu** làm lại từ đầu mới dùng `docker compose down -v`.
+
+Mỗi máy có dữ liệu riêng. Đây là bản thử: **đừng nhập CCCD hay thông tin khách thật**. Chưa cấu hình SePay thì chỉ đặt được COD.
+
+Không chạy được? Xem [lỗi hay gặp](HUONG_DAN_NHOM.md#3-lỗi-hay-gặp).
+
+### Chạy test tự động
+
+Test chạy trên Postgres riêng trong RAM, **không đụng dữ liệu đang dùng**:
+
+```bash
+docker compose -p chregress -f docker-compose.test.yml run --build --rm test
+docker compose -p chregress -f docker-compose.test.yml down
+```
+
+Đạt khi cuối màn hình có `fail 0` (mất khoảng 2 phút).
+
+---
+
+## Muốn sửa code
+
+Sửa xong đẩy lên git được, vẫn chạy bằng Docker. Cần 2 thứ:
+
+- Lấy project bằng **`git clone`**. **Bản ZIP chỉ để dùng thử, không push được.**
+- Được chủ repo mời (*Settings → Collaborators → Add people*) và đã bấm nhận lời mời. Không thì bấm Fork.
+
+```bash
+git clone https://github.com/HongNhung11/CostumeHub-demo.git    # chỉ lần đầu
+cd CostumeHub-demo
+git pull                                  # luôn lấy bản mới nhất trước khi sửa
+
+# ... sửa code ...
+
+docker compose up -d --build              # xem kết quả ở http://localhost:3001
+docker compose -p chregress -f docker-compose.test.yml run --build --rm test    # phải "fail 0"
+
+git add duong-dan/file-da-sua             # chỉ add file mình đã sửa
+git commit -m "Sửa gì, để làm gì"
+git pull --rebase
+git push
+```
+
+Việc lớn hoặc muốn bạn khác xem trước thì làm trên nhánh rồi mở Pull Request: [HUONG_DAN_NHOM.md](HUONG_DAN_NHOM.md). Máy đã chạy web bản cũ thì chạy `CHAY_WEB.cmd` một lần trước.
 
 ---
 
@@ -20,33 +103,21 @@ Cửa hàng cho thuê trang phục nữ (áo dài, váy tiệc – đầm dạ h
 
 ### 🐳 Docker + PostgreSQL (khuyên dùng)
 
-Cần **Docker Desktop** (đang bật) và **Node.js 20.17+** (chỉ để tạo file `.env`):
-
-```bash
-git clone https://github.com/HongNhung11/CostumeHub-demo.git
-cd CostumeHub-demo
-node scripts/setup-env.js      # lần đầu: tạo .env với mật khẩu ngẫu nhiên
-docker compose up -d --build
-```
-
-Mở **http://localhost:3001** (đổi bằng `APP_PORT` và `APP_URL` trong `.env`).
+Cách nhanh nhất: [Tải về và dùng thử](#tải-về-và-dùng-thử). Các lệnh tương đương:
 
 | Việc | Lệnh |
 |---|---|
+| Chạy / sửa code xong / vừa `git pull` | `docker compose up -d --build` |
 | Xem log | `docker compose logs -f web` |
 | Sửa `.env` xong | `docker compose up -d` |
-| Sửa code / vừa `git pull` | `docker compose up -d --build` |
+| Lấy bản sao lưu ra máy | `docker compose cp backup:/backups ./backups` |
 | Dừng | `docker compose down` (**không** thêm `-v`: sẽ xóa toàn bộ dữ liệu) |
+
+Dữ liệu thuộc project Docker tên cố định `costumehub`: mọi bản tải về trên cùng một máy dùng chung dữ liệu.
 
 ### Đang có bản cũ trên máy?
 
-Bản này **bắt buộc có `.env` mới** và đổi cổng mặc định từ 3000 sang **3001**. Sau khi `git pull`:
-
-1. Có `.env` cũ thì đổi tên thành `.env.cu` (script không ghi đè file đã có).
-2. Chạy `node scripts/setup-env.js --existing-db` nếu máy đã có dữ liệu Postgres của bản cũ (giữ mật khẩu DB cũ), chưa có thì bỏ `--existing-db`.
-3. Chạy `docker compose up -d --build` **trong đúng thư mục cũ**: tên volume dữ liệu đặt theo tên thư mục.
-
-Bảng và cột mới được tự thêm khi khởi động, dữ liệu cũ giữ nguyên.
+**Lần đầu lên bản mới hãy chạy bằng `CHAY_WEB.cmd` / `sh chay-web.sh`** (đừng gõ thẳng `docker compose up`): file này tự chuyển dữ liệu của bản cũ sang, không xóa bản gốc. Bảng và cột mới được tự thêm, dữ liệu giữ nguyên. Những lần sau dùng cách nào cũng được.
 
 ### Chạy không Docker (SQLite, cần Node 20.17 trở lên)
 
@@ -60,6 +131,8 @@ Chạy cách này thì web ở cổng `PORT` (mặc định 3000), nhớ sửa `
 
 ### Cấu hình (.env)
 
+`CHAY_WEB` tự tạo `.env` từ `.env.example`; chạy bằng lệnh thì tự chép. Cần gì thì sửa trong `.env`.
+
 `.env` chứa bí mật, đã nằm trong `.gitignore`, **không commit**. Mẫu: `.env.example`.
 
 | Biến | Ý nghĩa | Mặc định |
@@ -67,7 +140,10 @@ Chạy cách này thì web ở cổng `PORT` (mặc định 3000), nhớ sửa `
 | `APP_PORT`, `APP_BIND` | Cổng và địa chỉ mở web (`0.0.0.0` = máy khác trong mạng vào được) | `3001`, `127.0.0.1` |
 | `APP_URL` | Địa chỉ dùng trong liên kết email | `http://localhost:3001` |
 | `TRUST_PROXY` | Đặt `1` khi chạy sau Nginx / Cloudflare Tunnel | `0` |
-| `SESSION_SECRET`, `DB_PASSWORD` | Bí mật, script tự sinh | ngẫu nhiên |
+| `SESSION_SECRET` | Khóa phiên | tự sinh |
+| `DB_PASSWORD` | Chỉ cần khi chạy không Docker với Postgres riêng | trống |
+| `DEMO_DATA` | Dùng dữ liệu mẫu. `false` = ẩn đơn mẫu (không xóa) | trống = bật, tự tắt khi `live` |
+| `ADMIN_PASSWORD` | Mật khẩu admin khi tạo CSDL trống không có dữ liệu mẫu | ngẫu nhiên |
 | `SHOW_DEMO_ACCOUNTS` | Hiện tài khoản mẫu ở trang đăng nhập | `false` |
 | `SEPAY_MODE` | `off` / `sandbox` (thử) / `live` (tiền thật) | `off` |
 | `SEPAY_BANK`, `SEPAY_ACCOUNT`, `SEPAY_ACCOUNT_NAME`, `SEPAY_VA` | Tài khoản nhận tiền | trống |
@@ -87,7 +163,7 @@ Hướng dẫn từng bước cho SePay, email, sao lưu và khôi phục: [HUON
 | Vai trò | Tài khoản | Mật khẩu | Làm được gì |
 |---|---|---|---|
 | Admin | `admin` | `admin123` | Mọi quyền của nhân viên + **xóa / import** sản phẩm, **Thống kê**, **Mã giảm giá**, **Combo & thuê nhóm**, **Quản lý tài khoản** |
-| Nhân viên | `nhanvien` | `123456` | Quản lý sản phẩm (thêm, sửa, sao chép, export), xem mọi đơn, giao đồ, nhận trả, **xác nhận thu COD**, **lịch tổng**, **sổ hoàn cọc**, chụp ảnh tình trạng đồ, đổi size, hủy đơn, ẩn / xóa đánh giá |
+| Nhân viên | `nhanvien` | `123456` | Quản lý sản phẩm (thêm, sửa, sao chép, export), xem mọi đơn, giao đồ, nhận trả, **xác nhận thu COD**, **chốt ngày khách gửi trả**, **lịch tổng**, **sổ hoàn cọc**, chụp ảnh tình trạng đồ, đổi size, hủy đơn, ẩn / xóa đánh giá |
 | Khách | `khachhang` | `123456` | Thêm vào giỏ, dùng mã giảm giá, đặt thuê, xem / hủy / đổi size **đơn của mình**, yêu thích, đánh giá có ảnh, sửa thông tin |
 
 > Đây là mật khẩu công khai, chỉ để thử. **Phải đổi trước khi đưa web lên mạng.** Còn mật khẩu mẫu ở tài khoản admin / nhân viên thì web không bật chuyển khoản tiền thật.
@@ -153,8 +229,12 @@ Các trường hợp chuyển khoản:
 | Trường hợp | Web xử lý |
 |---|---|
 | Đúng tài khoản, đúng mã, đúng số tiền | Tự xác nhận, báo khách |
-| Sai số tiền / không có mã đơn | Không xác nhận, vào *Sổ hoàn cọc → Giao dịch cần xử lý* |
-| Tiền về khi đơn đã hủy, hoặc chuyển 2 lần | Ghi khoản cần hoàn |
+| Chuyển thiếu | Giữ đơn (không tự hủy). Chuyển bù đủ thì tự xác nhận |
+| Chuyển thừa | Giữ đơn. Nhân viên bấm *Nhận vào đơn*, phần dư vào sổ hoàn |
+| Không có mã đơn | Vào *Sổ hoàn cọc → Giao dịch cần xử lý* |
+| Chuyển đúng giờ nhưng được báo muộn | Khôi phục đơn nếu đồ còn trống, hết chỗ thì hoàn |
+| Đối soát SePay đang lỗi | Hoãn tự hủy tối đa 60 phút |
+| Chuyển sau hạn, khách đã tự hủy, hoặc chuyển 2 lần | Ghi khoản cần hoàn |
 | Một giao dịch được báo nhiều lần | Chỉ ghi 1 lần |
 
 Đồng hồ giữ chỗ là 5 phút, máy chủ chờ thêm 2 phút cho ngân hàng báo chậm rồi mới hủy. Web **không tự chuyển tiền hoàn**: nhân viên chuyển rồi ghi mã giao dịch vào sổ.
@@ -178,7 +258,7 @@ Giao tận nơi:  Chờ thanh toán → Chờ giao đồ → Đang giao → Đan
 | Chờ giao đồ → Đang giao | Nhân viên: **Đã gửi shipper** | Chọn đơn vị vận chuyển + nhập **mã vận đơn**; từ ngày gửi |
 | Đang giao → Đang thuê | Khách: **Tôi đã nhận được đồ** (hoặc nhân viên) | **Không** ghi đã thu: nhân viên bấm **Đã thu COD** khi nhận được tiền |
 | (không đổi trạng thái) | Nhân viên: **Đã thu COD** | Đơn COD giao tận nơi, khi đã nhận tiền từ khách / shipper |
-| Đang thuê → Đang gửi trả | Khách: **Tôi đã gửi trả** + mã vận đơn chiều về | Phí trễ tính theo **ngày khách gửi**, không theo ngày đồ về shop |
+| Đang thuê → Đang gửi trả | Khách: **Tôi đã gửi trả** + mã vận đơn chiều về | Chỉ là lời báo. Nhân viên **chốt ngày gửi theo vận đơn**, phí trễ tính theo ngày đó |
 | → Hoàn tất | Nhân viên: **Nhận lại đồ** | Kiểm tra theo bảng nội quy, tự tính phí → hoàn cọc; đồ bận thêm 1 ngày giặt |
 
 Trang đơn có **thanh tiến trình** các bước. Khách nhận **thông báo** ở mỗi bước (kèm mã vận đơn) và lời nhắc ngày mai / hôm nay nhận đồ, gửi trả.
@@ -250,6 +330,8 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 - **Lịch tổng** `/rentals/calendar` (menu *Đơn thuê*): mỗi ngày có bao nhiêu việc gửi / giao / thu hồi / đồ về, và bao nhiêu bộ đang bận.
 - **Sổ hoàn cọc** `/admin/money` (menu *Đơn thuê*): khoản phải hoàn, khoản khách phải trả thêm, giao dịch chuyển khoản cần xử lý, tình trạng kết nối SePay.
 - **Ảnh tình trạng đồ** (trong trang đơn): chụp lúc giao và lúc nhận lại, tối đa 10 ảnh mỗi lần, không xóa được để làm bằng chứng khi trừ cọc.
+- **Tài khoản nhận hoàn**: khách khai trong trang đơn (phải nhập mật khẩu). Nhân viên thấy trong Sổ hoàn cọc, khách đổi giữa chừng thì phải kiểm tra lại mới ghi sổ được.
+- **Đổi size khi đang thuê**: size vừa mặc bận tới khi về shop và giặt xong.
 - **Cảnh báo**: quá ngày gửi đồ, quá ngày nhận chưa lấy đồ, quá hạn trả / gửi trả, đã gửi trả mà quá ngày dự kiến chưa về shop.
 - **Tìm kiếm** theo mã đơn, tên khách, SĐT, tên trang phục; **lọc** theo trạng thái / quá hạn; phân trang 15 đơn/trang.
 - **Khách liên hệ** `/admin/contacts` (menu *Liên hệ* của admin / nhân viên): danh sách khách gửi form liên hệ cần tư vấn, lọc *Mới / Đang tư vấn / Đã tư vấn*, ghi chú, số yêu cầu mới hiện trên menu.
@@ -257,6 +339,7 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 ### Quản trị (admin)
 - **Mã giảm giá** `/admin/coupons`: tạo mã, bật / tắt, xem số lượt đã dùng; mã đã dùng không xóa được (giữ đúng hóa đơn cũ).
 - **Combo & thuê nhóm** `/admin/bundles`: tạo, bật / tắt, xóa. Dữ liệu mẫu có 2 ưu đãi đang **tắt**; cơ sở dữ liệu cũ cũng được thêm 2 ưu đãi này ở trạng thái tắt.
+- **Nhật ký tiền** `/admin/audit`: ai xác nhận chuyển khoản, thu COD, hủy, chốt ngày gửi, hoàn tiền, lúc nào, bao nhiêu. Nhân viên xem được nhật ký trong từng đơn.
 - **Thống kê** `/admin/stats`: doanh thu theo tháng (tiền thuê đã trừ mã giảm giá + phí trễ + phí hư hỏng + phí hủy, không tính cọc), đơn theo trạng thái, đơn đang hoạt động & cọc đang giữ, top 10 mẫu thuê nhiều nhất.
 - **Tài khoản** `/admin/users`: tạo tài khoản nhân viên / admin, đổi vai trò, khóa / mở khóa (bị đăng xuất ngay), đặt lại mật khẩu. Luôn còn ít nhất 1 admin.
 
@@ -270,14 +353,18 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 
 | Hạng mục | Cách làm |
 |---|---|
-| Đăng nhập | Khóa 15 phút sau 5 lần sai (theo IP + tài khoản); đổi session id khi đăng nhập; đổi mật khẩu thì các thiết bị khác bị đăng xuất |
+| Đăng nhập | Máy lạ khóa 15 phút sau 5 lần sai, máy quen có bộ đếm riêng (người lạ không khóa được chính chủ); đổi session id khi đăng nhập; đổi mật khẩu thì các thiết bị khác bị đăng xuất |
 | CSRF | Kiểm tra Fetch Metadata / Origin cho mọi POST, cookie `SameSite=Lax` |
 | Session, giỏ thuê | Lưu trong CSDL (chỉ lưu hash của session id), khởi động lại không mất |
 | Trùng lịch | Khóa dòng `SELECT … FOR UPDATE` khi đặt, đổi size, sửa kho |
 | Sửa đơn cùng lúc | Khóa lạc quan theo cột `version` |
+| Email | Đổi email cần mật khẩu và xác minh; chỉ email đã xác minh nhận thư và đặt lại mật khẩu |
+| Xóa sản phẩm | Khóa dòng + khóa ngoại `RESTRICT`, không làm mất đơn |
+| Dữ liệu thử / mẫu | Mỗi đơn, giao dịch, khoản sổ có nhãn `real` / `demo` / `test`; tiền thử không khớp đơn thật |
 | Webhook | Chữ ký HMAC-SHA256, từ chối gói tin lệch quá 5 phút |
 | Ảnh CCCD | Riêng tư, tự xóa sau 30 ngày kể từ khi đơn kết thúc, không đưa vào bản sao lưu |
-| Sao lưu | Mỗi ngày vào `backups/` (CSDL + ảnh), giữ 14 ngày |
+| Sao lưu | Mỗi ngày vào volume `backups` (CSDL + ảnh), giữ 14 ngày |
+| CSDL | Không nghe cổng mạng, chỉ nhận kết nối qua socket nội bộ giữa các container |
 | Múi giờ | `Asia/Ho_Chi_Minh` cho cả web và CSDL |
 
 ---
@@ -288,7 +375,7 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 ├── server.js                 # Khởi động, nâng cấp CSDL cũ, xử lý lỗi chung
 ├── config/                   # database, sessionStore, banks.json (mã BIN ngân hàng)
 ├── models/                   # Product, ProductVariant, ProductImage, User, Rental, RentalItem, Review, Favorite, Coupon,
-│                             #   Notification, ContactRequest, Payment, LedgerEntry, Bundle, HandoverPhoto, Session
+│                             #   Notification, ContactRequest, Payment, LedgerEntry, Bundle, HandoverPhoto, Session, AuditLog, SwapHold
 ├── controllers/              # product, cart, rental, review, favorite, coupon, notification, contact, auth, password,
 │                             #   account, user (admin), stats, home, bundle, calendar, money, photo
 ├── routes/                   # index, products, cart, rentals, admin, webhooks (SePay)
@@ -302,6 +389,8 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 ├── views/                    # EJS + Bootstrap
 ├── public/                   # CSS, JS (lịch, gợi ý size), ảnh mẫu, uploads/
 ├── private_uploads/          # ảnh CCCD, ảnh tình trạng đồ (không công khai, tạo khi chạy)
+├── test/                     # test tự động (chạy bằng docker-compose.test.yml)
+├── CHAY_WEB.cmd, chay-web.sh # bấm là chạy
 ├── scripts/                  # setup-env, backup, restore
 ├── seed/seed.js              # Dữ liệu mẫu
 ├── docker-compose.yml        # web + PostgreSQL + backup
@@ -311,6 +400,31 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 ---
 
 ## Nhật ký cập nhật
+
+### 23/11/2026
+
+**Sửa**
+1. Đơn có tiền chuyển lệch không còn bị tự hủy; chuyển bù đủ thì tự xác nhận.
+2. Tiền về đúng giờ nhưng được báo muộn thì khôi phục đơn.
+3. Email không mất khi máy chủ thư hỏng vài phút (giữ tới 72 giờ).
+4. Người lạ không khóa được tài khoản người khác bằng cách gõ sai mật khẩu.
+5. Khách vãng lai xem web không tạo session trong CSDL.
+6. Đơn "Đang giao" quá hạn vẫn giữ đồ.
+7. Size vừa đổi ra phải qua ngày giặt mới cho thuê lại.
+8. Phí trễ theo ngày nhân viên đối chiếu vận đơn, không theo lời khách bấm.
+9. Xóa sản phẩm không thể làm mất đơn.
+10. Đổi email cần mật khẩu và xác minh.
+11. Mã sai trên đường dẫn báo 404 thay vì 500.
+
+**Thêm**
+- Tài khoản nhận hoàn, nhật ký tiền, công tắc dữ liệu mẫu, tách dữ liệu Test mode.
+- Phân trang đơn thuê trong CSDL, test tự động trong repo, hướng dẫn cho nhóm.
+
+**Cần làm sau khi pull**
+- Chạy `CHAY_WEB.cmd` / `sh chay-web.sh` một lần: tự chuyển dữ liệu và nâng cấp CSDL. Không còn bắt buộc có `.env`.
+- Email của tài khoản cũ được coi là **chưa xác minh**: vào *Tài khoản của tôi → Gửi lại thư xác minh*.
+- Đơn đang gửi trả sẽ chờ nhân viên chốt lại ngày gửi theo vận đơn.
+- Khi `SEPAY_MODE=live`, đơn mẫu tự ẩn (không bị xóa).
 
 ### 22/11/2026
 
@@ -331,13 +445,13 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 - Postgres không mở cổng ra ngoài; nâng cấp các thư viện có lỗ hổng (xlsx, multer, sqlite3, fast-xml-parser).
 
 **Thay đổi cần lưu ý khi cập nhật**
-- Bắt buộc có `.env` (xem [Đang có bản cũ trên máy?](#đang-có-bản-cũ-trên-máy)); cổng Docker mặc định là 3001; cần Node 20.17+.
+- (Bản 22/11 bắt buộc có `.env`, từ 23/11 thì không.) Cổng Docker mặc định là 3001; cần Node 20.17+.
 - Bỏ nút "Tôi đã chuyển khoản". Chưa cấu hình SePay thì khách chỉ chọn được COD.
 
 **Đã kiểm thử**
 - Trên PostgreSQL thật: đặt đồng thời, thanh toán, COD, email (máy chủ thư giả), khởi động lại, sao lưu và khôi phục, nâng cấp từ bản cũ.
 - Giao diện trên Chrome ở 35 độ rộng màn hình, từ 320 đến 3072 px.
-- **Chưa thử** với tài khoản SePay / SMTP thật, Safari và Firefox. Kịch bản kiểm thử chưa nằm trong repo.
+- **Chưa thử** với tài khoản SePay / SMTP thật, Safari và Firefox.
 
 ---
 
@@ -345,5 +459,5 @@ Trang **Việc hôm nay** (menu *Đơn thuê → Việc hôm nay*) gom đơn the
 
 - **AI**: OCR CCCD tự điền số (Tesseract.js), gợi ý trang phục / tìm kiếm thông minh. (Gợi ý size hiện tại tính theo quy tắc, không dùng AI.)
 - **Nhắc qua Zalo** (cần Official Account và mẫu tin được duyệt).
-- **Hoàn tiền tự động**, kiểm thử tự động (CI).
+- **Hoàn tiền tự động**; chạy test tự động trên GitHub (CI).
 - **Phí ship** theo khu vực; trang cài đặt số ngày vận chuyển cho admin (hiện sửa ở `utils/shipping.js`).

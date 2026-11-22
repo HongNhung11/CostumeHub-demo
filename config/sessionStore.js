@@ -6,7 +6,12 @@ const { Session } = require('../models');
 
 const TTL_MS = 7 * 864e5;
 const hash = (sid) => crypto.createHash('sha256').update(sid).digest('hex');
-const expiryOf = (s) => (s?.cookie?.expires ? new Date(s.cookie.expires) : new Date(Date.now() + TTL_MS));
+const GUEST_TTL_MS = 2 * 36e5;
+// Phiên vãng lai không có giỏ (chỉ còn thông báo, trang quay lại...) -> dọn sau 2 giờ
+const expiryOf = (s) => {
+  if (!s?.user && !s?.cart?.length) return new Date(Date.now() + GUEST_TTL_MS);
+  return s.cookie?.expires ? new Date(s.cookie.expires) : new Date(Date.now() + TTL_MS);
+};
 
 class DbStore extends session.Store {
   constructor() {

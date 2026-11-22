@@ -4,6 +4,7 @@ node_modules
 !.env.example
 data
 backups
+state
 public/uploads/*
 npm-debug.log
 .git

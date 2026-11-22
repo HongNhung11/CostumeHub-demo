@@ -31,7 +31,7 @@ exports.index = async (req, res) => {
       Status: { [Op.in]: [...ACTIVE, 'Hoàn tất'] },
       StartDate: { [Op.lte]: addDays(to, margin) },
       // đơn quá hạn chưa trả vẫn giữ đồ, dù hạn trả đã qua từ lâu
-      [Op.or]: [{ EndDate: { [Op.gte]: addDays(from, -margin) } }, { Status: { [Op.in]: ['Đang thuê', 'Đang gửi trả'] } }],
+      [Op.or]: [{ EndDate: { [Op.gte]: addDays(from, -margin) } }, { Status: { [Op.in]: ['Đang giao', 'Đang thuê', 'Đang gửi trả'] } }],
     },
     include: [{ model: RentalItem, as: 'items' }],
     order: [['RentalID', 'ASC']],
@@ -60,7 +60,7 @@ exports.index = async (req, res) => {
     // Số bộ bận: cùng quy tắc với kiểm tra trùng lịch
     let end = addDays(r.EndDate, ship);
     if (done && r.ReturnDate) end = r.ReturnDate;
-    else if (['Đang thuê', 'Đang gửi trả'].includes(r.Status) && end < today) end = today;
+    else if (['Đang giao', 'Đang thuê', 'Đang gửi trả'].includes(r.Status) && end < today) end = today;
     end = addDays(end, CLEAN_DAYS);
     let d = addDays(r.StartDate, -ship);
     if (d < from) d = from;

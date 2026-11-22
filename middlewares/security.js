@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { APP_URL } = require('../utils/env');
+const { knownDevice } = require('../utils/device');
 
 function headers(req, res, next) {
   res.set({
@@ -44,34 +45,52 @@ const tooMany = (back) => (req, res) => {
   res.redirect(back);
 };
 
-// Trong Docker mọi khách có thể chung 1 IP (gateway) -> giới hạn chặt theo IP + tài khoản, nới theo IP
-const loginByAccount = rateLimit({
-  ...common, windowMs: 15 * 60e3, limit: 5,
+// Qua Docker mọi khách chung 1 IP (172.17.0.1), nên:
+//  - máy quen (cookie đã ký): bộ đếm riêng theo máy, người lạ gõ sai không khóa được chính chủ
+//  - máy lạ: 5 lần / 15 phút theo IP + tài khoản
+//  - giới hạn gộp theo IP để rất rộng khi IP là địa chỉ nội bộ (nhiều người chung)
+const sharedIp = (ip) => /^(::1$|(::ffff:)?(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)|f[cd][0-9a-f]{2}:)/i.test(String(ip || ''));
+const byIp = (normal, shared) => (req) => (sharedIp(req.ip) ? shared : normal);
+const loginOptions = {
+  ...common, windowMs: 15 * 60e3,
   skipSuccessfulRequests: true,
   requestWasSuccessful: (req, res) => res.locals.loginOk === true,
+  handler: tooMany('/login'),
+};
+const device = (req) => knownDevice(req, req.body?.username);
+const loginKnown = rateLimit({
+  ...loginOptions, limit: 10,
+  skip: (req) => !device(req),
+  keyGenerator: (req) => `device:${device(req)}:${keyPart(req.body?.username)}`,
+});
+const loginUnknown = rateLimit({
+  ...loginOptions, limit: 5,
+  skip: (req) => !!device(req),
   keyGenerator: (req) => `${ipKeyGenerator(req.ip)}:${keyPart(req.body?.username)}`,
-  handler: tooMany('/login'),
 });
-const loginByIp = rateLimit({
-  ...common, windowMs: 15 * 60e3, limit: 100,
-  skipSuccessfulRequests: true,
-  requestWasSuccessful: (req, res) => res.locals.loginOk === true,
-  handler: tooMany('/login'),
-});
-const register = rateLimit({ ...common, windowMs: 60 * 60e3, limit: 30, handler: tooMany('/register') });
+const loginByIp = rateLimit({ ...loginOptions, limit: byIp(100, 2000), skip: (req) => !!device(req) });
+const register = rateLimit({ ...common, windowMs: 60 * 60e3, limit: byIp(30, 600), handler: tooMany('/register') });
 const forgot = rateLimit({
   ...common, windowMs: 60 * 60e3, limit: 5,
   keyGenerator: (req) => `${ipKeyGenerator(req.ip)}:${keyPart(req.body?.email)}`,
   handler: tooMany('/quen-mat-khau'),
 });
-const forgotByIp = rateLimit({ ...common, windowMs: 60 * 60e3, limit: 30, handler: tooMany('/quen-mat-khau') });
+const forgotByIp = rateLimit({ ...common, windowMs: 60 * 60e3, limit: byIp(30, 300), handler: tooMany('/quen-mat-khau') });
 const passwordChange = rateLimit({
   ...common, windowMs: 15 * 60e3, limit: 10,
   keyGenerator: (req) => `user:${req.session?.user?.id || 0}`,
   handler: tooMany('/account'),
 });
+// Các form phải nhập mật khẩu hiện tại (đổi email, tài khoản nhận hoàn): chỉ tính lần sai
+const reauth = rateLimit({
+  ...common, windowMs: 15 * 60e3, limit: 10,
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: (req, res) => res.locals.reauthFailed !== true,
+  keyGenerator: (req) => `reauth:${req.session?.user?.id || 0}`,
+  handler: tooMany('/account'),
+});
 
 module.exports = {
   headers, csrf,
-  limits: { login: [loginByIp, loginByAccount], register, forgot: [forgotByIp, forgot], passwordChange },
+  limits: { login: [loginByIp, loginKnown, loginUnknown], register, forgot: [forgotByIp, forgot], passwordChange, reauth },
 };

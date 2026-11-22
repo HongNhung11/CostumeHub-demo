@@ -39,7 +39,7 @@
         </form>
       </div>
     <% } %>
-    <form method="POST" action="/rentals/<%= rental.RentalID %>/return" id="returnForm" data-unpaid="<%= codDue %>"
+    <form method="POST" action="/rentals/<%= rental.RentalID %>/return" id="returnForm" data-unpaid="<%= codDue %>" data-sent="<%= rental.ReturnSentDate || '' %>" data-due="<%= rental.EndDate %>"
           data-deposit="<%= Number(rental.Deposit) %>" data-late="<%= latePerDay %>" data-end="<%= graceEnd %>">
       <div class="card p-3 mb-3">
         <label class="form-label">Ngày trả thực tế</label>
@@ -48,6 +48,13 @@
         <small class="text-muted">Từ ngày nhận (<%= vi(rental.StartDate) %>) đến hôm nay. Shop nhận sau ngày <%= vi(graceEnd) %> sẽ tự tính phí phạt.<% if (rental.ShipDays) { %> (Đơn giao xa: khách gửi trả ngày <%= vi(rental.EndDate) %>, cộng <%= rental.ShipDays %> ngày vận chuyển.)<% } %></small>
       </div>
 
+      <% if (FLOW.sentPending(rental)) { %>
+        <div class="card p-3 mb-3 border-warning">
+          <label class="form-label" for="SentDate">Ngày khách gửi, theo vận đơn <span class="text-danger">*</span></label>
+          <input type="date" name="SentDate" id="SentDate" class="form-control" style="max-width:220px" max="<%= today %>" required>
+          <small class="text-muted">Khách báo gửi ngày <%= vi(rental.ReturnClaimedDate) %>, mã <%= rental.ReturnTrackingCode %>. Phí trễ tính theo ngày bạn nhập, hãy tra vận đơn.</small>
+        </div>
+      <% } %>
       <!-- Kiểm tra từng món theo BẢNG NỘI QUY: nhập số bộ bị ảnh hưởng (0 = không có) -->
       <div class="card p-3 mb-3">
         <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-2">
@@ -110,7 +117,8 @@
       const vnd = n => n.toLocaleString('vi-VN') + ' đ';
       const rd = document.getElementById('ReturnDate'), other = document.getElementById('OtherFee'), note = document.getElementById('OtherNote');
       function calc() {
-        const days = Math.max(0, Math.round((new Date(rd.value) - new Date(end)) / 86400000)) || 0;
+        const sentInput = document.getElementById('SentDate'), sent = sentInput ? sentInput.value : f.dataset.sent;   // có ngày gửi -> so với hạn trả
+        const days = Math.max(0, Math.round((new Date(sent || rd.value) - new Date(sent ? f.dataset.due : end)) / 86400000)) || 0;
         const late = days * latePer;
         let dmg = Math.max(0, +other.value || 0);
         f.querySelectorAll('.fee-n').forEach(i => { dmg += Math.max(0, +i.value || 0) * +i.dataset.unit; });
