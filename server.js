@@ -296,8 +296,8 @@ async function guardLivePayments() {
     await sequelize.authenticate();
     console.log(`✅ Kết nối CSDL (${sequelize.getDialect()}) thành công.`);
     await sequelize.sync();            // tạo bảng nếu chưa có
-    await require('./utils/migrate').upgrade();   // trước migrateSchema: các model đã đọc cột mới
     await migrateSchema();             // thêm cột mới, chuyển trạng thái SP cũ
+    await require('./utils/migrate').upgrade();   // SAU migrateSchema: upgrade đọc Rentals, cần đủ cột của bản 22/11
     await migrateRentalsToItems();     // chuyển dữ liệu đơn thuê cũ (nếu có)
     await seed();                      // nạp dữ liệu mẫu nếu rỗng
     await migrateVariants();           // số lượng theo size × màu cho SP chưa có

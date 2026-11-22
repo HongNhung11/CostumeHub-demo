@@ -9,7 +9,8 @@ CÁCH CHẠY:
   - macOS / Linux:  sh chay-web.sh
   Xong mở trình duyệt vào:  http://localhost:3001
 
-CẬP NHẬT: xóa thư mục cũ, tải bản mới, chạy lại y như trên. Dữ liệu vẫn còn.
+CẬP NHẬT: chép .env và backups/ ra ngoài (nếu có), chỉ xóa thư mục cũ, KHÔNG xóa container / volume,
+  tải bản mới rồi chạy CHAY_WEB. Bản chạy không Docker: đọc README trước khi xóa.
 
 LỆNH HAY DÙNG:
   - Xem log:            docker compose logs -f web

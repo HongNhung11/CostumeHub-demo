@@ -1,6 +1,6 @@
 # Hướng dẫn cho thành viên nhóm
 
-- Chỉ muốn **tải về dùng thử**: làm theo [README](README.md#tải-về-và-dùng-thử).
+- Chỉ muốn **tải về dùng thử**: làm theo [README](README.md#chạy-lần-đầu).
 - Muốn **sửa code**: chạy được theo README trước, rồi làm [phần 1](#1-sửa-code-và-gửi-lên).
 - Gặp lỗi: xem [phần 3](#3-lỗi-hay-gặp).
 
@@ -8,7 +8,7 @@
 
 Cần lấy project bằng `git clone` (bản ZIP không push được).
 
-- Sửa nhỏ, không cần duyệt: làm theo [README](README.md#muốn-sửa-code), push thẳng `main` sau khi test đạt.
+- Sửa nhỏ, không cần duyệt: sửa trên `main`, chạy test đạt rồi `git add` file đã sửa, `git commit`, `git pull --rebase`, `git push`.
 - Việc lớn hoặc cần người xem: mỗi việc một nhánh, gửi bằng Pull Request như các bước dưới đây.
 
 ### Chuẩn bị (chỉ một lần)

@@ -17,8 +17,8 @@
 | `a03a877` | Quản lý tài khoản (admin), cảnh báo đơn quá hạn, tìm/lọc/phân trang đơn, import có kiểm tra, gộp trạng thái SP, dọn ảnh cũ |
 | `2724376` | Thống kê cho admin, trang Tài khoản của tôi, volume Docker cho ảnh upload, cập nhật tài liệu |
 | `62bc558` → `ed1e5a3` | Nội quy & phí, size × màu, quy trình giao nhận, lịch chọn ngày, sale, form liên hệ (chi tiết: `git log`) |
-| 23/11/2026 | Sửa 11 lỗi (tiền, lịch, bảo mật), nhật ký tiền, tách dữ liệu thử, test tự động (chi tiết: README) |
-| 22/11/2026 | Sửa giao diện, bảo mật, SePay, combo, lịch tổng, sổ hoàn cọc, sửa COD (chi tiết: *Nhật ký cập nhật* trong README) |
+| 23/11/2026 | Sửa 11 lỗi (tiền, lịch, bảo mật), nhật ký tiền, tách dữ liệu thử, test tự động (chi tiết: `git log`) |
+| 22/11/2026 | Sửa giao diện, bảo mật, SePay, combo, lịch tổng, sổ hoàn cọc, sửa COD (chi tiết: `git log`) |
 
 ---
 
