@@ -18,6 +18,8 @@ Cửa hàng cho thuê trang phục nữ (áo dài, váy tiệc – đầm dạ h
 
 ## 🚀 Cách chạy
 
+> **Thành viên nhóm:** cách dùng thử (không cần cài Node), cách sửa code và gửi Pull Request: [HUONG_DAN_NHOM.md](HUONG_DAN_NHOM.md).
+
 ### 🐳 Docker + PostgreSQL (khuyên dùng)
 
 Cần **Docker Desktop** (đang bật) và **Node.js 20.17+** (chỉ để tạo file `.env`):
